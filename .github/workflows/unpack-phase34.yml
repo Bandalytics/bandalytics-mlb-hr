@@ -1,0 +1,30 @@
+name: Unpack Phase 34
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "BANDALYTICS_v95_FULL_SIM_PHASE34_SOURCE.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack Phase 34
+        run: |
+          unzip -o BANDALYTICS_v95_FULL_SIM_PHASE34_SOURCE.zip -d /tmp/phase34
+          cp -a /tmp/phase34/bandalytics_phase34/. .
+          rm -f BANDALYTICS_v95_FULL_SIM_PHASE34_SOURCE.zip
+
+      - name: Commit source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Unpack Bandalytics Phase 34 source" || exit 0
+          git push
