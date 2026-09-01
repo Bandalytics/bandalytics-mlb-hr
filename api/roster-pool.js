@@ -1,0 +1,2 @@
+import{buildRosterPool}from'../roster-native-core.mjs';
+export default async function handler(req,res){const date=String(req.query?.date||'');try{const z=await buildRosterPool({date,timeoutMs:10000});res.setHeader('Cache-Control','s-maxage=120, stale-while-revalidate=300');return res.status(200).json(z)}catch(e){return res.status(502).json({ok:false,date,error:e?.name==='AbortError'?'MLB timeout':e?.message||String(e),source:'MLB_ACTIVE_ROSTER_DIRECT',research_only:true,model_scoring_changed:false})}}
