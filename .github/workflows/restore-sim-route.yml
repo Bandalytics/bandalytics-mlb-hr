@@ -1,0 +1,66 @@
+name: Restore Sim Lab Route
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Sim Lab build output and route
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          // 1. Make build.mjs publish sim-lab.html as dist/sim.html
+          let build = fs.readFileSync('build.mjs', 'utf8');
+
+          if (!build.includes("dist/sim.html")) {
+            const marker = "await fs.writeFile('dist/index.html',html);";
+            if (!build.includes(marker)) {
+              throw new Error('Could not find dist/index.html build marker');
+            }
+
+            build = build.replace(
+              marker,
+              "await fs.writeFile('dist/index.html',html);await fs.copyFile('sim-lab.html','dist/sim.html');"
+            );
+
+            fs.writeFileSync('build.mjs', build);
+          }
+
+          // 2. Restore /sim -> /sim.html rewrite
+          const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+          vercel.rewrites = Array.isArray(vercel.rewrites) ? vercel.rewrites : [];
+
+          if (!vercel.rewrites.some(r => r.source === '/sim')) {
+            vercel.rewrites.unshift({
+              source: '/sim',
+              destination: '/sim.html'
+            });
+          }
+
+          fs.writeFileSync('vercel.json', JSON.stringify(vercel, null, 2) + '\n');
+
+          console.log('Sim Lab build + route restored');
+          NODE
+
+      - name: Verify patch
+        run: |
+          test -f sim-lab.html
+          grep -q "dist/sim.html" build.mjs
+          grep -q '"source": "/sim"' vercel.json
+
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add build.mjs vercel.json
+          git commit -m "Restore Sim Lab production route" || exit 0
+          git push
