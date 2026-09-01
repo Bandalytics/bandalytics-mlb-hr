@@ -1,0 +1,122 @@
+name: Repair Consolidated API Router
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build one API router with explicit rewrites
+        run: |
+          set -e
+
+          test -d api-handlers
+
+          rm -rf api
+          mkdir -p api
+
+          node <<'NODE'
+          const fs = require('fs');
+
+          const files = fs.readdirSync('api-handlers')
+            .filter(f => f.endsWith('.js'))
+            .sort();
+
+          if (!files.length) {
+            throw new Error('No API handlers found');
+          }
+
+          const imports = [];
+          const entries = [];
+
+          files.forEach((file, i) => {
+            const route = file.replace(/\.js$/, '');
+            imports.push(`import h${i} from "../api-handlers/${file}";`);
+            entries.push(`  ${JSON.stringify(route)}: h${i}`);
+          });
+
+          const router = `${imports.join('\n')}
+
+          const handlers = {
+          ${entries.join(',\n')}
+          };
+
+          export default async function router(req, res) {
+            const route = String(req.query?.route || '').trim();
+
+            const handler = handlers[route];
+
+            if (!handler) {
+              return res.status(404).json({
+                ok: false,
+                error: "API_ROUTE_NOT_FOUND",
+                route,
+                available: Object.keys(handlers)
+              });
+            }
+
+            try {
+              return await handler(req, res);
+            } catch (error) {
+              console.error("BANDALYTICS API ROUTER", route, error);
+
+              if (!res.headersSent) {
+                return res.status(500).json({
+                  ok: false,
+                  error: "API_ROUTE_FAILED",
+                  route
+                });
+              }
+            }
+          }
+          `;
+
+          fs.writeFileSync('api/router.js', router);
+
+          const vercel = JSON.parse(fs.readFileSync('vercel.json', 'utf8'));
+
+          const existing = Array.isArray(vercel.rewrites)
+            ? vercel.rewrites.filter(r => !String(r.source || '').startsWith('/api/'))
+            : [];
+
+          const apiRewrites = files.map(file => {
+            const route = file.replace(/\.js$/, '');
+
+            return {
+              source: `/api/${route}`,
+              destination: `/api/router?route=${encodeURIComponent(route)}`
+            };
+          });
+
+          vercel.rewrites = [...apiRewrites, ...existing];
+
+          fs.writeFileSync(
+            'vercel.json',
+            JSON.stringify(vercel, null, 2) + '\n'
+          );
+
+          console.log(`Router created for ${files.length} API routes`);
+          NODE
+
+      - name: Verify simulator routes exist
+        run: |
+          test -f api/router.js
+          grep -q '"source": "/api/sim-slate"' vercel.json
+          grep -q '"source": "/api/sim-players"' vercel.json
+          grep -q '"source": "/api/sim-market"' vercel.json
+          grep -q '"source": "/sim"' vercel.json
+
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api vercel.json
+          git commit -m "Repair consolidated API routing" || exit 0
+          git push
