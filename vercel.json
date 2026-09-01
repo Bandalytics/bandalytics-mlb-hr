@@ -23,6 +23,10 @@
   ],
   "rewrites": [
     {
+      "source": "/sim",
+      "destination": "/sim.html"
+    },
+    {
       "source": "/api/iso-savant-split-qa",
       "destination": "/api/aux?route=iso-savant-split-qa"
     },
