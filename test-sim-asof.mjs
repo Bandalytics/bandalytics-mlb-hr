@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {seasonStartForDate} from './sim-data-core.mjs';
+import {buildGameMatchup} from './sim-auto-core.mjs';
+assert.equal(seasonStartForDate('2026-08-31'),'2026-03-20');
+const g=buildGameMatchup({game:{gamePk:1,away:'TB',home:'NYM',venue:'X'},feed:{lineup_players:[{team:'TB',lineup:1,iso:.300},{team:'NYM',lineup:1,iso:.050}]},historicalSafe:true,includeScoreGrid:true});
+assert.equal(g.provenance.historicalSafe,true);
+assert.equal(g.provenance.park.source,'HISTORICAL_SAFE_NEUTRAL');
+assert.equal(g.away.lineup.qualityIndex,0);
+assert.equal(g.away.offense.ISO,.160);
+assert.equal(g.includeScoreGrid,true);
+console.log('sim as-of historical safety: ok');

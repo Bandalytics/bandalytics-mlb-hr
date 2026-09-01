@@ -1,0 +1,1019 @@
+{
+  "slates": [
+    {
+      "date": "2026-08-26",
+      "tired-pen": {
+        "rows": 117,
+        "cohorts": 14,
+        "complete_cohorts": 14,
+        "all_cohorts_complete": true,
+        "detail": [
+          {
+            "team": "BOS",
+            "opp_pitcher": "Ryan Gusto",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "CHC",
+            "opp_pitcher": "Eduardo Rodriguez",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "CIN",
+            "opp_pitcher": "",
+            "lens_rows": 1,
+            "universe_rows": 1,
+            "complete_cohort": true
+          },
+          {
+            "team": "CIN",
+            "opp_pitcher": "Landen Roupp",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "CLE",
+            "opp_pitcher": "Grayson Rodriguez",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "DET",
+            "opp_pitcher": "Freddy Peralta",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "LAA",
+            "opp_pitcher": "Joey Cantillo",
+            "lens_rows": 8,
+            "universe_rows": 8,
+            "complete_cohort": true
+          },
+          {
+            "team": "MIA",
+            "opp_pitcher": "Sonny Gray",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "MIN",
+            "opp_pitcher": "J.T. Ginn",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "PIT",
+            "opp_pitcher": "Randy Vásquez",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "SD",
+            "opp_pitcher": "Bubba Chandler",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "TB",
+            "opp_pitcher": "Troy Melton",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "TEX",
+            "opp_pitcher": "Sean Burke",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "WSH",
+            "opp_pitcher": "Tanner Gordon",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          }
+        ]
+      },
+      "vs-weak-pitcher": {
+        "rows": 24,
+        "cohorts": 10,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "CLE",
+            "opp_pitcher": "Grayson Rodriguez",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "COL",
+            "opp_pitcher": "Matt Waldron",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAA",
+            "opp_pitcher": "Joey Cantillo",
+            "lens_rows": 1,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAD",
+            "opp_pitcher": "AJ Smith-Shawver",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIL",
+            "opp_pitcher": "Robert Stock",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "OAK",
+            "opp_pitcher": "Connor Prielipp",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "PIT",
+            "opp_pitcher": "Randy Vásquez",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "SD",
+            "opp_pitcher": "Bubba Chandler",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "STL",
+            "opp_pitcher": "Kyle Bradish",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "WSH",
+            "opp_pitcher": "Tanner Gordon",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "barrel-match": {
+        "rows": 4,
+        "cohorts": 2,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "DET",
+            "opp_pitcher": "Freddy Peralta",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "TB",
+            "opp_pitcher": "Troy Melton",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "double-edge": {
+        "rows": 16,
+        "cohorts": 5,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "CLE",
+            "opp_pitcher": "Grayson Rodriguez",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "COL",
+            "opp_pitcher": "Matt Waldron",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIL",
+            "opp_pitcher": "Robert Stock",
+            "lens_rows": 6,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "OAK",
+            "opp_pitcher": "Connor Prielipp",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "TOR",
+            "opp_pitcher": "Randy Dobnak",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "hidden-edge": {
+        "rows": 6,
+        "cohorts": 5,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "BOS",
+            "opp_pitcher": "Ryan Gusto",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "DET",
+            "opp_pitcher": "Freddy Peralta",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAD",
+            "opp_pitcher": "AJ Smith-Shawver",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIL",
+            "opp_pitcher": "Robert Stock",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "STL",
+            "opp_pitcher": "Kyle Bradish",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "mispriced": {
+        "rows": 6,
+        "cohorts": 5,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "DET",
+            "opp_pitcher": "Freddy Peralta",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAD",
+            "opp_pitcher": "AJ Smith-Shawver",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "NYY",
+            "opp_pitcher": "Peter Lambert",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "SD",
+            "opp_pitcher": "Bubba Chandler",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "TOR",
+            "opp_pitcher": "Randy Dobnak",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-08-27",
+      "tired-pen": {
+        "rows": 87,
+        "cohorts": 11,
+        "complete_cohorts": 11,
+        "all_cohorts_complete": true,
+        "detail": [
+          {
+            "team": "ARI",
+            "opp_pitcher": "Landen Roupp",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "CIN",
+            "opp_pitcher": "",
+            "lens_rows": 10,
+            "universe_rows": 10,
+            "complete_cohort": true
+          },
+          {
+            "team": "CLE",
+            "opp_pitcher": "",
+            "lens_rows": 10,
+            "universe_rows": 10,
+            "complete_cohort": true
+          },
+          {
+            "team": "COL",
+            "opp_pitcher": "",
+            "lens_rows": 1,
+            "universe_rows": 1,
+            "complete_cohort": true
+          },
+          {
+            "team": "COL",
+            "opp_pitcher": "Jake Irvin",
+            "lens_rows": 8,
+            "universe_rows": 8,
+            "complete_cohort": true
+          },
+          {
+            "team": "CWS",
+            "opp_pitcher": "",
+            "lens_rows": 1,
+            "universe_rows": 1,
+            "complete_cohort": true
+          },
+          {
+            "team": "KC",
+            "opp_pitcher": "Spencer Arrighetti",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "LAA",
+            "opp_pitcher": "",
+            "lens_rows": 11,
+            "universe_rows": 11,
+            "complete_cohort": true
+          },
+          {
+            "team": "NYM",
+            "opp_pitcher": "Jacob Misiorowski",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "PIT",
+            "opp_pitcher": "",
+            "lens_rows": 10,
+            "universe_rows": 10,
+            "complete_cohort": true
+          },
+          {
+            "team": "SD",
+            "opp_pitcher": "",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          }
+        ]
+      },
+      "vs-weak-pitcher": {
+        "rows": 4,
+        "cohorts": 1,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "NYY",
+            "opp_pitcher": "Hayden Wesneski",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "barrel-match": {
+        "rows": 22,
+        "cohorts": 8,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "ATL",
+            "opp_pitcher": "Yoshinobu Yamamoto",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "BAL",
+            "opp_pitcher": "Gordon Graceffo",
+            "lens_rows": 5,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "HOU",
+            "opp_pitcher": "Gerrit Cole",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAD",
+            "opp_pitcher": "Chris Sale",
+            "lens_rows": 2,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIL",
+            "opp_pitcher": "Sean Manaea",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "NYY",
+            "opp_pitcher": "Hayden Wesneski",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "STL",
+            "opp_pitcher": "Trevor Rogers",
+            "lens_rows": 3,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "TOR",
+            "opp_pitcher": "Noah Cameron",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "hidden-edge": {
+        "rows": 12,
+        "cohorts": 4,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "BAL",
+            "opp_pitcher": "Gordon Graceffo",
+            "lens_rows": 5,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "NYY",
+            "opp_pitcher": "Hayden Wesneski",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "SF",
+            "opp_pitcher": "Jose Cabrera",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "WSH",
+            "opp_pitcher": "Gabriel Hughes",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "mispriced": {
+        "rows": 11,
+        "cohorts": 7,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "ARI",
+            "opp_pitcher": "Landen Roupp",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "ATL",
+            "opp_pitcher": "Yoshinobu Yamamoto",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "COL",
+            "opp_pitcher": "Jake Irvin",
+            "lens_rows": 2,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "HOU",
+            "opp_pitcher": "Gerrit Cole",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "KC",
+            "opp_pitcher": "Spencer Arrighetti",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "NYM",
+            "opp_pitcher": "Jacob Misiorowski",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "SF",
+            "opp_pitcher": "Jose Cabrera",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      }
+    },
+    {
+      "date": "2026-08-28",
+      "tired-pen": {
+        "rows": 71,
+        "cohorts": 10,
+        "complete_cohorts": 8,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "ARI",
+            "opp_pitcher": "Blade Tidwell",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "BAL",
+            "opp_pitcher": "",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "DET",
+            "opp_pitcher": "Tarik Skubal",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "HOU",
+            "opp_pitcher": "Christian Scott",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "KC",
+            "opp_pitcher": "Tanner Bibee",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "MIA",
+            "opp_pitcher": "Jackson Kent",
+            "lens_rows": 8,
+            "universe_rows": 8,
+            "complete_cohort": true
+          },
+          {
+            "team": "MIL",
+            "opp_pitcher": "Cody Bradford",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "PIT",
+            "opp_pitcher": "Quinn Mathews",
+            "lens_rows": 8,
+            "universe_rows": 8,
+            "complete_cohort": true
+          },
+          {
+            "team": "SEA",
+            "opp_pitcher": "Dylan Cease",
+            "lens_rows": 9,
+            "universe_rows": 9,
+            "complete_cohort": true
+          },
+          {
+            "team": "TEX",
+            "opp_pitcher": "Logan Henderson",
+            "lens_rows": 8,
+            "universe_rows": 8,
+            "complete_cohort": true
+          }
+        ]
+      },
+      "vs-weak-pitcher": {
+        "rows": 24,
+        "cohorts": 9,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "ATL",
+            "opp_pitcher": "Tomoyuki Sugano",
+            "lens_rows": 5,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "CHC",
+            "opp_pitcher": "Rhett Lowder",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "COL",
+            "opp_pitcher": "Grant Holmes",
+            "lens_rows": 6,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "CWS",
+            "opp_pitcher": "Dean Kremer",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAA",
+            "opp_pitcher": "Andrew Painter",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIA",
+            "opp_pitcher": "Jackson Kent",
+            "lens_rows": 1,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIL",
+            "opp_pitcher": "Cody Bradford",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIN",
+            "opp_pitcher": "Luis Castillo",
+            "lens_rows": 4,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "OAK",
+            "opp_pitcher": "Brandon Young",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "barrel-match": {
+        "rows": 3,
+        "cohorts": 1,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "CHC",
+            "opp_pitcher": "Rhett Lowder",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "double-edge": {
+        "rows": 4,
+        "cohorts": 3,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "ATL",
+            "opp_pitcher": "Tomoyuki Sugano",
+            "lens_rows": 2,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "CHC",
+            "opp_pitcher": "Rhett Lowder",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIA",
+            "opp_pitcher": "Jackson Kent",
+            "lens_rows": 1,
+            "universe_rows": 8,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "hidden-edge": {
+        "rows": 10,
+        "cohorts": 5,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "CHC",
+            "opp_pitcher": "Rhett Lowder",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "CWS",
+            "opp_pitcher": "Dean Kremer",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAA",
+            "opp_pitcher": "Andrew Painter",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIN",
+            "opp_pitcher": "Luis Castillo",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "STL",
+            "opp_pitcher": "Jared Jones",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      },
+      "mispriced": {
+        "rows": 26,
+        "cohorts": 18,
+        "complete_cohorts": 0,
+        "all_cohorts_complete": false,
+        "detail": [
+          {
+            "team": "ATL",
+            "opp_pitcher": "Tomoyuki Sugano",
+            "lens_rows": 1,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "BAL",
+            "opp_pitcher": "",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "BOS",
+            "opp_pitcher": "Cam Schlittler",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "CHC",
+            "opp_pitcher": "Rhett Lowder",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "CIN",
+            "opp_pitcher": "David Peterson",
+            "lens_rows": 1,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "CLE",
+            "opp_pitcher": "Michael Wacha",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "COL",
+            "opp_pitcher": "Grant Holmes",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "KC",
+            "opp_pitcher": "Tanner Bibee",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAA",
+            "opp_pitcher": "Andrew Painter",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "LAD",
+            "opp_pitcher": "Drew Anderson",
+            "lens_rows": 3,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "MIN",
+            "opp_pitcher": "Luis Castillo",
+            "lens_rows": 2,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "NYM",
+            "opp_pitcher": "Hunter Brown",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "OAK",
+            "opp_pitcher": "Brandon Young",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "PHI",
+            "opp_pitcher": "Reid Detmers",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "PIT",
+            "opp_pitcher": "Quinn Mathews",
+            "lens_rows": 1,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "TB",
+            "opp_pitcher": "Casey Mize",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          },
+          {
+            "team": "TEX",
+            "opp_pitcher": "Logan Henderson",
+            "lens_rows": 3,
+            "universe_rows": 8,
+            "complete_cohort": false
+          },
+          {
+            "team": "TOR",
+            "opp_pitcher": "",
+            "lens_rows": 1,
+            "universe_rows": 9,
+            "complete_cohort": false
+          }
+        ]
+      }
+    }
+  ],
+  "aggregate": {
+    "tired-pen": {
+      "slates": 3,
+      "rows": 275,
+      "cohorts": 35,
+      "complete_cohorts": 33,
+      "all_complete_every_slate": false
+    },
+    "vs-weak-pitcher": {
+      "slates": 3,
+      "rows": 52,
+      "cohorts": 20,
+      "complete_cohorts": 0,
+      "all_complete_every_slate": false
+    },
+    "barrel-match": {
+      "slates": 3,
+      "rows": 29,
+      "cohorts": 11,
+      "complete_cohorts": 0,
+      "all_complete_every_slate": false
+    },
+    "double-edge": {
+      "slates": 2,
+      "rows": 20,
+      "cohorts": 8,
+      "complete_cohorts": 0,
+      "all_complete_every_slate": false
+    },
+    "hidden-edge": {
+      "slates": 3,
+      "rows": 28,
+      "cohorts": 14,
+      "complete_cohorts": 0,
+      "all_complete_every_slate": false
+    },
+    "mispriced": {
+      "slates": 3,
+      "rows": 43,
+      "cohorts": 30,
+      "complete_cohorts": 0,
+      "all_complete_every_slate": false
+    }
+  }
+}

@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {lineupSnapshot,bullpenSnapshot,parkSnapshot,weatherSnapshot,buildGameMatchup,simulateSlate} from './sim-auto-core.mjs';
+const feed={date:'2026-08-31',lineup_players:Array.from({length:18},(_,i)=>({team:i<9?'A':'H',lineup:(i%9)+1,iso:i<9?.18:.15})),items:[{gamePk:1,away:'A',home:'H',awayStarterId:11,homeStarterId:22,awayLineup:9,homeLineup:9,venue:'X',status:'Pre-Game',weather:{condition:'Clear',wind:'5 mph, Out To CF'}}]};
+assert(lineupSnapshot(feed.lineup_players,'A').confirmed);
+assert(bullpenSnapshot({team:'A',pitches_3d:220,pitches_5d:350,apps_3d:14,relievers:[]}).fatigueIndex>0);
+assert(parkSnapshot([{venue:'X',current:{runs_factor:110},rolling3:{runs_factor:104}}],'X').runFactor>1);
+assert(weatherSnapshot(feed.items[0],{temp_f:90,wind_mph:10}).runFactor>1);
+const out=simulateSlate({feed,bullpen:{items:[]},park:{items:[]},weather:{items:[]},sims:5000});
+assert.equal(out.games.length,1);assert(out.games[0].sim.topCorrectScores.length>0);
+console.log('SIM AUTO PASS');

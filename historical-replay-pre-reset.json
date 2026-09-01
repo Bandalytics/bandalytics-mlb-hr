@@ -1,0 +1,176 @@
+{
+  "slates": [
+    {
+      "date": "2026-08-26",
+      "movement_rows": 272,
+      "entity_count": 272,
+      "display_name_count": 271,
+      "movement_formula": {
+        "checked": 268,
+        "exact": 268,
+        "mismatch": 0
+      },
+      "sharp_money": {
+        "expected": 33,
+        "generated": 33,
+        "tp": 33,
+        "fp": 0,
+        "fn": 0
+      },
+      "max_muncys": [
+        {
+          "team": "LAD",
+          "open": "320",
+          "now": "320",
+          "best_odds": "367",
+          "opp_pitcher": "AJ Smith-Shawver"
+        },
+        {
+          "team": "ATH",
+          "open": "1111",
+          "now": "1111",
+          "best_odds": "1111",
+          "opp_pitcher": "Connor Prielipp"
+        }
+      ],
+      "lens_counts": {
+        "barrel-match": 4,
+        "double-edge": 16,
+        "hidden-edge": 6,
+        "metric-sort-┬╖-avg-ev": 40,
+        "metric-sort-┬╖-barrel-%": 40,
+        "metric-sort-┬╖-fly-ball-%": 40,
+        "metric-sort-┬╖-hard-hit-%": 40,
+        "metric-sort-┬╖-hr-prob": 40,
+        "metric-sort-┬╖-iso": 40,
+        "metric-sort-┬╖-k-%-(low-=-good)": 40,
+        "metric-sort-┬╖-pull-%": 40,
+        "mispriced": 6,
+        "power-shape": 5,
+        "sharp-money": 33,
+        "tired-pen": 117,
+        "≡ƒÄ»-vs-weak-pitcher": 24,
+        "≡ƒÆº-ulx-tiers": 168,
+        "≡ƒÆ░-sweet-spot": 24,
+        "≡ƒôê-steam": 14,
+        "≡ƒöÆ-dialed-in-power": 15
+      }
+    },
+    {
+      "date": "2026-08-27",
+      "movement_rows": 229,
+      "entity_count": 229,
+      "display_name_count": 229,
+      "movement_formula": {
+        "checked": 226,
+        "exact": 226,
+        "mismatch": 0
+      },
+      "sharp_money": {
+        "expected": 15,
+        "generated": 15,
+        "tp": 15,
+        "fp": 0,
+        "fn": 0
+      },
+      "max_muncys": [
+        {
+          "team": "ATH",
+          "open": "472",
+          "now": "472",
+          "best_odds": "472",
+          "opp_pitcher": ""
+        }
+      ],
+      "lens_counts": {
+        "barrel-match": 22,
+        "cross-model-target": 8,
+        "hidden-edge": 12,
+        "hr-or-bust": 10,
+        "metric-sort-┬╖-barrel-%": 40,
+        "metric-sort-┬╖-fly-ball-%": 40,
+        "metric-sort-┬╖-hard-hit-%": 40,
+        "metric-sort-┬╖-hr-prob": 40,
+        "metric-sort-┬╖-iso": 40,
+        "metric-sort-┬╖-k-%-(low-=-good)": 40,
+        "metric-sort-┬╖-pull-%": 40,
+        "mispriced": 11,
+        "sharp-money": 15,
+        "tired-pen": 87,
+        "≡ƒÄ»-vs-weak-pitcher": 4,
+        "≡ƒÆº-ulx-tiers": 116,
+        "≡ƒÆ░-sweet-spot": 16,
+        "≡ƒôê-steam": 7,
+        "≡ƒöÆ-dialed-in-power": 16
+      }
+    },
+    {
+      "date": "2026-08-28",
+      "movement_rows": 266,
+      "entity_count": 266,
+      "display_name_count": 265,
+      "movement_formula": {
+        "checked": 265,
+        "exact": 265,
+        "mismatch": 0
+      },
+      "sharp_money": {
+        "expected": 23,
+        "generated": 23,
+        "tp": 23,
+        "fp": 0,
+        "fn": 0
+      },
+      "max_muncys": [
+        {
+          "team": "LAD",
+          "open": "319",
+          "now": "343",
+          "best_odds": "450",
+          "opp_pitcher": "Drew Anderson"
+        },
+        {
+          "team": "ATH",
+          "open": "568",
+          "now": "450",
+          "best_odds": "625",
+          "opp_pitcher": "Brandon Young"
+        }
+      ],
+      "lens_counts": {
+        "barrel-match": 3,
+        "double-edge": 4,
+        "hidden-edge": 10,
+        "metric-sort-┬╖-avg-ev": 40,
+        "metric-sort-┬╖-barrel-%": 40,
+        "metric-sort-┬╖-fly-ball-%": 40,
+        "metric-sort-┬╖-hard-hit-%": 40,
+        "metric-sort-┬╖-hr-prob": 40,
+        "metric-sort-┬╖-iso": 40,
+        "metric-sort-┬╖-k-%-(low-=-good)": 40,
+        "metric-sort-┬╖-pull-%": 40,
+        "mispriced": 26,
+        "sharp-money": 23,
+        "tired-pen": 71,
+        "≡ƒÄ»-matchup-edge": 4,
+        "≡ƒÄ»-vs-weak-pitcher": 24,
+        "≡ƒÆº-ulx-tiers": 156,
+        "≡ƒÆÄ-sleeper-edge": 5,
+        "≡ƒÆ░-sweet-spot": 24,
+        "≡ƒôê-steam": 16,
+        "≡ƒöÆ-dialed-in-power": 17
+      }
+    }
+  ],
+  "aggregate": {
+    "movement_checked": 759,
+    "movement_exact": 759,
+    "sharp_money": {
+      "expected": 71,
+      "generated": 71,
+      "tp": 71,
+      "fp": 0,
+      "fn": 0
+    }
+  }
+}

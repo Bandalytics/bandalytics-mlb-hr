@@ -1,0 +1,1 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';const s=fs.readFileSync('./api/sim-joint-game-player.js','utf8');assert.match(s,/must use half-run lines/);assert.match(s,/Number\.isInteger\(\+x\.line\)/);console.log('joint no-push pricing guard passed');

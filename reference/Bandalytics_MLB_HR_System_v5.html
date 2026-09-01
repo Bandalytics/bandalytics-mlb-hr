@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BANDALYTICS — MLB Home Run Intelligence System v4</title>
+<style>
+:root{--bg:#0b1020;--card:#121a2f;--muted:#8ea0c5;--text:#edf3ff;--line:#263457;--accent:#7cc4ff;--good:#56d394;--warn:#ffd166;--bad:#ff7b7b;--violet:#b998ff}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:18px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,16,32,.96);z-index:5}
+h1{font-size:20px;margin:0 0 4px} .sub{color:var(--muted)}
+.wrap{padding:18px;max-width:1600px;margin:auto} .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+button,.btn{background:#1c2a4a;color:var(--text);border:1px solid #3a527d;border-radius:9px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)} input[type=file]{max-width:100%} input[type=text],input[type=number]{background:#0c1428;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:#0d1528;border:1px solid var(--line);border-radius:10px;padding:10px} .stat b{font-size:20px;display:block}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px} .tab.active{border-color:var(--accent);background:#20365d}
+table{border-collapse:collapse;width:100%;font-size:12px} th,td{padding:8px;border-bottom:1px solid #22304e;text-align:left;vertical-align:top} th{position:sticky;top:76px;background:#111a30;z-index:3}
+.tablewrap{overflow:auto;max-height:67vh;border:1px solid var(--line);border-radius:10px}
+.pill{display:inline-block;padding:2px 7px;border-radius:999px;background:#1b2949;margin:1px 2px;color:#cfe0ff;white-space:nowrap}
+.good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)} .violet{color:var(--violet)} .muted{color:var(--muted)}
+.small{font-size:12px} .hidden{display:none}
+label.chk{display:inline-flex;gap:6px;align-items:center}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>BANDALYTICS — MLB Home Run Intelligence System v4</h1>
+  <div class="sub">RAW Union • ZIP Import • Auto Statcast BBE • Recent Contact Lab • Tonight HR • Calibration</div>
+</header>
+<div class="wrap">
+  <div class="card">
+    <div class="row">
+      <div><b>Upload daily package</b><div class="small muted">Drop one BANDALYTICS ZIP, or select CSVs directly. ZIP import ignores __MACOSX / hidden junk and auto-routes board, movement, BBE and results CSVs.</div></div>
+      <input id="files" type="file" multiple accept=".csv,.zip,application/zip"/>
+      <button id="loadDemo">Load Aug 24 demo</button>
+      <button id="clear">Clear</button>
+    </div>
+    <div id="importStatus" class="small muted" style="margin-top:8px">Ready for ZIP or CSV upload.</div>
+    <div class="row" style="margin-top:10px">
+      <label>Excluded players <input id="excluded" type="text" value="Byron Buxton" style="width:260px"/></label>
+      <label>Longshot odds ≥ <input id="longshotOdds" type="number" value="700" style="width:90px"/></label>
+      <label class="chk"><input id="hideExcluded" type="checkbox" checked/> hide excluded</label>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="union">RAW Union</button>
+    <button class="tab" data-tab="market">Market</button>
+    <button class="tab" data-tab="longshots">Longshot Sweep</button>
+    <button class="tab" data-tab="bbe">Recent Contact Lab</button>
+    <button class="tab" data-tab="bbegen">BBE Generator</button>
+    <button class="tab" data-tab="tonight">Tonight HR</button>
+    <button class="tab" data-tab="profile">Profile / History</button>
+    <button class="tab" data-tab="calibration">Calibration</button>
+  </div>
+
+  <section id="union" class="panel">
+    <div class="card">
+      <div class="row">
+        <input id="search" type="text" placeholder="Search player/team/matchup..." style="width:300px"/>
+        <label>Min lenses <input id="minLenses" type="number" value="1" min="1" style="width:70px"/></label>
+        <label class="chk"><input id="onlyWeak" type="checkbox"/> weak-SP only</label>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="unionTable"></table></div>
+  </section>
+
+  <section id="market" class="panel hidden">
+    <div class="card small muted">Movement confirms or challenges a case; it does not create one. Large fades are shown for rescue review.</div>
+    <div class="tablewrap"><table id="marketTable"></table></div>
+  </section>
+
+  <section id="longshots" class="panel hidden">
+    <div class="card small muted">Longshots are surfaced for proof checks. This is discovery, not automatic qualification.</div>
+    <div class="tablewrap"><table id="longTable"></table></div>
+  </section>
+
+  <section id="bbe" class="panel hidden">
+    <div class="card">
+      <b>Recent Contact Lab — last 10–15 BBE</b>
+      <div class="small muted">Required CSV: player, ev, launch_angle. Recommended: distance, pulled. Optional: date/timestamp or sequence. If no time field is supplied, rows are treated as oldest → newest and the last 15 are used.</div>
+      <div class="row" style="margin-top:10px">
+        <label class="chk"><input id="autoBBE" type="checkbox" checked/> auto-fetch Statcast after slate upload</label>
+        <label>Slate date <input id="slateDate" type="date" style="width:150px"/></label>
+        <label>Lookback days <input id="autoBBEDays" type="number" min="7" max="35" value="21" style="width:70px"/></label>
+        <button id="fetchBBE">Refresh recent BBE now</button>
+      </div>
+      <div id="autoBBEStatus" class="small muted" style="margin-top:8px">Upload the slate ZIP. BANDALYTICS will then request recent tracked batted balls from Baseball Savant automatically.</div>
+      <details style="margin-top:10px"><summary class="small muted">Manual fallback</summary>
+        <div style="margin-top:8px"><input id="bbeFile" type="file" accept=".csv"/></div>
+        <div class="small muted" style="margin-top:6px">Only use this if the browser blocks Baseball Savant. A ZIP containing BBE/Statcast data still auto-routes here.</div>
+      </details>
+      <div class="small" style="margin-top:8px">
+        <b>Contact RC</b> rewards repeatable hard/gap contact for Hits/TB/RBI. <b>HR-Shape RC</b> separately rewards barrels/near-barrels, 100–105+ EV in HR launch windows, pulled air and deep air. A hard grounder can score well for Contact RC without being HR-shaped.
+      </div>
+    </div>
+    <div id="bbeCards" class="stats"></div>
+    <div class="tablewrap"><table id="bbeTable"></table></div>
+  </section>
+
+  <section id="bbegen" class="panel hidden">
+    <div class="card">
+      <b>Recent BBE Generator — fallback / debug</b>
+      <div class="small muted">Upload a Baseball Savant / Statcast Search CSV. The generator keeps actual batted-ball rows, normalizes player names, sorts newest-first from game date / at-bat / pitch order, takes the latest 15 BBE per hitter, estimates pull direction when possible, and creates the exact CSV used by Recent Contact Lab.</div>
+      <div class="row" style="margin-top:10px">
+        <input id="savantFile" type="file" accept=".csv"/>
+        <label>BBE per hitter <input id="bbeLimit" type="number" min="5" max="30" value="15" style="width:70px"/></label>
+        <button id="generateBBE" disabled>Generate Recent BBE</button>
+        <button id="downloadBBE" disabled>Download recent_bbe.csv</button>
+        <button id="useGeneratedBBE" disabled>Use in dashboard now</button>
+      </div>
+      <div id="bbeGenStatus" class="small muted" style="margin-top:8px">No Statcast CSV loaded.</div>
+    </div>
+    <div id="bbeGenCards" class="stats"></div>
+    <div class="tablewrap"><table id="bbeGenTable"></table></div>
+  </section>
+
+  <section id="tonight" class="panel hidden">
+    <div class="card small muted"><b>Tonight HR — v2 decision layer.</b> Power Capability answers “can he homer?”; Tonight HR Score asks “how strong is the HR path tonight?” using only imported evidence. Missing data is not fabricated. Compression Escape protects real HR evidence from excessive matchup/market suppression; Hidden Longshot Convergence protects qualified price bombs.</div>
+    <div class="tablewrap"><table id="tonightTable"></table></div>
+  </section>
+
+  <section id="profile" class="panel hidden">
+    <div class="card">
+      <b>Profile + History Check — workflow gate</b>
+      <div class="small muted">Runs the strict BANDALYTICS archetypes, keeps market experiments separate from qualification, checks saved historical convergence, assigns a prop lane, and runs the Mandatory Escape Check before a candidate is compressed out. Missing profile metrics stay missing — they are not treated as passes.</div>
+      <div class="row" style="margin-top:10px">
+        <button id="saveSnapshot">Save / refresh slate snapshot</button>
+        <button id="clearHistory">Clear local history</button>
+        <span id="historyStatus" class="small muted">History is stored locally in this browser so future slates can compare today's profile with prior outcomes.</span>
+      </div>
+      <div class="small" style="margin-top:8px"><b>Strict archetypes:</b> Foundation 5/6 • Longshot 4/6 • Pull Power 5/6 • Barrel Monster 5/6. Elite Contact remains an override/watch designation rather than a fake rigid archetype.</div>
+    </div>
+    <div id="profileCards" class="stats"></div>
+    <div class="tablewrap"><table id="profileTable"></table></div>
+  </section>
+
+  <section id="calibration" class="panel hidden">
+    <div class="card">
+      <b>Calibration log</b>
+      <div class="small muted">Upload a results CSV with player and outcome (HR / NEAR_HR / LIVE / DEAD). Optional: locked, tier, odds.</div>
+      <input id="resultFile" type="file" accept=".csv"/>
+    </div>
+    <div id="calibrationCards" class="stats"></div>
+    <div class="tablewrap"><table id="calTable"></table></div>
+  </section>
+</div>
+
+<script>
+const DEMO=[{"player": "Oneil Cruz", "team": "PIT", "matchup": "PIT @ SD", "tier": NaN, "score": 32.9, "odds": 400.0, "iso": 0.196, "ev": null, "barrel": null, "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%"], "open": 400.0, "now": 400.0, "delta_implied_pct": 0.0, "value_score": 30.0, "model_score": 32.9, "era": 3.2, "whip": 1.31}, {"player": "Munetaka Murakami", "team": "CWS", "matchup": "TEX @ CWS", "tier": "B", "score": 49.5, "odds": 275.0, "iso": 0.331, "ev": 93.9, "barrel": 20.2, "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso"], "open": 277.0, "now": 275.0, "delta_implied_pct": 0.14, "value_score": 56.0, "model_score": 54.0, "model_tier": "B", "era": 4.46, "whip": 1.4}, {"player": "Elly De La Cruz", "team": "CIN", "matchup": "CIN @ SF", "tier": "C", "score": 48.1, "odds": 575.0, "iso": 0.303, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-iso", "tired-pen"], "open": 450.0, "now": 630.0, "delta_implied_pct": -4.48, "value_score": 66.0, "model_score": 59.0, "model_tier": "C", "era": 7.03, "whip": 1.84}, {"player": "Junior Caminero", "team": "TB", "matchup": "TB @ DET", "tier": "B", "score": 46.6, "odds": 304.0, "iso": 0.192, "ev": 93.4, "barrel": 13.8, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-pull-%", "tired-pen"], "open": 340.0, "now": 304.0, "delta_implied_pct": 2.03, "value_score": 85.0, "model_score": 50.0, "model_tier": "C", "era": 4.35, "whip": 1.4}, {"player": "Fernando Tatis Jr.", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 32.0, "odds": 440.0, "iso": 0.1, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "tired-pen"], "open": 267.0, "now": 440.0, "delta_implied_pct": -8.73, "value_score": 20.0, "model_score": 28.0, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "Kyle Schwarber", "team": "PHI", "matchup": "PHI @ SEA", "tier": "B", "score": 51.9, "odds": 250.0, "iso": 0.343, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "metric-sort-·-pull-%", "tired-pen"], "open": 230.0, "now": 250.0, "delta_implied_pct": -1.73, "value_score": 27.0, "model_score": 50.0, "model_tier": "A", "era": 3.35, "whip": 1.01}, {"player": "Rafael Devers", "team": "SF", "matchup": "CIN @ SF", "tier": NaN, "score": 31.4, "odds": 550.0, "iso": 0.261, "ev": null, "barrel": null, "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "metric-sort-·-iso"], "open": 550.0, "now": 525.0, "delta_implied_pct": 0.62, "value_score": 33.0, "model_score": 34.0, "era": 2.51, "whip": 1.11}, {"player": "Brandon Nimmo", "team": "TEX", "matchup": "TEX @ CWS", "tier": NaN, "score": 54.5, "odds": 500.0, "iso": 0.164, "ev": 92.4, "barrel": 11.0, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "tired-pen"], "open": 534.0, "now": 500.0, "delta_implied_pct": 0.89, "value_score": 42.0, "model_score": 51.0, "era": 5.06, "whip": 1.5}, {"player": "Kody Clemens", "team": "MIN", "matchup": "MIN @ OAK", "tier": "S", "score": 74.6, "odds": 360.0, "iso": 0.103, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-pull-%", "tired-pen"], "open": 454.0, "now": 348.0, "delta_implied_pct": 4.27, "value_score": 96.0, "model_score": 85.0, "model_tier": "S", "era": 6.02, "whip": 1.48}, {"player": "Ty France", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 42.9, "odds": 650.0, "iso": 0.333, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "metric-sort-·-iso", "tired-pen"], "open": 402.0, "now": 650.0, "delta_implied_pct": -6.59, "value_score": 20.0, "model_score": 49.0, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "Joc Pederson", "team": "TEX", "matchup": "TEX @ CWS", "tier": "B", "score": 61.5, "odds": 350.0, "iso": 0.231, "ev": 92.1, "barrel": 10.5, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "tired-pen"], "open": 283.0, "now": 350.0, "delta_implied_pct": -3.89, "value_score": 30.0, "model_score": 66.0, "model_tier": "B", "era": 5.06, "whip": 1.5}, {"player": "Kyle Stowers", "team": "MIA", "matchup": "BOS @ MIA", "tier": NaN, "score": 18.9, "odds": 650.0, "iso": 0.219373219, "ev": 92.0, "barrel": 11.0, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 650.0, "now": 650.0, "delta_implied_pct": 0.0, "value_score": 30.0, "model_score": 24.0, "era": 3.41, "whip": 1.18}, {"player": "Jonah Cox", "team": "SF", "matchup": "CIN @ SF", "tier": "C", "score": 18.4, "odds": 1550.0, "iso": 0.125, "ev": null, "barrel": null, "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%"], "open": 1100.0, "now": 1550.0, "delta_implied_pct": -2.27, "value_score": -2.0, "model_score": 17.0, "model_tier": "C", "era": 2.51, "whip": 1.11}, {"player": "Esmerlyn Valdez", "team": "PIT", "matchup": "PIT @ SD", "tier": NaN, "score": 39.9, "odds": 350.0, "iso": 0.679, "ev": null, "barrel": null, "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso"], "open": 335.0, "now": 350.0, "delta_implied_pct": -0.77, "value_score": 28.0, "model_score": 40.0, "model_tier": "C", "era": 3.2, "whip": 1.31}, {"player": "Corey Seager", "team": "TEX", "matchup": "TEX @ CWS", "tier": "B", "score": 60.5, "odds": 325.0, "iso": 0.183, "ev": 91.9, "barrel": 15.7, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "tired-pen"], "open": 287.0, "now": 325.0, "delta_implied_pct": -2.31, "value_score": 33.0, "model_score": 63.0, "model_tier": "B", "era": 5.06, "whip": 1.5}, {"player": "Brett Callahan", "team": "DET", "matchup": "TB @ DET", "tier": NaN, "score": 14.9, "odds": 690.0, "iso": 0.333333334, "ev": 91.9, "barrel": 11.8, "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hr-prob", "metric-sort-·-iso"], "open": 755.0, "now": 680.0, "delta_implied_pct": 1.12, "value_score": 21.0, "model_score": 13.0, "era": 3.01, "whip": 0.95}, {"player": "Corbin Carroll", "team": "ARI", "matchup": "CHC @ ARI", "tier": "B", "score": 47.5, "odds": 450.0, "iso": 0.21, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-pull-%", "tired-pen"], "open": 510.0, "now": 450.0, "delta_implied_pct": 1.79, "value_score": 64.0, "model_score": 54.0, "era": 4.58, "whip": 1.3}, {"player": "Christian Moore", "team": "LAA", "matchup": "CLE @ LAA", "tier": "C", "score": 17.9, "odds": 780.0, "iso": 0.035714286, "ev": null, "barrel": null, "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%"], "open": 680.0, "now": 770.0, "delta_implied_pct": -1.33, "value_score": 12.0, "model_score": 18.9, "model_tier": "C", "era": 2.54, "whip": 1.03}, {"player": "Heriberto Hernandez", "team": "MIA", "matchup": "BOS @ MIA", "tier": NaN, "score": 23.9, "odds": 550.0, "iso": 0.206, "ev": 91.6, "barrel": 13.2, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-pull-%"], "open": 550.0, "now": 550.0, "delta_implied_pct": 0.0, "value_score": 30.0, "model_score": 28.0, "era": 3.41, "whip": 1.18}, {"player": "Lars Nootbaar", "team": "ARI", "matchup": "CHC @ ARI", "tier": NaN, "score": 33.5, "odds": 600.0, "iso": 0.12, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "tired-pen"], "open": 550.0, "now": 595.0, "delta_implied_pct": -1.0, "value_score": 53.0, "model_score": 32.0, "era": 4.58, "whip": 1.3}, {"player": "Angel Genao", "team": "CLE", "matchup": "CLE @ LAA", "tier": "C", "score": 30.5, "odds": 1050.0, "iso": 0.5, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "metric-sort-·-iso", "metric-sort-·-k-%-(low-=-good)"], "open": 854.0, "now": 1080.0, "delta_implied_pct": -2.01, "value_score": 24.0, "model_score": 31.0, "model_tier": "C", "era": 3.74, "whip": 1.62}, {"player": "Brandon Lowe", "team": "PIT", "matchup": "PIT @ SD", "tier": NaN, "score": 33.9, "odds": 508.0, "iso": 0.163, "ev": null, "barrel": null, "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-pull-%"], "open": 500.0, "now": 508.0, "delta_implied_pct": -0.22, "value_score": 30.0, "model_score": 34.9, "model_tier": "C", "era": 3.2, "whip": 1.31}, {"player": "Chase DeLauter", "team": "CLE", "matchup": "CLE @ LAA", "tier": NaN, "score": 33.5, "odds": 410.0, "iso": 0.142, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "metric-sort-·-k-%-(low-=-good)"], "open": 421.0, "now": 400.0, "delta_implied_pct": 0.81, "value_score": 59.0, "model_score": 33.5, "era": 3.74, "whip": 1.62}, {"player": "Brock Rodden", "team": "SEA", "matchup": "PHI @ SEA", "tier": NaN, "score": 18.9, "odds": 994.0, "iso": 0.166666666, "ev": null, "barrel": null, "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-pull-%"], "open": 285.0, "now": 950.0, "delta_implied_pct": -16.45, "value_score": -7.0, "model_score": 19.9, "era": 2.92, "whip": 1.01}, {"player": "Jonathan Aranda", "team": "TB", "matchup": "TB @ DET", "tier": "C", "score": 32.6, "odds": 830.0, "iso": 0.068, "ev": 91.1, "barrel": 10.1, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "tired-pen"], "open": 800.0, "now": 830.0, "delta_implied_pct": -0.36, "value_score": 59.0, "model_score": 33.0, "era": 4.35, "whip": 1.4}, {"player": "Henry Bolte", "team": "OAK", "matchup": "MIN @ OAK", "tier": "B", "score": 37.6, "odds": 540.0, "iso": 0.095, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%"], "open": 550.0, "now": 525.0, "delta_implied_pct": 0.62, "value_score": 78.0, "model_score": 37.6, "model_tier": "B", "era": 5.12, "whip": 1.33}, {"player": "Tyler Stephenson", "team": "CIN", "matchup": "CIN @ SF", "tier": "C", "score": 36.1, "odds": 700.0, "iso": 0.047, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "tired-pen"], "open": 550.0, "now": 700.0, "delta_implied_pct": -2.88, "value_score": 54.0, "model_score": 50.0, "model_tier": "C", "era": 7.03, "whip": 1.84}, {"player": "Dominic Canzone", "team": "SEA", "matchup": "PHI @ SEA", "tier": NaN, "score": 30.9, "odds": 490.0, "iso": 0.268, "ev": null, "barrel": null, "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-iso"], "open": 460.0, "now": 475.0, "delta_implied_pct": -0.47, "value_score": 29.0, "model_score": 38.0, "era": 2.92, "whip": 1.01}, {"player": "Kaelen Culpepper", "team": "MIN", "matchup": "MIN @ OAK", "tier": "A", "score": 37.6, "odds": 475.0, "iso": 0.0, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hr-prob", "metric-sort-·-pull-%", "tired-pen"], "open": 851.0, "now": 475.0, "delta_implied_pct": 6.88, "value_score": 100.0, "model_score": 38.0, "era": 6.02, "whip": 1.48}, {"player": "Yandy Diaz", "team": "TB", "matchup": "TB @ DET", "tier": NaN, "score": 38.6, "odds": 600.0, "iso": 0.194, "ev": 91.0, "barrel": 7.7, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 600.0, "now": 600.0, "delta_implied_pct": 0.0, "value_score": 75.0, "model_score": 44.0, "era": 4.35, "whip": 1.4}, {"player": "Miguel Vargas", "team": "CWS", "matchup": "TEX @ CWS", "tier": NaN, "score": 43.5, "odds": 444.0, "iso": 0.223, "ev": 90.8, "barrel": 14.7, "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso"], "open": 457.0, "now": 442.0, "delta_implied_pct": 0.5, "value_score": 57.0, "model_score": 50.0, "model_tier": "B", "era": 4.46, "whip": 1.4}, {"player": "Randy Arozarena", "team": "SEA", "matchup": "PHI @ SEA", "tier": "C", "score": 28.9, "odds": 750.0, "iso": 0.165, "ev": null, "barrel": null, "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev"], "open": 440.0, "now": 750.0, "delta_implied_pct": -6.75, "value_score": 5.0, "model_score": 35.0, "model_tier": "C", "era": 2.92, "whip": 1.01}, {"player": "Tim Tawa", "team": "ARI", "matchup": "CHC @ ARI", "tier": NaN, "score": 33.5, "odds": 750.0, "iso": 0.138, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "tired-pen"], "open": 740.0, "now": 750.0, "delta_implied_pct": -0.14, "value_score": 40.0, "model_score": 32.0, "era": 4.58, "whip": 1.3}, {"player": "Manny Machado", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 45.9, "odds": 475.0, "iso": 0.171, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hard-hit-%", "tired-pen"], "open": 320.0, "now": 475.0, "delta_implied_pct": -6.42, "value_score": 20.0, "model_score": 44.9, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "Jackson Merrill", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 32.0, "odds": 460.0, "iso": 0.144, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "tired-pen"], "open": 350.0, "now": 460.0, "delta_implied_pct": -4.37, "value_score": 21.0, "model_score": 28.0, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "Patrick Bailey", "team": "CLE", "matchup": "CLE @ LAA", "tier": NaN, "score": 23.5, "odds": 900.0, "iso": 0.056, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-avg-ev"], "open": 852.0, "now": 900.0, "delta_implied_pct": -0.5, "value_score": 39.0, "model_score": 23.5, "era": 3.74, "whip": 1.62}, {"player": "Michael Conforto", "team": "CHC", "matchup": "CHC @ ARI", "tier": "B", "score": 64.6, "odds": 500.0, "iso": 0.205, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hr-prob", "metric-sort-·-pull-%", "tired-pen"], "open": 575.0, "now": 500.0, "delta_implied_pct": 1.85, "value_score": 84.0, "model_score": 60.0, "era": 5.37, "whip": 1.52}, {"player": "Wyatt Langford", "team": "TEX", "matchup": "TEX @ CWS", "tier": NaN, "score": 59.5, "odds": 450.0, "iso": 0.206, "ev": 90.6, "barrel": 8.7, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-hr-prob", "tired-pen"], "open": 405.0, "now": 450.0, "delta_implied_pct": -1.62, "value_score": 35.0, "model_score": 58.5, "model_tier": "B", "era": 5.06, "whip": 1.5}, {"player": "Alec Bohm", "team": "PHI", "matchup": "PHI @ SEA", "tier": "C", "score": 37.9, "odds": 900.0, "iso": 0.142241379, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 692.0, "now": 900.0, "delta_implied_pct": -2.63, "value_score": 10.0, "model_score": 37.9, "model_tier": "C", "era": 3.35, "whip": 1.01}, {"player": "Bryan Reynolds", "team": "PIT", "matchup": "PIT @ SD", "tier": NaN, "score": 33.9, "odds": 468.0, "iso": 0.207, "ev": null, "barrel": null, "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-avg-ev", "metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%"], "open": 450.0, "now": 475.0, "delta_implied_pct": -0.79, "value_score": 28.0, "model_score": 33.9, "era": 3.2, "whip": 1.31}, {"player": "Rafael Flores Jr.", "team": "PIT", "matchup": "PIT @ SD", "tier": NaN, "score": 30.9, "odds": 482.0, "iso": 0.333333333, "ev": null, "barrel": null, "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 500.0, "now": 482.0, "delta_implied_pct": 0.52, "value_score": 33.0, "model_score": 29.9, "era": 3.2, "whip": 1.31}, {"player": "Byron Buxton", "team": "MIN", "matchup": "MIN @ OAK", "tier": "S", "score": 78.6, "odds": 185.0, "iso": 0.196, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-pull-%", "tired-pen"], "open": 275.0, "now": 180.0, "delta_implied_pct": 9.05, "value_score": 88.0, "model_score": 87.0, "model_tier": "S", "era": 6.02, "whip": 1.48}, {"player": "Mike Trout", "team": "LAA", "matchup": "CLE @ LAA", "tier": NaN, "score": 25.9, "odds": 420.0, "iso": 0.213, "ev": null, "barrel": null, "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-iso"], "open": 387.0, "now": 420.0, "delta_implied_pct": -1.3, "value_score": 27.0, "model_score": 25.9, "era": 2.54, "whip": 1.03}, {"player": "Jose Siri", "team": "LAA", "matchup": "CLE @ LAA", "tier": "C", "score": 25.9, "odds": 600.0, "iso": 0.31, "ev": null, "barrel": null, "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-iso"], "open": 505.0, "now": 600.0, "delta_implied_pct": -2.24, "value_score": 26.0, "model_score": 27.0, "model_tier": "C", "era": 2.54, "whip": 1.03}, {"player": "Willson Contreras", "team": "BOS", "matchup": "BOS @ MIA", "tier": NaN, "score": 45.9, "odds": 509.0, "iso": 0.245, "ev": 89.8, "barrel": 14.2, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-hard-hit-%", "metric-sort-·-iso", "metric-sort-·-pull-%", "tired-pen"], "open": 550.0, "now": 520.0, "delta_implied_pct": 0.74, "value_score": 34.0, "model_score": 47.0, "era": 3.46, "whip": 1.18}, {"player": "Travis d'Arnaud", "team": "LAA", "matchup": "CLE @ LAA", "tier": "C", "score": 18.9, "odds": 700.0, "iso": 0.3, "ev": null, "barrel": null, "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-iso"], "open": 614.0, "now": 700.0, "delta_implied_pct": -1.51, "value_score": 12.0, "model_score": 20.0, "model_tier": "C", "era": 2.54, "whip": 1.03}, {"player": "Wilyer Abreu", "team": "BOS", "matchup": "BOS @ MIA", "tier": NaN, "score": 47.9, "odds": 475.0, "iso": 0.216, "ev": 89.8, "barrel": 12.9, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-iso", "tired-pen"], "open": 500.0, "now": 475.0, "delta_implied_pct": 0.72, "value_score": 34.0, "model_score": 48.0, "era": 3.46, "whip": 1.18}, {"player": "Spencer Torkelson", "team": "DET", "matchup": "TB @ DET", "tier": NaN, "score": 18.9, "odds": 525.0, "iso": 0.216, "ev": 89.1, "barrel": 12.9, "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 550.0, "now": 500.0, "delta_implied_pct": 1.28, "value_score": 36.0, "model_score": 19.0, "model_tier": "C", "era": 3.01, "whip": 0.95}, {"player": "Sal Stewart", "team": "CIN", "matchup": "CIN @ SF", "tier": "C", "score": 53.1, "odds": 500.0, "iso": 0.211, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "tired-pen"], "open": 430.0, "now": 495.0, "delta_implied_pct": -2.06, "value_score": 71.0, "model_score": 59.0, "model_tier": "C", "era": 7.03, "whip": 1.84}, {"player": "Pete Crow-Armstrong", "team": "CHC", "matchup": "CHC @ ARI", "tier": "A", "score": 75.6, "odds": 280.0, "iso": 0.246, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "metric-sort-·-pull-%", "tired-pen"], "open": 320.0, "now": 280.0, "delta_implied_pct": 2.51, "value_score": 88.0, "model_score": 79.0, "model_tier": "A", "era": 5.37, "whip": 1.52}, {"player": "Cal Raleigh", "team": "SEA", "matchup": "PHI @ SEA", "tier": "C", "score": 28.9, "odds": 395.0, "iso": 0.173, "ev": null, "barrel": null, "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-pull-%"], "open": 300.0, "now": 425.0, "delta_implied_pct": -5.95, "value_score": 20.0, "model_score": 35.0, "model_tier": "C", "era": 2.92, "whip": 1.01}, {"player": "Colson Montgomery", "team": "CWS", "matchup": "TEX @ CWS", "tier": NaN, "score": 40.5, "odds": 350.0, "iso": 0.251, "ev": 89.0, "barrel": 11.9, "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 350.0, "now": 350.0, "delta_implied_pct": 0.0, "value_score": 55.0, "model_score": 37.0, "model_tier": "B", "era": 4.46, "whip": 1.4}, {"player": "Royce Lewis", "team": "MIN", "matchup": "MIN @ OAK", "tier": "A", "score": 74.6, "odds": 270.0, "iso": 0.237, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "metric-sort-·-pull-%", "tired-pen"], "open": 360.0, "now": 270.0, "delta_implied_pct": 5.29, "value_score": 100.0, "model_score": 81.0, "model_tier": "A", "era": 6.02, "whip": 1.48}, {"player": "Zach Neto", "team": "LAA", "matchup": "CLE @ LAA", "tier": NaN, "score": 27.9, "odds": 360.0, "iso": 0.287, "ev": null, "barrel": null, "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 337.0, "now": 350.0, "delta_implied_pct": -0.66, "value_score": 29.0, "model_score": 26.0, "model_tier": "B", "era": 2.54, "whip": 1.03}, {"player": "Ian Happ", "team": "CHC", "matchup": "CHC @ ARI", "tier": "B", "score": 70.6, "odds": 540.0, "iso": 0.28, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "tired-pen"], "open": 480.0, "now": 540.0, "delta_implied_pct": -1.62, "value_score": 72.0, "model_score": 67.0, "model_tier": "B", "era": 5.37, "whip": 1.52}, {"player": "Max Muncy", "team": "LAD", "matchup": "PIT @ LAD", "tier": "B", "score": 32.0, "odds": 475.0, "iso": 0.165853658, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-pull-%", "tired-pen"], "open": 593.0, "now": 593.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 27.0, "model_tier": "B", "era": 5.12, "whip": 1.33}, {"player": "Ryan Jeffers", "team": "MIN", "matchup": "MIN @ OAK", "tier": "S", "score": 76.6, "odds": 325.0, "iso": 0.159, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-hr-prob", "metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 548.0, "now": 318.0, "delta_implied_pct": 8.49, "value_score": 100.0, "model_score": 79.0, "model_tier": "S", "era": 6.02, "whip": 1.48}, {"player": "Bryce Harper", "team": "PHI", "matchup": "PHI @ SEA", "tier": NaN, "score": 47.9, "odds": 469.0, "iso": 0.314, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "tired-pen"], "open": 425.0, "now": 469.0, "delta_implied_pct": -1.47, "value_score": 27.0, "model_score": 49.0, "era": 3.35, "whip": 1.01}, {"player": "Zac Veen", "team": "COL", "matchup": "COL @ WSH", "tier": NaN, "score": 21.4, "odds": 850.0, "iso": 0.318181818, "ev": 85.8, "barrel": 11.1, "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-barrel-%", "metric-sort-·-fly-ball-%", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 810.0, "now": 850.0, "delta_implied_pct": -0.46, "value_score": 14.0, "model_score": 21.0, "era": 3.22, "whip": 1.22}, {"player": "Buddy Kennedy", "team": "SF", "matchup": "CIN @ SF", "tier": NaN, "score": 17.4, "odds": 1522.0, "iso": 0.0, "ev": null, "barrel": null, "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%"], "open": 1320.0, "now": 1475.0, "delta_implied_pct": -0.69, "value_score": 2.0, "model_score": 18.9, "era": 2.51, "whip": 1.11}, {"player": "Mickey Moniak", "team": "COL", "matchup": "COL @ WSH", "tier": NaN, "score": 36.4, "odds": 475.0, "iso": 0.338, "ev": 89.5, "barrel": 10.5, "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 487.0, "now": 475.0, "delta_implied_pct": 0.36, "value_score": 32.0, "model_score": 37.0, "era": 3.22, "whip": 1.22}, {"player": "JJ Bleday", "team": "CIN", "matchup": "CIN @ SF", "tier": "C", "score": 47.1, "odds": 713.0, "iso": 0.196, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-fly-ball-%", "tired-pen"], "open": 640.0, "now": 750.0, "delta_implied_pct": -1.75, "value_score": 57.0, "model_score": 52.0, "model_tier": "C", "era": 7.03, "whip": 1.84}, {"player": "Drew Romo", "team": "CWS", "matchup": "TEX @ CWS", "tier": "C", "score": 28.5, "odds": 860.0, "iso": 0.158, "ev": 83.3, "barrel": 7.6, "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%"], "open": 779.0, "now": 860.0, "delta_implied_pct": -0.96, "value_score": 38.0, "model_score": 28.5, "model_tier": "C", "era": 4.46, "whip": 1.4}, {"player": "Matt McLain", "team": "CIN", "matchup": "CIN @ SF", "tier": NaN, "score": 32.0, "odds": 800.0, "iso": 0.176, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "tired-pen"], "open": 750.0, "now": 850.0, "delta_implied_pct": -1.24, "value_score": 58.0, "model_score": 51.0, "model_tier": "C", "era": 7.03, "whip": 1.84}, {"player": "Esteury Ruiz", "team": "MIA", "matchup": "BOS @ MIA", "tier": NaN, "score": 10.9, "odds": 1080.0, "iso": 0.415, "ev": 81.6, "barrel": 6.8, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-iso", "metric-sort-·-pull-%"], "open": 900.0, "now": 1000.0, "delta_implied_pct": -0.91, "value_score": 1.0, "model_score": 12.0, "era": 3.41, "whip": 1.18}, {"player": "Henry Davis", "team": "PIT", "matchup": "PIT @ SD", "tier": NaN, "score": 29.9, "odds": 569.0, "iso": 0.029, "ev": null, "barrel": null, "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-pull-%"]}, {"player": "Max Kepler", "team": "ARI", "matchup": "CHC @ ARI", "tier": NaN, "score": 33.5, "odds": 625.0, "iso": 0.2, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "tired-pen"], "open": 625.0, "now": 625.0, "delta_implied_pct": 0.0, "value_score": 55.0, "model_score": 32.0, "era": 4.58, "whip": 1.3}, {"player": "Daylen Lile", "team": "WSH", "matchup": "COL @ WSH", "tier": NaN, "score": 58.1, "odds": 525.0, "iso": 0.209, "ev": 88.4, "barrel": 8.6, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-hr-prob", "tired-pen"], "open": 489.0, "now": 524.0, "delta_implied_pct": -0.95, "value_score": 73.0, "model_score": 57.1, "era": 5.97, "whip": 1.53}, {"player": "Evan Carter", "team": "TEX", "matchup": "TEX @ CWS", "tier": NaN, "score": 36.5, "odds": 850.0, "iso": 0.146, "ev": 85.2, "barrel": 5.9, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "tired-pen"], "open": 800.0, "now": 850.0, "delta_implied_pct": -0.58, "value_score": 22.0, "model_score": 36.5, "era": 5.06, "whip": 1.5}, {"player": "Jose Ramirez", "team": "CLE", "matchup": "CLE @ LAA", "tier": NaN, "score": 32.0, "odds": 450.0, "iso": 0.179, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": "yes", "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-k-%-(low-=-good)", "metric-sort-·-pull-%"], "open": 397.0, "now": 455.0, "delta_implied_pct": -2.1, "value_score": 51.0, "model_score": 27.0, "era": 3.74, "whip": 1.62}, {"player": "Kevin McGonigle", "team": "DET", "matchup": "TB @ DET", "tier": NaN, "score": 16.9, "odds": 700.0, "iso": 0.188, "ev": 88.3, "barrel": 7.8, "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-k-%-(low-=-good)"], "open": 645.0, "now": 700.0, "delta_implied_pct": -0.92, "value_score": 13.0, "model_score": 14.0, "era": 3.01, "whip": 0.95}, {"player": "Petey Halpin", "team": "CLE", "matchup": "CLE @ LAA", "tier": NaN, "score": 23.5, "odds": 850.0, "iso": 0.098, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%"], "open": 797.0, "now": 850.0, "delta_implied_pct": -0.62, "value_score": 39.0, "model_score": 23.5, "era": 3.74, "whip": 1.62}, {"player": "Taylor Walls", "team": "TB", "matchup": "TB @ DET", "tier": NaN, "score": 24.6, "odds": 1140.0, "iso": 0.051, "ev": 80.5, "barrel": 2.7, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "tired-pen"], "open": 1256.0, "now": 1140.0, "delta_implied_pct": 0.69, "value_score": 51.0, "model_score": 24.6, "era": 4.35, "whip": 1.4}, {"player": "Abimelec Ortiz", "team": "WSH", "matchup": "COL @ WSH", "tier": "C", "score": 53.1, "odds": 507.0, "iso": 0.274193548, "ev": 90.5, "barrel": 10.5, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "metric-sort-·-pull-%", "tired-pen"], "open": 500.0, "now": 505.0, "delta_implied_pct": -0.14, "value_score": 75.0, "model_score": 53.0, "model_tier": "B", "era": 5.97, "whip": 1.53}, {"player": "Connor Norby", "team": "COL", "matchup": "COL @ WSH", "tier": "C", "score": 24.4, "odds": 800.0, "iso": 0.097, "ev": 87.6, "barrel": 8.1, "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-fly-ball-%"], "open": 716.0, "now": 785.0, "delta_implied_pct": -0.96, "value_score": 13.0, "model_score": 23.4, "model_tier": "C", "era": 3.22, "whip": 1.22}, {"player": "Brett Sullivan", "team": "COL", "matchup": "COL @ WSH", "tier": "C", "score": 23.4, "odds": 800.0, "iso": 0.215, "ev": 87.3, "barrel": 6.3, "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-iso", "metric-sort-·-k-%-(low-=-good)", "metric-sort-·-pull-%"], "open": 700.0, "now": 800.0, "delta_implied_pct": -1.39, "value_score": 12.0, "model_score": 22.4, "model_tier": "C", "era": 3.22, "whip": 1.22}, {"player": "Ryan Vilade", "team": "TB", "matchup": "TB @ DET", "tier": NaN, "score": 30.6, "odds": 650.0, "iso": 0.185, "ev": 88.7, "barrel": 5.6, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-fly-ball-%", "tired-pen"], "open": 670.0, "now": 640.0, "delta_implied_pct": 0.53, "value_score": 78.0, "model_score": 30.6, "era": 4.35, "whip": 1.4}, {"player": "Dylan Crews", "team": "WSH", "matchup": "COL @ WSH", "tier": "C", "score": 62.1, "odds": 510.0, "iso": 0.173, "ev": 90.2, "barrel": 10.0, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-hr-prob", "tired-pen"], "open": 450.0, "now": 500.0, "delta_implied_pct": -1.52, "value_score": 72.0, "model_score": 61.0, "era": 5.97, "whip": 1.53}, {"player": "Nolan Arenado", "team": "ARI", "matchup": "CHC @ ARI", "tier": "B", "score": 46.5, "odds": 650.0, "iso": 0.165, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": "yes", "lenses": ["metric-sort-·-fly-ball-%", "metric-sort-·-pull-%", "tired-pen"], "open": 550.0, "now": 650.0, "delta_implied_pct": -2.05, "value_score": 51.0, "model_score": 45.0, "model_tier": "B", "era": 4.58, "whip": 1.3}, {"player": "Brady House", "team": "WSH", "matchup": "COL @ WSH", "tier": "C", "score": 36.1, "odds": 670.0, "iso": 0.107, "ev": 89.9, "barrel": 9.5, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-hard-hit-%", "tired-pen"], "open": 609.0, "now": 645.0, "delta_implied_pct": -0.68, "value_score": 74.0, "model_score": 35.0, "era": 5.97, "whip": 1.53}, {"player": "Jake Burger", "team": "TEX", "matchup": "TEX @ CWS", "tier": NaN, "score": 57.5, "odds": 507.0, "iso": 0.213, "ev": 90.1, "barrel": 11.0, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": NaN, "lenses": ["metric-sort-·-hard-hit-%", "metric-sort-·-hr-prob", "metric-sort-·-iso", "tired-pen"], "open": 497.0, "now": 500.0, "delta_implied_pct": -0.08, "value_score": 38.0, "model_score": 58.0, "model_tier": "B", "era": 5.06, "whip": 1.5}, {"player": "Jo Adell", "team": "CLE", "matchup": "CLE @ LAA", "tier": "B", "score": 33.5, "odds": 460.0, "iso": 0.112, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": "yes", "lenses": ["metric-sort-·-hard-hit-%"], "open": 428.0, "now": 474.0, "delta_implied_pct": -1.52, "value_score": 52.0, "model_score": 40.0, "model_tier": "B", "era": 3.74, "whip": 1.62}, {"player": "Brandon Marsh", "team": "PHI", "matchup": "PHI @ SEA", "tier": "C", "score": 37.9, "odds": 800.0, "iso": 0.183, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-hard-hit-%", "tired-pen"], "open": 580.0, "now": 800.0, "delta_implied_pct": -3.59, "value_score": 8.0, "model_score": 40.9, "model_tier": "C", "era": 3.35, "whip": 1.01}, {"player": "CJ Abrams", "team": "WSH", "matchup": "COL @ WSH", "tier": "B", "score": 64.1, "odds": 412.0, "iso": 0.28, "ev": 89.6, "barrel": 9.8, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-hr-prob", "metric-sort-·-iso", "tired-pen"], "open": 315.0, "now": 400.0, "delta_implied_pct": -4.1, "value_score": 67.0, "model_score": 66.0, "model_tier": "A", "era": 5.97, "whip": 1.53}, {"player": "Seiya Suzuki", "team": "CHC", "matchup": "CHC @ ARI", "tier": "B", "score": 68.6, "odds": 475.0, "iso": 0.184, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "tired-pen"], "open": 449.0, "now": 475.0, "delta_implied_pct": -0.82, "value_score": 73.0, "model_score": 70.0, "model_tier": "B", "era": 5.37, "whip": 1.52}, {"player": "Alex Bregman", "team": "CHC", "matchup": "CHC @ ARI", "tier": "B", "score": 32.0, "odds": 660.0, "iso": 0.109, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "metric-sort-·-k-%-(low-=-good)", "metric-sort-·-pull-%", "tired-pen"], "open": 700.0, "now": 650.0, "delta_implied_pct": 0.83, "value_score": 79.0, "model_score": 36.0, "model_tier": "B", "era": 5.37, "whip": 1.52}, {"player": "Josh Bell", "team": "MIN", "matchup": "MIN @ OAK", "tier": "A", "score": 72.6, "odds": 375.0, "iso": 0.123, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "tired-pen"], "open": 522.0, "now": 372.0, "delta_implied_pct": 5.11, "value_score": 100.0, "model_score": 74.6, "model_tier": "A", "era": 6.02, "whip": 1.48}, {"player": "Michael Busch", "team": "CHC", "matchup": "CHC @ ARI", "tier": "B", "score": 34.6, "odds": 540.0, "iso": 0.159, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-hr-prob", "tired-pen"], "open": 500.0, "now": 540.0, "delta_implied_pct": -1.04, "value_score": 73.0, "model_score": 35.0, "model_tier": "B", "era": 5.37, "whip": 1.52}, {"player": "Brooks Lee", "team": "MIN", "matchup": "MIN @ OAK", "tier": "A", "score": 71.6, "odds": 500.0, "iso": 0.105, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 700.0, "now": 490.0, "delta_implied_pct": 4.45, "value_score": 97.0, "model_score": 69.0, "era": 6.02, "whip": 1.48}, {"player": "Zack Gelof", "team": "OAK", "matchup": "MIN @ OAK", "tier": "A", "score": 51.6, "odds": 446.0, "iso": 0.195, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob"], "open": 475.0, "now": 410.0, "delta_implied_pct": 2.22, "value_score": 86.0, "model_score": 56.0, "model_tier": "A", "era": 5.12, "whip": 1.33}, {"player": "Luke Keaschall", "team": "MIN", "matchup": "MIN @ OAK", "tier": NaN, "score": 37.6, "odds": 582.0, "iso": 0.094, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 850.0, "now": 564.0, "delta_implied_pct": 4.53, "value_score": 98.0, "model_score": 37.6, "model_tier": "C", "era": 6.02, "whip": 1.48}, {"player": "Ryan Kreidler", "team": "MIN", "matchup": "MIN @ OAK", "tier": "B", "score": 37.6, "odds": 545.0, "iso": 0.113, "ev": null, "barrel": null, "opp_pitcher": "Jeffrey Springs", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "tired-pen"], "open": 581.0, "now": 532.0, "delta_implied_pct": 1.14, "value_score": 81.0, "model_score": 37.6, "era": 6.02, "whip": 1.48}, {"player": "Pedro Ramirez", "team": "CHC", "matchup": "CHC @ ARI", "tier": "C", "score": 34.6, "odds": 1040.0, "iso": 0.123, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-hr-prob", "tired-pen"], "open": 900.0, "now": 1050.0, "delta_implied_pct": -1.3, "value_score": 45.0, "model_score": 26.0, "model_tier": "C", "era": 5.37, "whip": 1.52}, {"player": "Nico Hoerner", "team": "CHC", "matchup": "CHC @ ARI", "tier": "C", "score": 34.6, "odds": 1420.0, "iso": 0.084, "ev": null, "barrel": null, "opp_pitcher": "Merrill Kelly", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 1240.0, "now": 1400.0, "delta_implied_pct": -0.8, "value_score": 46.0, "model_score": 33.0, "model_tier": "C", "era": 5.37, "whip": 1.52}, {"player": "Carlos Cortes", "team": "OAK", "matchup": "MIN @ OAK", "tier": "B", "score": 37.6, "odds": 500.0, "iso": 0.154, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "metric-sort-·-k-%-(low-=-good)"], "open": 538.0, "now": 529.0, "delta_implied_pct": 0.22, "value_score": 76.0, "model_score": 37.0, "model_tier": "B", "era": 5.12, "whip": 1.33}, {"player": "Jonah Heim", "team": "OAK", "matchup": "MIN @ OAK", "tier": "B", "score": 37.6, "odds": 575.0, "iso": 0.107, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-hr-prob"], "open": 600.0, "now": 583.0, "delta_implied_pct": 0.36, "value_score": 77.0, "model_score": 42.0, "model_tier": "B", "era": 5.12, "whip": 1.33}, {"player": "Andrew Benintendi", "team": "CWS", "matchup": "TEX @ CWS", "tier": NaN, "score": 37.5, "odds": 575.0, "iso": 0.192, "ev": 88.3, "barrel": 9.0, "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-hr-prob", "metric-sort-·-pull-%"], "open": 544.0, "now": 575.0, "delta_implied_pct": -0.71, "value_score": 54.0, "model_score": 37.5, "model_tier": "B", "era": 4.46, "whip": 1.4}, {"player": "Eugenio Suarez", "team": "CIN", "matchup": "CIN @ SF", "tier": "C", "score": 54.1, "odds": 523.0, "iso": 0.264, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-iso", "metric-sort-·-pull-%", "tired-pen"], "open": 405.0, "now": 508.0, "delta_implied_pct": -3.35, "value_score": 68.0, "model_score": 59.0, "model_tier": "C", "era": 7.03, "whip": 1.84}, {"player": "Denzer Guzman", "team": "LAA", "matchup": "CLE @ LAA", "tier": "C", "score": 16.9, "odds": 894.0, "iso": 0.25, "ev": null, "barrel": null, "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-iso"], "open": 774.0, "now": 885.0, "delta_implied_pct": -1.29, "value_score": 12.0, "model_score": 17.0, "model_tier": "C", "era": 2.54, "whip": 1.03}, {"player": "Nathaniel Lowe", "team": "CLE", "matchup": "CLE @ LAA", "tier": NaN, "score": 36.5, "odds": 480.0, "iso": 0.237, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-iso"], "open": 488.0, "now": 480.0, "delta_implied_pct": 0.23, "value_score": 56.0, "model_score": 37.0, "era": 3.74, "whip": 1.62}, {"player": "Travis Bazzana", "team": "CLE", "matchup": "CLE @ LAA", "tier": NaN, "score": 32.0, "odds": 757.0, "iso": 0.235, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-iso"], "open": 700.0, "now": 757.0, "delta_implied_pct": -0.83, "value_score": 38.0, "model_score": 33.0, "era": 3.74, "whip": 1.62}, {"player": "Dillon Dingler", "team": "DET", "matchup": "TB @ DET", "tier": NaN, "score": 23.9, "odds": 575.0, "iso": 0.229, "ev": 88.7, "barrel": 10.0, "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-iso"], "open": 545.0, "now": 560.0, "delta_implied_pct": -0.35, "value_score": 29.0, "model_score": 25.0, "era": 3.01, "whip": 0.95}, {"player": "TJ Rumfield", "team": "COL", "matchup": "COL @ WSH", "tier": NaN, "score": 26.4, "odds": 850.0, "iso": 0.222, "ev": 84.5, "barrel": 4.5, "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-iso", "metric-sort-·-k-%-(low-=-good)"], "open": 845.0, "now": 865.0, "delta_implied_pct": -0.22, "value_score": 15.0, "model_score": 26.0, "era": 3.22, "whip": 1.22}, {"player": "Adley Rutschman", "team": "BOS", "matchup": "BOS @ MIA", "tier": "C", "score": 37.9, "odds": 790.0, "iso": 0.22, "ev": 89.0, "barrel": 7.3, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-iso", "metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 641.0, "now": 800.0, "delta_implied_pct": -2.38, "value_score": 10.0, "model_score": 39.0, "model_tier": "C", "era": 3.46, "whip": 1.18}, {"player": "Osleivis Basabe", "team": "SF", "matchup": "CIN @ SF", "tier": "C", "score": 22.4, "odds": 1180.0, "iso": 0.214, "ev": null, "barrel": null, "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-iso"], "open": 900.0, "now": 1150.0, "delta_implied_pct": -2.0, "value_score": -1.0, "model_score": 23.9, "model_tier": "C", "era": 2.51, "whip": 1.11}, {"player": "Luis Arraez", "team": "PHI", "matchup": "PHI @ SEA", "tier": "C", "score": 35.9, "odds": 1314.0, "iso": 0.12145749, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 895.0, "now": 1300.0, "delta_implied_pct": -2.91, "value_score": -3.0, "model_score": 35.9, "model_tier": "C", "era": 3.35, "whip": 1.01}, {"player": "Javier Sanoja", "team": "MIA", "matchup": "BOS @ MIA", "tier": "C", "score": 9.9, "odds": 1300.0, "iso": 0.133, "ev": 85.8, "barrel": 2.2, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 1124.0, "now": 1233.0, "delta_implied_pct": -0.67, "value_score": 2.0, "model_score": 9.9, "model_tier": "C", "era": 3.41, "whip": 1.18}, {"player": "Chandler Simpson", "team": "TB", "matchup": "TB @ DET", "tier": NaN, "score": 24.6, "odds": 2000.0, "iso": 0.053, "ev": 80.7, "barrel": 0.0, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 2000.0, "now": 2000.0, "delta_implied_pct": 0.0, "value_score": 48.0, "model_score": 25.6, "era": 4.35, "whip": 1.4}, {"player": "Ildemaro Vargas", "team": "ARI", "matchup": "CHC @ ARI", "tier": NaN, "score": 33.5, "odds": 1300.0, "iso": 0.094, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 900.0, "now": 1300.0, "delta_implied_pct": -2.86, "value_score": 22.0, "model_score": 32.0, "era": 4.58, "whip": 1.3}, {"player": "Steven Kwan", "team": "CLE", "matchup": "CLE @ LAA", "tier": "C", "score": 27.5, "odds": 1000.0, "iso": 0.072, "ev": null, "barrel": null, "opp_pitcher": "George Klassen", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 1040.0, "now": 1000.0, "delta_implied_pct": 0.32, "value_score": 30.0, "model_score": 27.5, "era": 3.74, "whip": 1.62}, {"player": "Jung Hoo Lee", "team": "SF", "matchup": "CIN @ SF", "tier": "C", "score": 22.4, "odds": 1280.0, "iso": 0.165, "ev": null, "barrel": null, "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 1175.0, "now": 1287.0, "delta_implied_pct": -0.63, "value_score": 2.0, "model_score": 23.9, "model_tier": "C", "era": 2.51, "whip": 1.11}, {"player": "Jeff McNeil", "team": "OAK", "matchup": "MIN @ OAK", "tier": "B", "score": 37.6, "odds": 600.0, "iso": 0.092, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 630.0, "now": 575.0, "delta_implied_pct": 1.12, "value_score": 81.0, "model_score": 37.0, "era": 5.12, "whip": 1.33}, {"player": "Keibert Ruiz", "team": "WSH", "matchup": "COL @ WSH", "tier": NaN, "score": 36.1, "odds": 650.0, "iso": 0.153, "ev": 87.8, "barrel": 5.2, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)", "metric-sort-·-pull-%", "tired-pen"], "open": 650.0, "now": 650.0, "delta_implied_pct": 0.0, "value_score": 75.0, "model_score": 36.1, "era": 5.97, "whip": 1.53}, {"player": "Nick Fortes", "team": "TB", "matchup": "TB @ DET", "tier": NaN, "score": 25.6, "odds": 950.0, "iso": 0.1015625, "ev": 85.0, "barrel": 3.6, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)", "metric-sort-·-pull-%", "tired-pen"], "open": 985.0, "now": 950.0, "delta_implied_pct": 0.31, "value_score": 50.0, "model_score": 25.6, "era": 4.35, "whip": 1.4}, {"player": "Geraldo Perdomo", "team": "ARI", "matchup": "CHC @ ARI", "tier": NaN, "score": 33.5, "odds": 1088.0, "iso": 0.126, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 1240.0, "now": 1000.0, "delta_implied_pct": 1.63, "value_score": 36.0, "model_score": 32.0, "era": 4.58, "whip": 1.3}, {"player": "Otto Lopez", "team": "MIA", "matchup": "BOS @ MIA", "tier": NaN, "score": 14.9, "odds": 1150.0, "iso": 0.193, "ev": 88.7, "barrel": 6.1, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 1200.0, "now": 1100.0, "delta_implied_pct": 0.64, "value_score": 6.0, "model_score": 14.9, "era": 3.41, "whip": 1.18}, {"player": "Josh Naylor", "team": "SEA", "matchup": "PHI @ SEA", "tier": "C", "score": 22.9, "odds": 800.0, "iso": 0.117, "ev": null, "barrel": null, "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 600.0, "now": 800.0, "delta_implied_pct": -3.17, "value_score": 9.0, "model_score": 22.9, "model_tier": "C", "era": 2.92, "whip": 1.01}, {"player": "Luis Rengifo", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 34.9, "odds": 1100.0, "iso": 0.098, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 900.0, "now": 1100.0, "delta_implied_pct": -1.67, "value_score": 0.0, "model_score": 34.9, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "Xavier Edwards", "team": "MIA", "matchup": "BOS @ MIA", "tier": NaN, "score": 13.9, "odds": 1580.0, "iso": 0.16, "ev": 85.6, "barrel": 3.2, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 1525.0, "now": 1500.0, "delta_implied_pct": 0.1, "value_score": 3.0, "model_score": 12.9, "era": 3.41, "whip": 1.18}, {"player": "Caleb Durbin", "team": "BOS", "matchup": "BOS @ MIA", "tier": "C", "score": 34.9, "odds": 1233.0, "iso": 0.133, "ev": 82.4, "barrel": 2.5, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 850.0, "now": 1200.0, "delta_implied_pct": -2.83, "value_score": -3.0, "model_score": 33.9, "model_tier": "C", "era": 3.46, "whip": 1.18}, {"player": "Jorbit Vivas", "team": "WSH", "matchup": "COL @ WSH", "tier": "C", "score": 36.1, "odds": 1050.0, "iso": 0.108, "ev": 82.4, "barrel": 3.2, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 760.0, "now": 1020.0, "delta_implied_pct": -2.7, "value_score": 43.0, "model_score": 36.1, "model_tier": "C", "era": 5.97, "whip": 1.53}, {"player": "Gabriel Moreno", "team": "ARI", "matchup": "CHC @ ARI", "tier": NaN, "score": 33.5, "odds": 800.0, "iso": 0.119, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 800.0, "now": 774.0, "delta_implied_pct": 0.33, "value_score": 42.0, "model_score": 44.0, "era": 4.58, "whip": 1.3}, {"player": "Zach McKinstry", "team": "DET", "matchup": "TB @ DET", "tier": "C", "score": 11.9, "odds": 1200.0, "iso": 0.121, "ev": 84.7, "barrel": 2.5, "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 1100.0, "now": 1200.0, "delta_implied_pct": -0.64, "value_score": 2.0, "model_score": 11.9, "model_tier": "C", "era": 3.01, "whip": 0.95}, {"player": "Mickey Gasper", "team": "BOS", "matchup": "BOS @ MIA", "tier": NaN, "score": 34.9, "odds": 871.0, "iso": 0.044, "ev": 88.6, "barrel": 7.4, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)", "metric-sort-·-pull-%", "tired-pen"], "open": 300.0, "now": 900.0, "delta_implied_pct": -15.0, "value_score": 5.0, "model_score": 34.9, "era": 3.46, "whip": 1.18}, {"player": "Tommy White", "team": "OAK", "matchup": "MIN @ OAK", "tier": NaN, "score": 37.6, "odds": 700.0, "iso": 0.091, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 660.0, "now": 700.0, "delta_implied_pct": -0.66, "value_score": 59.0, "model_score": 40.0, "era": 5.12, "whip": 1.33}, {"player": "Sam Antonacci", "team": "CWS", "matchup": "TEX @ CWS", "tier": "C", "score": 29.5, "odds": 870.0, "iso": 0.13, "ev": 87.1, "barrel": 5.4, "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 770.0, "now": 850.0, "delta_implied_pct": -0.97, "value_score": 38.0, "model_score": 29.5, "model_tier": "C", "era": 4.46, "whip": 1.4}, {"player": "Bryson Stott", "team": "PHI", "matchup": "PHI @ SEA", "tier": "C", "score": 37.9, "odds": 810.0, "iso": 0.147806004, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 645.0, "now": 801.0, "delta_implied_pct": -2.32, "value_score": 10.0, "model_score": 37.9, "model_tier": "C", "era": 3.35, "whip": 1.01}, {"player": "Anthony Seigler", "team": "BOS", "matchup": "BOS @ MIA", "tier": NaN, "score": 33.9, "odds": 1100.0, "iso": 0.211, "ev": 86.7, "barrel": 6.0, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)", "tired-pen"], "open": 1132.0, "now": 1175.0, "delta_implied_pct": -0.27, "value_score": 2.0, "model_score": 33.9, "era": 3.46, "whip": 1.18}, {"player": "Jake McCarthy", "team": "COL", "matchup": "COL @ WSH", "tier": NaN, "score": 27.4, "odds": 900.0, "iso": 0.178, "ev": 82.2, "barrel": 4.4, "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 900.0, "now": 900.0, "delta_implied_pct": 0.0, "value_score": 15.0, "model_score": 26.4, "era": 3.22, "whip": 1.22}, {"player": "Donovan Walton", "team": "OAK", "matchup": "MIN @ OAK", "tier": "B", "score": 36.6, "odds": 597.0, "iso": 0.167741936, "ev": null, "barrel": null, "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "steam": NaN, "lenses": ["metric-sort-·-k-%-(low-=-good)"], "open": 690.0, "now": 640.0, "delta_implied_pct": 0.86, "value_score": 79.0, "model_score": 37.6, "model_tier": "B", "era": 5.12, "whip": 1.33}, {"player": "Tristan Peters", "team": "CWS", "matchup": "TEX @ CWS", "tier": "C", "score": 29.5, "odds": 900.0, "iso": 0.175, "ev": 83.3, "barrel": 6.0, "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["metric-sort-·-pull-%"], "open": 900.0, "now": 900.0, "delta_implied_pct": 0.0, "value_score": 40.0, "model_score": 27.0, "model_tier": "C", "era": 4.46, "whip": 1.4}, {"player": "Javier Baez", "team": "DET", "matchup": "TB @ DET", "tier": "C", "score": 8.9, "odds": 1100.0, "iso": 0.129, "ev": 86.9, "barrel": 1.4, "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-pull-%"], "open": 940.0, "now": 1100.0, "delta_implied_pct": -1.28, "value_score": 0.0, "model_score": 9.9, "model_tier": "C", "era": 3.01, "whip": 0.95}, {"player": "Joe Mack", "team": "MIA", "matchup": "BOS @ MIA", "tier": NaN, "score": 11.9, "odds": 1300.0, "iso": 0.105, "ev": 87.3, "barrel": 9.7, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-pull-%"], "open": 1209.0, "now": 1100.0, "delta_implied_pct": 0.69, "value_score": 6.0, "model_score": 10.9, "model_tier": "C", "era": 3.41, "whip": 1.18}, {"player": "Weston Wilson", "team": "SEA", "matchup": "PHI @ SEA", "tier": "C", "score": 19.9, "odds": 910.0, "iso": 0.0, "ev": null, "barrel": null, "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-pull-%"], "open": 525.0, "now": 930.0, "delta_implied_pct": -6.29, "value_score": -7.0, "model_score": 21.9, "model_tier": "C", "era": 2.92, "whip": 1.01}, {"player": "Nick Sogard", "team": "BOS", "matchup": "BOS @ MIA", "tier": NaN, "score": 35.9, "odds": 1100.0, "iso": 0.108, "ev": 82.2, "barrel": 5.1, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": NaN, "lenses": ["metric-sort-·-pull-%", "tired-pen"], "open": 1055.0, "now": 1100.0, "delta_implied_pct": -0.32, "value_score": 2.0, "model_score": 28.0, "era": 3.46, "whip": 1.18}, {"player": "Agustin Ramirez", "team": "MIA", "matchup": "BOS @ MIA", "tier": "C", "score": 14.9, "odds": 870.0, "iso": 0.194, "ev": 89.7, "barrel": 4.8, "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "steam": "yes", "lenses": ["metric-sort-·-pull-%"], "open": 750.0, "now": 850.0, "delta_implied_pct": -1.24, "value_score": 13.0, "model_score": 13.9, "model_tier": "C", "era": 3.41, "whip": 1.18}, {"player": "Jacob Young", "team": "WSH", "matchup": "COL @ WSH", "tier": NaN, "score": 51.1, "odds": 900.0, "iso": 0.137, "ev": 86.9, "barrel": 6.0, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": NaN, "lenses": ["tired-pen"], "open": 860.0, "now": 900.0, "delta_implied_pct": -0.42, "value_score": 59.0, "model_score": 49.0, "era": 5.97, "whip": 1.53}, {"player": "Ezequiel Duran", "team": "TEX", "matchup": "TEX @ CWS", "tier": NaN, "score": 49.5, "odds": 869.0, "iso": 0.186, "ev": 88.3, "barrel": 7.5, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": NaN, "lenses": ["tired-pen"], "open": 900.0, "now": 850.0, "delta_implied_pct": 0.53, "value_score": 26.0, "model_score": 46.0, "era": 5.06, "whip": 1.5}, {"player": "Trea Turner", "team": "PHI", "matchup": "PHI @ SEA", "tier": "C", "score": 37.9, "odds": 790.0, "iso": 0.136, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["tired-pen"], "open": 550.0, "now": 800.0, "delta_implied_pct": -4.27, "value_score": 6.0, "model_score": 40.9, "model_tier": "C", "era": 3.35, "whip": 1.01}, {"player": "Ceddanne Rafaela", "team": "BOS", "matchup": "BOS @ MIA", "tier": "C", "score": 37.9, "odds": 1100.0, "iso": 0.15, "ev": 86.5, "barrel": 5.8, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": "yes", "lenses": ["tired-pen"], "open": 724.0, "now": 1100.0, "delta_implied_pct": -3.8, "value_score": -5.0, "model_score": 37.9, "model_tier": "C", "era": 3.46, "whip": 1.18}, {"player": "Jarren Duran", "team": "BOS", "matchup": "BOS @ MIA", "tier": NaN, "score": 36.9, "odds": 740.0, "iso": 0.184, "ev": 88.8, "barrel": 9.6, "opp_pitcher": "Sandy Alcantara", "pitcher_tier": "strong", "steam": NaN, "lenses": ["tired-pen"], "open": 685.0, "now": 680.0, "delta_implied_pct": 0.08, "value_score": 15.0, "model_score": 36.9, "era": 3.46, "whip": 1.18}, {"player": "Cody Freeman", "team": "TEX", "matchup": "TEX @ CWS", "tier": NaN, "score": 36.5, "odds": 1100.0, "iso": 0.0, "ev": 80.2, "barrel": 0.0, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": NaN, "lenses": ["tired-pen"], "open": 1089.0, "now": 1076.0, "delta_implied_pct": 0.09, "value_score": 11.0, "model_score": 36.5, "era": 5.06, "whip": 1.5}, {"player": "Elias Diaz", "team": "TEX", "matchup": "TEX @ CWS", "tier": NaN, "score": 36.5, "odds": 800.0, "iso": 0.165644172, "ev": 87.2, "barrel": 9.3, "opp_pitcher": "José Urquidy", "pitcher_tier": "unknown", "steam": NaN, "lenses": ["tired-pen"], "open": 800.0, "now": 800.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 28.0, "model_tier": "B", "era": 5.06, "whip": 1.5}, {"player": "Ke'Bryan Hayes", "team": "CIN", "matchup": "CIN @ SF", "tier": "C", "score": 36.1, "odds": 1323.0, "iso": 0.133, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": "yes", "lenses": ["tired-pen"]}, {"player": "Hector Rodriguez", "team": "CIN", "matchup": "CIN @ SF", "tier": "C", "score": 36.1, "odds": 1100.0, "iso": 0.121951219, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": "yes", "lenses": ["tired-pen"]}, {"player": "Nasim Nunez", "team": "WSH", "matchup": "COL @ WSH", "tier": NaN, "score": 36.1, "odds": 1220.0, "iso": 0.036, "ev": 82.7, "barrel": 0.3, "opp_pitcher": "Ryan Feltner", "pitcher_tier": "weak", "steam": NaN, "lenses": ["tired-pen"], "open": 1246.0, "now": 1260.0, "delta_implied_pct": -0.08, "value_score": 48.0, "model_score": 36.1, "era": 5.97, "whip": 1.53}, {"player": "Dane Myers", "team": "CIN", "matchup": "CIN @ SF", "tier": NaN, "score": 36.1, "odds": 800.0, "iso": 0.159, "ev": null, "barrel": null, "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "steam": NaN, "lenses": ["tired-pen"], "open": 800.0, "now": 790.0, "delta_implied_pct": 0.12, "value_score": 61.0, "model_score": 37.6, "era": 7.03, "whip": 1.84}, {"player": "Gavin Sheets", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 34.9, "odds": 750.0, "iso": 0.211, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["tired-pen"], "open": 470.0, "now": 750.0, "delta_implied_pct": -5.78, "value_score": 5.0, "model_score": 34.9, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "Jake Cronenworth", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 34.9, "odds": 900.0, "iso": 0.065, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["tired-pen"], "open": 630.0, "now": 900.0, "delta_implied_pct": -3.7, "value_score": 8.0, "model_score": 34.9, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "J.T. Realmuto", "team": "PHI", "matchup": "PHI @ SEA", "tier": "C", "score": 34.9, "odds": 900.0, "iso": 0.167, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": "yes", "lenses": ["tired-pen"], "open": 670.0, "now": 900.0, "delta_implied_pct": -2.99, "value_score": 9.0, "model_score": 34.9, "model_tier": "C", "era": 3.35, "whip": 1.01}, {"player": "Justin Crawford", "team": "PHI", "matchup": "PHI @ SEA", "tier": "C", "score": 33.9, "odds": 1320.0, "iso": 0.108, "ev": null, "barrel": null, "opp_pitcher": "Logan Gilbert", "pitcher_tier": "strong", "steam": NaN, "lenses": ["tired-pen"], "open": 1150.0, "now": 1440.0, "delta_implied_pct": -1.51, "value_score": 0.0, "model_score": 34.9, "model_tier": "C", "era": 3.35, "whip": 1.01}, {"player": "Ryan Waldschmidt", "team": "ARI", "matchup": "CHC @ ARI", "tier": NaN, "score": 33.5, "odds": 1100.0, "iso": 0.096, "ev": null, "barrel": null, "opp_pitcher": "Kevin Gausman", "pitcher_tier": "bubble", "steam": NaN, "lenses": ["tired-pen"], "open": 1080.0, "now": 1124.0, "delta_implied_pct": -0.3, "value_score": 27.0, "model_score": 32.0, "era": 4.58, "whip": 1.3}, {"player": "Xander Bogaerts", "team": "SD", "matchup": "PIT @ SD", "tier": "C", "score": 32.9, "odds": 900.0, "iso": 0.099, "ev": null, "barrel": null, "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "steam": "yes", "lenses": ["tired-pen"], "open": 575.0, "now": 880.0, "delta_implied_pct": -4.61, "value_score": 6.0, "model_score": 32.9, "model_tier": "C", "era": 3.68, "whip": 1.08}, {"player": "Jonny DeLuca", "team": "TB", "matchup": "TB @ DET", "tier": NaN, "score": 29.6, "odds": 850.0, "iso": 0.179, "ev": 83.9, "barrel": 3.5, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["tired-pen"], "open": 885.0, "now": 850.0, "delta_implied_pct": 0.37, "value_score": 62.0, "model_score": 29.6, "era": 4.35, "whip": 1.4}, {"player": "Jorge Mateo", "team": "TB", "matchup": "TB @ DET", "tier": NaN, "score": 28.6, "odds": 800.0, "iso": 0.159, "ev": 87.9, "barrel": 8.7, "opp_pitcher": "Framber Valdez", "pitcher_tier": "weak", "steam": NaN, "lenses": ["tired-pen"], "open": 814.0, "now": 800.0, "delta_implied_pct": 0.17, "value_score": 61.0, "model_score": 28.6, "era": 4.35, "whip": 1.4}, {"player": "Austin Wells", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 534.0, "iso": 0.117870722, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 534.0, "now": 534.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 24.0}, {"player": "Ben Rice", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 390.0, "iso": 0.275268817, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 390.0, "now": 390.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 24.0}, {"player": "Cody Bellinger", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 500.0, "iso": 0.158730158, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 500.0, "now": 500.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 24.0}, {"player": "George Lombard Jr.", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 800.0, "iso": 0.118644068, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 800.0, "now": 800.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 24.0}, {"player": "Jazz Chisholm Jr.", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 561.0, "iso": 0.177304964, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 561.0, "now": 561.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 21.0}, {"player": "Jose Caballero", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 1000.0, "iso": 0.14117647, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 1000.0, "now": 1000.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 24.0}, {"player": "Luis Garcia Jr.", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 500.0, "iso": 0.264916467, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 500.0, "now": 500.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 26.0}, {"player": "Spencer Jones", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 500.0, "iso": 0.194968553, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 500.0, "now": 500.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 26.0}, {"player": "Trent Grisham", "team": "NYY", "matchup": "TOR @ NYY", "tier": NaN, "score": 25.5, "odds": 450.0, "iso": 0.200520834, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 450.0, "now": 450.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 21.0}, {"player": "Alejandro Kirk", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 674.0, "iso": 0.141361256, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 674.0, "now": 674.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 22.0}, {"player": "Brett Bateman", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 1320.0, "iso": 0.084745763, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 1320.0, "now": 1320.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 22.0}, {"player": "Charles McAdoo", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 900.0, "iso": 0.125, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 900.0, "now": 900.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 22.0}, {"player": "Daz Cameron", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 660.0, "iso": null, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 660.0, "now": 660.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 22.0}, {"player": "Ernie Clement", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 900.0, "iso": 0.118367347, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 900.0, "now": 900.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 22.0}, {"player": "George Springer", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 480.0, "iso": 0.150943396, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 480.0, "now": 480.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 22.0}, {"player": "Kazuma Okamoto", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 362.0, "iso": 0.208955224, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 362.0, "now": 362.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 22.0}, {"player": "Myles Straw", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 1275.0, "iso": 0.115879828, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 1275.0, "now": 1275.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 22.0}, {"player": "Vladimir Guerrero Jr.", "team": "TOR", "matchup": "TOR @ NYY", "tier": NaN, "score": 23.5, "odds": 450.0, "iso": 0.091116173, "ev": null, "barrel": null, "opp_pitcher": NaN, "pitcher_tier": NaN, "steam": NaN, "lenses": ["tired-pen"], "open": 450.0, "now": 450.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 22.0}, {"player": "Lawrence Butler", "lenses": [], "team": "OAK", "matchup": "MIN @ OAK", "opp_pitcher": "Zebby Matthews", "pitcher_tier": "weak", "open": 500.0, "now": 417.0, "delta_implied_pct": 2.68, "value_score": 88.0, "model_score": 46.0, "model_tier": "A", "era": 5.12, "whip": 1.33}, {"player": "Jose Trevino", "lenses": [], "team": "CIN", "matchup": "CIN @ SF", "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "open": 900.0, "now": 1000.0, "delta_implied_pct": -0.91, "value_score": 46.0, "model_score": 37.6, "model_tier": "C", "era": 7.03, "whip": 1.84}, {"player": "Ivan Johnson", "lenses": [], "team": "CIN", "matchup": "CIN @ SF", "opp_pitcher": "Carson Whisenhunt", "pitcher_tier": "weak", "open": 900.0, "now": 950.0, "delta_implied_pct": -0.48, "value_score": 47.0, "model_score": 37.6, "era": 7.03, "whip": 1.84}, {"player": "Spencer Horwitz", "lenses": [], "team": "PIT", "matchup": "PIT @ SD", "value_score": 8.0, "model_score": 30.5}, {"player": "Nick Gonzales", "lenses": [], "team": "PIT", "matchup": "PIT @ SD", "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "open": 850.0, "now": 900.0, "delta_implied_pct": -0.53, "value_score": 14.0, "model_score": 29.9, "era": 3.2, "whip": 1.31}, {"player": "Braden Montgomery", "lenses": [], "team": "CWS", "matchup": "TEX @ CWS", "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "open": 633.0, "now": 800.0, "delta_implied_pct": -2.53, "value_score": 35.0, "model_score": 28.5, "model_tier": "C", "era": 4.46, "whip": 1.4}, {"player": "Julio Rodriguez", "lenses": [], "team": "SEA", "matchup": "PHI @ SEA", "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "open": 360.0, "now": 600.0, "delta_implied_pct": -7.45, "value_score": 20.0, "model_score": 27.0, "model_tier": "C", "era": 2.92, "whip": 1.01}, {"player": "Drew Gilbert", "lenses": [], "team": "SF", "matchup": "CIN @ SF", "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "open": 525.0, "now": 1110.0, "delta_implied_pct": -7.74, "value_score": -7.0, "model_score": 26.9, "model_tier": "C", "era": 2.51, "whip": 1.11}, {"player": "Nick Yorke", "lenses": [], "team": "PIT", "matchup": "PIT @ SD", "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "open": 600.0, "now": 700.0, "delta_implied_pct": -1.79, "value_score": 11.0, "model_score": 26.9, "model_tier": "C", "era": 3.2, "whip": 1.31}, {"player": "Jared Triolo", "lenses": [], "team": "PIT", "matchup": "PIT @ SD", "opp_pitcher": "Robbie Ray", "pitcher_tier": "strong", "open": 1060.0, "now": 1120.0, "delta_implied_pct": -0.42, "value_score": 2.0, "model_score": 26.9, "era": 3.2, "whip": 1.31}, {"player": "Willi Castro", "lenses": [], "team": "COL", "matchup": "COL @ WSH", "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "open": 716.0, "now": 750.0, "delta_implied_pct": -0.49, "value_score": 14.0, "model_score": 25.4, "era": 3.22, "whip": 1.22}, {"player": "Cole Young", "lenses": [], "team": "SEA", "matchup": "PHI @ SEA", "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "open": 811.0, "now": 850.0, "delta_implied_pct": -0.45, "value_score": 14.0, "model_score": 23.9, "era": 2.92, "whip": 1.01}, {"player": "Chase Meidroth", "lenses": [], "team": "CWS", "matchup": "TEX @ CWS", "opp_pitcher": "Kumar Rocker", "pitcher_tier": "bubble", "open": 1000.0, "now": 1100.0, "delta_implied_pct": -0.76, "value_score": 26.0, "model_score": 23.5, "model_tier": "C", "era": 4.46, "whip": 1.4}, {"player": "Troy Johnston", "lenses": [], "team": "COL", "matchup": "COL @ WSH", "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "open": 900.0, "now": 950.0, "delta_implied_pct": -0.48, "value_score": 2.0, "model_score": 23.4, "era": 3.22, "whip": 1.22}, {"player": "Taylor Ward", "lenses": [], "team": "SEA", "matchup": "PHI @ SEA", "opp_pitcher": "Zack Wheeler", "pitcher_tier": "strong", "open": 590.0, "now": 1000.0, "delta_implied_pct": -5.4, "value_score": -7.0, "model_score": 21.9, "model_tier": "C", "era": 2.92, "whip": 1.01}, {"player": "Christian Koss", "lenses": [], "team": "SF", "matchup": "CIN @ SF", "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "open": 1120.0, "now": 1168.0, "delta_implied_pct": -0.31, "value_score": 2.0, "model_score": 21.9, "era": 2.51, "whip": 1.11}, {"player": "Turner Hill", "lenses": [], "team": "SF", "matchup": "CIN @ SF", "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "open": 1320.0, "now": 1375.0, "delta_implied_pct": -0.26, "value_score": 2.0, "model_score": 21.9, "era": 2.51, "whip": 1.11}, {"player": "Drew Cavanaugh", "lenses": [], "team": "SF", "matchup": "CIN @ SF", "opp_pitcher": "Chase Burns", "pitcher_tier": "strong", "open": 1040.0, "now": 1240.0, "delta_implied_pct": -1.31, "value_score": 0.0, "model_score": 19.9, "model_tier": "C", "era": 2.51, "whip": 1.11}, {"player": "Moises Ballesteros", "lenses": [], "team": "LAA", "matchup": "CLE @ LAA", "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "open": 770.0, "now": 700.0, "delta_implied_pct": 1.01, "value_score": 20.0, "model_score": 19.9, "era": 2.54, "whip": 1.03}, {"player": "Vaughn Grissom", "lenses": [], "team": "LAA", "matchup": "CLE @ LAA", "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "open": 953.0, "now": 1074.0, "delta_implied_pct": -0.98, "value_score": 1.0, "model_score": 19.9, "model_tier": "C", "era": 2.54, "whip": 1.03}, {"player": "Ezequiel Tovar", "lenses": [], "team": "COL", "matchup": "COL @ WSH", "opp_pitcher": "Cade Cavalli", "pitcher_tier": "strong", "open": 840.0, "now": 860.0, "delta_implied_pct": -0.22, "value_score": 15.0, "model_score": 19.4, "era": 3.22, "whip": 1.22}, {"player": "Gustavo Campero", "lenses": [], "team": "LAA", "matchup": "CLE @ LAA", "opp_pitcher": "Parker Messick", "pitcher_tier": "strong", "open": 910.0, "now": 1050.0, "delta_implied_pct": -1.21, "value_score": 1.0, "model_score": 15.9, "model_tier": "C", "era": 2.54, "whip": 1.03}, {"player": "Hao-Yu Lee", "lenses": [], "team": "DET", "matchup": "TB @ DET", "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "open": 800.0, "now": 716.0, "delta_implied_pct": 1.14, "value_score": 21.0, "model_score": 14.9, "era": 3.01, "whip": 0.95}, {"player": "Colt Keith", "lenses": [], "team": "DET", "matchup": "TB @ DET", "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "open": 730.0, "now": 700.0, "delta_implied_pct": 0.45, "value_score": 17.0, "model_score": 14.9, "era": 3.01, "whip": 0.95}, {"player": "Jakob Marsee", "lenses": [], "team": "MIA", "matchup": "BOS @ MIA", "opp_pitcher": "Ranger Suarez", "pitcher_tier": "strong", "open": 1100.0, "now": 1100.0, "delta_implied_pct": 0.0, "value_score": 3.0, "model_score": 10.9, "model_tier": "C", "era": 3.41, "whip": 1.18}, {"player": "Max Clark", "lenses": [], "team": "DET", "matchup": "TB @ DET", "opp_pitcher": "Drew Rasmussen", "pitcher_tier": "strong", "open": 900.0, "now": 1000.0, "delta_implied_pct": -0.91, "value_score": 1.0, "model_score": 9.9, "model_tier": "C", "era": 3.01, "whip": 0.95}, {"player": "Luis Campusano", "lenses": [], "team": "SD", "matchup": "MIN @ SD", "opp_pitcher": "Braxton Ashcraft", "pitcher_tier": "strong", "open": 500.0, "now": 500.0, "delta_implied_pct": 0.0, "value_score": 30.0, "model_score": 21.0, "era": 3.68, "whip": 1.08}, {"player": "Jordan Walker", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 510.0, "now": 510.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 16.0}, {"player": "Andrew Vaughn", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 640.0, "now": 640.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 14.0}, {"player": "Brice Turang", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 750.0, "now": 750.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 14.0}, {"player": "Christian Yelich", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 765.0, "now": 765.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 14.0}, {"player": "Cooper Pratt", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 700.0, "now": 700.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 14.0}, {"player": "David Hamilton", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 1180.0, "now": 1180.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 14.0}, {"player": "Garrett Mitchell", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 650.0, "now": 650.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 14.0}, {"player": "Joey Ortiz", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 960.0, "now": 960.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 14.0}, {"player": "Luis Lara", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 722.0, "now": 722.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 14.0}, {"player": "William Contreras", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 581.0, "now": 581.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 14.0}, {"player": "Alec Burleson", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 709.0, "now": 709.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 13.0}, {"player": "Blaze Jordan", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 910.0, "now": 910.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 13.0}, {"player": "Ivan Herrera", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 750.0, "now": 750.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 13.0}, {"player": "JJ Wetherholt", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 900.0, "now": 900.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 13.0}, {"player": "Joshua Baez", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 600.0, "now": 600.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 13.0}, {"player": "Pedro Pages", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 1060.0, "now": 1060.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 13.0}, {"player": "Ramon Urias", "lenses": [], "team": "STL", "matchup": "STL @ PHI", "open": 804.0, "now": 804.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 13.0}, {"player": "Lane Thomas", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 650.0, "now": 650.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 13.0}, {"player": "Matt Olson", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 433.0, "now": 433.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 13.0}, {"player": "Mauricio Dubon", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 1030.0, "now": 1030.0, "delta_implied_pct": 0.0, "value_score": 11.0, "model_score": 13.0}, {"player": "Ozzie Albies", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 600.0, "now": 600.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 13.0}, {"player": "Ronald Acuna Jr.", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 500.0, "now": 500.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 13.0}, {"player": "Sean Murphy", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 700.0, "now": 700.0, "delta_implied_pct": 0.0, "value_score": 23.0, "model_score": 13.0}, {"player": "Michael Harris II", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 525.0, "now": 525.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 10.0}, {"player": "Jackson Chourio", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 488.0, "now": 488.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 9.0}, {"player": "Jake Bauers", "lenses": [], "team": "MIL", "matchup": "ATL @ MIL", "open": 500.0, "now": 500.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 9.0}, {"player": "Austin Riley", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 546.0, "now": 546.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 8.0}, {"player": "Drake Baldwin", "lenses": [], "team": "ATL", "matchup": "ATL @ MIL", "open": 606.0, "now": 606.0, "delta_implied_pct": 0.0, "value_score": 38.0, "model_score": 8.0}];
+let players={}, bbe={}, results={}, generatedBBERows=[], savantSourceRows=[], detectedSlateDate=null, autoBBEInFlight=false;
+const HISTORY_KEY='bandalytics_history_v1';
+let historyRows=loadHistory();
+
+function parseCSV(text){
+  const rows=[]; let row=[], field='', q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i], n=text[i+1];
+    if(c=='"'){ if(q && n=='"'){field+='"';i++;} else q=!q; }
+    else if(c==',' && !q){row.push(field);field='';}
+    else if((c=='\n'||c=='\r') && !q){ if(c=='\r'&&n=='\n') i++; row.push(field); field=''; if(row.some(x=>x!=='')) rows.push(row); row=[]; }
+    else field+=c;
+  }
+  if(field||row.length){row.push(field);rows.push(row)}
+  if(!rows.length)return [];
+  const h=rows[0].map(x=>x.trim());
+  return rows.slice(1).map(r=>Object.fromEntries(h.map((k,i)=>[k,(r[i]??'').trim()])));
+}
+
+function setImportStatus(msg,cls='muted'){
+  const el=document.getElementById('importStatus'); if(el){el.className='small '+cls; el.textContent=msg;}
+}
+function normalizePlayerName(name){
+  let x=String(name||'').trim().replace(/^"|"$/g,'');
+  if(x.includes(',')){ const parts=x.split(',').map(v=>v.trim()).filter(Boolean); if(parts.length>=2)x=parts.slice(1).join(' ')+' '+parts[0]; }
+  return x.replace(/\s+/g,' ').trim();
+}
+function canonicalPlayerName(name){
+  return normalizePlayerName(name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function isoDate(d){return d.toISOString().slice(0,10);}
+function dateShift(iso,days){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+days);return isoDate(d);}
+function maybeDetectSlateDate(name){
+  const m=String(name||'').match(/(20\d{2})[-_](\d{2})[-_](\d{2})/);
+  if(m){detectedSlateDate=`${m[1]}-${m[2]}-${m[3]}`; const el=document.getElementById('slateDate'); if(el)el.value=detectedSlateDate;}
+}
+function defaultSlateDate(){
+  const el=document.getElementById('slateDate');
+  if(el&&el.value)return el.value;
+  if(detectedSlateDate)return detectedSlateDate;
+  const d=new Date(); const v=isoDate(d); if(el)el.value=v; return v;
+}
+function setAutoBBEStatus(msg,cls='muted'){const el=document.getElementById('autoBBEStatus');if(el){el.className='small '+cls;el.textContent=msg;}}
+function savantRecentURL(startDate,endDate){
+  const q=new URLSearchParams();
+  q.set('all','true'); q.set('hfPT',''); q.set('hfAB',''); q.set('hfBBT',''); q.set('hfPR',''); q.set('hfZ',''); q.set('stadium',''); q.set('hfBBL',''); q.set('hfNewZones','');
+  q.set('hfGT','R|PO|S|'); q.set('hfSea',startDate.slice(0,4)+'|'); q.set('hfSit',''); q.set('player_type','batter'); q.set('hfOuts',''); q.set('opponent',''); q.set('pitcher_throws',''); q.set('batter_stands',''); q.set('hfSA','');
+  q.set('game_date_gt',startDate); q.set('game_date_lt',endDate); q.set('team',''); q.set('position',''); q.set('hfRO',''); q.set('home_road','');
+  q.set('hfFlag','is\.\.hit\.\.into\.\.play|'); q.set('metric_1',''); q.set('hfInn',''); q.set('min_pitches','0'); q.set('min_results','0'); q.set('group_by','name'); q.set('sort_col','pitches'); q.set('player_event_sort','h_launch_speed'); q.set('sort_order','desc'); q.set('min_abs','0'); q.set('type','details');
+  return 'https://baseballsavant.mlb.com/statcast_search/csv?'+q.toString();
+}
+function filterStatcastToSlate(rows){
+  const wanted=new Map(Object.keys(players).map(n=>[canonicalPlayerName(n),n]));
+  const out=[]; const matched=new Set();
+  rows.forEach(r=>{const raw=statcastPlayerName(r), key=canonicalPlayerName(raw), target=wanted.get(key); if(!target)return; out.push({...r,player:target});matched.add(target);});
+  return {rows:out,matched};
+}
+async function autoFetchRecentBBE(force=false){
+  if(autoBBEInFlight)return;
+  if(!force && !document.getElementById('autoBBE')?.checked)return;
+  const names=Object.keys(players); if(!names.length){setAutoBBEStatus('Load a slate first.','warn');return;}
+  const slate=defaultSlateDate(); const end=dateShift(slate,-1); const days=Math.max(7,Math.min(35,+document.getElementById('autoBBEDays').value||21)); const start=dateShift(end,-days+1);
+  autoBBEInFlight=true; document.getElementById('fetchBBE').disabled=true; setAutoBBEStatus(`Fetching recent Statcast BBE (${start} → ${end}) for ${names.length} slate hitters…`);
+  try{
+    const resp=await fetch(savantRecentURL(start,end),{method:'GET',mode:'cors',credentials:'omit',cache:'no-store'});
+    if(!resp.ok)throw new Error('Baseball Savant returned HTTP '+resp.status);
+    const text=await resp.text(); if(!text||!text.includes('player_name'))throw new Error('Baseball Savant returned an unexpected response');
+    const allRows=parseCSV(text), f=filterStatcastToSlate(allRows); savantSourceRows=f.rows;
+    const limit=Math.max(5,Math.min(30,+document.getElementById('bbeLimit').value||15)); generatedBBERows=makeRecentBBE(f.rows,limit); loadBBERows(generatedBBERows); renderBBEGenerator(); render();
+    const hitters=new Set(generatedBBERows.map(r=>r.player)).size;
+    setAutoBBEStatus(`Auto BBE ready: ${generatedBBERows.length} recent BBE for ${hitters}/${names.length} slate hitters (${start} → ${end}). Same-day slate results are excluded.`,'good');
+  }catch(err){
+    console.error(err); setAutoBBEStatus('Auto BBE could not load in this browser: '+err.message+'. Use the fallback generator only if needed.','bad');
+  }finally{autoBBEInFlight=false;document.getElementById('fetchBBE').disabled=false;}
+}
+function isJunkZipPath(name){
+  const parts=String(name||'').split('/');
+  return parts.some(p=>!p||p==='__MACOSX'||p.startsWith('.')) || /\.(ds_store|txt)$/i.test(name);
+}
+function classifyCSV(filename,rows){
+  const f=String(filename||'').toLowerCase();
+  const h=rows[0]||{};
+  const keys=Object.keys(h).map(x=>x.toLowerCase());
+  const has=(...ks)=>ks.some(k=>keys.includes(k));
+  if(/result|audit|calibration/.test(f) || (has('outcome')&&has('locked'))) return 'results';
+  if((has('player_name')||has('batter_name'))&&has('launch_speed')&&has('launch_angle')&&has('game_date')) return 'statcast';
+  if(/(^|[-_ ])bbe|recent[-_ ]?contact|statcast[-_ ]?bbe/.test(f) || (has('player')&&has('launch_angle')&&has('ev')&&!has('open'))) return 'bbe';
+  return 'board';
+}
+function loadBBERows(rows){
+  bbe={};
+  rows.forEach((r,idx)=>{
+    const p=normalizePlayerName(r.player||r.Player||r.player_name||r.batter_name||''); if(!p)return;
+    const rawTs=r.timestamp||r.datetime||r.date||r.Date||r.game_date||''; const ts=rawTs?Date.parse(rawTs):null;
+    const seq=num(r.sequence||r.seq||r.order||r.at_bat_number);
+    const ev=num(r.ev||r.EV||r.launch_speed); const la=num(r.launch_angle||r.LA); const dist=num(r.distance||r.Distance||r.hit_distance_sc);
+    if(ev==null&&la==null)return;
+    (bbe[p]||=[]).push({ev,la,dist,pulled:r.pulled??r.Pull,ts:Number.isNaN(ts)?null:ts,seq,idx});
+  });
+}
+function loadResultRows(rows){
+  results={}; rows.forEach(r=>{const p=normalizePlayerName(r.player||r.Player||''); if(p)results[p]=r;});
+}
+async function processCSVText(text,filename){
+  maybeDetectSlateDate(filename);
+  const rows=parseCSV(text); if(!rows.length)return {kind:'empty',count:0,name:filename};
+  const kind=classifyCSV(filename,rows);
+  if(kind==='bbe') loadBBERows(rows);
+  else if(kind==='statcast'){ savantSourceRows=rows; const limit=Math.max(5,Math.min(30,+document.getElementById('bbeLimit').value||15)); generatedBBERows=makeRecentBBE(rows,limit); loadBBERows(generatedBBERows); renderBBEGenerator(); }
+  else if(kind==='results') loadResultRows(rows); else mergeRows(rows,filename,false);
+  return {kind,count:rows.length,name:filename};
+}
+async function processUploadFile(file){
+  maybeDetectSlateDate(file.name);
+  const lower=file.name.toLowerCase();
+  if(lower.endsWith('.zip')){
+    if(!window.JSZip) throw new Error('ZIP reader could not load. Check internet once, or upload the CSVs directly.');
+    const zip=await JSZip.loadAsync(file); const entries=[];
+    Object.keys(zip.files).forEach(name=>{const z=zip.files[name]; if(!z.dir&&!isJunkZipPath(name)&&name.toLowerCase().endsWith('.csv'))entries.push(z);});
+    if(!entries.length)throw new Error('No CSV files found inside this ZIP.');
+    const counts={board:0,bbe:0,statcast:0,results:0,empty:0};
+    for(const z of entries){ const r=await processCSVText(await z.async('text'),z.name.split('/').pop()); counts[r.kind]=(counts[r.kind]||0)+1; }
+    render();
+    return `ZIP loaded: ${entries.length} CSVs — ${counts.board||0} board/movement, ${counts.statcast||0} raw Statcast, ${counts.bbe||0} ready-BBE, ${counts.results||0} results.`;
+  }
+  if(lower.endsWith('.csv')){ const r=await processCSVText(await file.text(),file.name); render(); return `Loaded ${file.name} (${r.kind}).`; }
+  return `Skipped ${file.name}.`;
+}
+function csvEscape(v){ const s=String(v??''); return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function rowsToCSV(rows,cols){ return [cols.join(','),...rows.map(r=>cols.map(c=>csvEscape(r[c])).join(','))].join('\n'); }
+function downloadText(text,filename,type='text/csv'){
+  const blob=new Blob([text],{type}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function statcastPlayerName(r){ return normalizePlayerName(r.player||r.Player||r.player_name||r.batter_name||r.name||''); }
+function statcastOrderKey(r,idx){
+  const d=Date.parse(r.game_date||r.date||r.Date||''); const day=Number.isNaN(d)?0:d;
+  const ab=num(r.at_bat_number)||0, pitch=num(r.pitch_number)||0, seq=num(r.sequence||r.seq)||idx;
+  return day*1000000+ab*1000+pitch*10+seq/100000;
+}
+function estimatePulled(r){
+  const direct=r.pulled??r.Pull; if(String(direct??'').trim()!=='')return pulledBool(direct)?1:0;
+  const x=num(r.hc_x); const stand=String(r.stand||r.batter_stand||'').trim().toUpperCase();
+  if(x==null||!stand)return '';
+  // Savant spray x is roughly centered near 125. RHH pull toward LF (lower x); LHH pull toward RF (higher x).
+  if(stand==='R')return x<118?1:0;
+  if(stand==='L')return x>132?1:0;
+  return '';
+}
+function makeRecentBBE(rows,limit=15){
+  const groups={};
+  rows.forEach((r,idx)=>{
+    const player=statcastPlayerName(r); if(!player)return;
+    const ev=num(r.launch_speed||r.ev||r.EV), la=num(r.launch_angle||r.LA);
+    // A BBE requires actual tracked contact. Rows with neither launch speed nor angle are pitch rows and are ignored.
+    if(ev==null&&la==null)return;
+    const o={player,ev,launch_angle:la,distance:num(r.hit_distance_sc||r.distance||r.Distance),pulled:estimatePulled(r),date:r.game_date||r.date||r.Date||'',sequence:statcastOrderKey(r,idx),bb_type:r.bb_type||'',events:r.events||''};
+    (groups[player]||=[]).push(o);
+  });
+  const out=[];
+  Object.values(groups).forEach(g=>{g.sort((a,b)=>a.sequence-b.sequence); g.slice(-limit).forEach((x,i)=>out.push({...x,sequence:i+1}));});
+  return out.sort((a,b)=>a.player.localeCompare(b.player)||a.sequence-b.sequence);
+}
+function renderBBEGenerator(){
+  const rows=generatedBBERows;
+  const playersN=new Set(rows.map(r=>r.player)).size;
+  document.getElementById('bbeGenCards').innerHTML=[['Generated BBE',rows.length],['Hitters',playersN],['Limit / hitter',+document.getElementById('bbeLimit').value||15]].map(([a,b])=>`<div class="stat"><span class="muted">${a}</span><b>${b}</b></div>`).join('');
+  const preview=rows.slice(0,250);
+  table(document.getElementById('bbeGenTable'),['Player','Seq','Date','EV','LA','Dist','Pulled','BBE type','Result'],preview.map(r=>[r.player,r.sequence,r.date||'—',fmt(r.ev),fmt(r.launch_angle,0),fmt(r.distance,0),r.pulled===''?'—':r.pulled,r.bb_type||'—',r.events||'—']));
+}
+
+function num(v){ if(v===null||v===undefined||v==='')return null; const n=parseFloat(String(v).replace('%','')); return isNaN(n)?null:n; }
+function keyName(o){return (o.Player||o.player||'').trim();}
+function mergeRows(rows, filename='', doRender=true){
+  const isMove = rows[0] && ('delta_implied_pct' in rows[0] || 'open' in rows[0] && 'now' in rows[0]);
+  let lens=filename.replace(/^hrboard-/,'').replace(/-2026-.*\.csv$/,'').replace(/\.csv$/,'');
+  rows.forEach(r=>{
+    const name=keyName(r); if(!name)return;
+    const p=players[name] ||= {player:name,lenses:[]};
+    const get=(...ks)=>ks.map(k=>r[k]).find(v=>v!==undefined&&v!=='');
+    p.team ||= get('Team','team'); p.matchup ||= get('Matchup','matchup'); p.tier ||= get('Tier','model_tier','tier');
+    p.score ??= num(get('Score','model_score')); p.odds ??= num(get('Odds','now','best_odds'));
+    p.iso ??= num(get('ISO%','ISO','iso')); p.ev ??= num(get('EV','Avg EV','avg_ev','ev')); p.barrel ??= num(get('Barrel%','barrel_pct','barrel'));
+    p.hh ??= num(get('Hard-Hit%','Hard Hit %','HH%','hard_hit_pct','hh')); p.pull ??= num(get('Pull%','Pull %','pull_pct'));
+    p.pullair ??= num(get('PullAir%','Pull AIR%','Pull Air %','pull_air_pct','pullair')); p.blast ??= num(get('Blast%','blast_pct','blast'));
+    p.pitch_fit ??= num(get('Pitch Fit','pitch_fit')); p.platoon_iso ??= num(get('Platoon ISO','platoon_iso'));
+    p.pitcher_hr9 ??= num(get('Pitcher HR/9','SP HR/9','pitcher_hr9','hr9')); p.bullpen_hr9 ??= num(get('Bullpen HR/9','bullpen_hr9'));
+    p.opp_pitcher ||= get('vs Pitcher','opp_pitcher'); p.pitcher_tier ||= get('P Tier','pitcher_tier');
+    if(isMove){ p.open=num(r.open); p.now=num(r.now); p.delta=num(r.delta_implied_pct); p.value_score=num(r.value_score); p.model_score=num(r.model_score); p.model_tier=r.model_tier; p.era=num(r.era); p.whip=num(r.whip); p.pitcher_hr9 ??= num(r.pitcher_hr9||r.hr9); }
+    else if(lens && !p.lenses.includes(lens)) p.lenses.push(lens);
+  });
+  if(doRender)render();
+}
+function loadDemo(){
+  players={}; DEMO.forEach(d=>players[d.player]=JSON.parse(JSON.stringify(d))); render();
+}
+function excludedSet(){return new Set(document.getElementById('excluded').value.split(',').map(x=>x.trim()).filter(Boolean));}
+function filtered(){
+  const ex=excludedSet(), hide=document.getElementById('hideExcluded').checked;
+  const q=document.getElementById('search').value.toLowerCase(), min=+document.getElementById('minLenses').value||1, weak=document.getElementById('onlyWeak').checked;
+  return Object.values(players).filter(p=>!(hide&&ex.has(p.player))).filter(p=>(p.lenses?.length||0)>=min)
+    .filter(p=>!weak||String(p.pitcher_tier).toLowerCase()==='weak')
+    .filter(p=>!q||[p.player,p.team,p.matchup,p.opp_pitcher].join(' ').toLowerCase().includes(q));
+}
+function fmt(v,d=1){return v===null||v===undefined||Number.isNaN(+v)?'—':(+v).toFixed(d)}
+function odds(v){return v===null||v===undefined?'—':(v>=0?'+':'')+Math.round(v)}
+function clamp(v,a=0,b=100){return Math.max(a,Math.min(b,v));}
+function pulledBool(v){const x=String(v??'').toLowerCase().trim();return x==='1'||x==='true'||x==='yes'||x==='y'||x==='pulled';}
+function recentBBE(player){
+  const evs=[...(bbe[player]||[])];
+  evs.sort((a,b)=>{
+    if(a.ts!=null&&b.ts!=null)return a.ts-b.ts;
+    if(a.seq!=null&&b.seq!=null)return a.seq-b.seq;
+    return (a.idx||0)-(b.idx||0);
+  });
+  return evs.slice(-15);
+}
+function contactEventScore(x){
+  const ev=x.ev||0, la=x.la;
+  let s=0;
+  if(ev>=105)s=100; else if(ev>=100)s=88; else if(ev>=95)s=74; else if(ev>=90)s=52; else if(ev>=85)s=28; else s=8;
+  if(la!=null&&la>=5&&la<=30)s+=8;
+  if(la!=null&&la<-5)s-=10;
+  return clamp(s);
+}
+function hrEventScore(x){
+  const ev=x.ev||0, la=x.la, dist=x.dist||0, pulled=pulledBool(x.pulled);
+  let s=0;
+  if(la!=null&&la>=18&&la<=38){ if(ev>=105)s=100; else if(ev>=100)s=88; else if(ev>=95)s=72; else if(ev>=90)s=38; }
+  else if(la!=null&&la>=15&&la<=42){ if(ev>=105)s=88; else if(ev>=100)s=74; else if(ev>=95)s=58; }
+  else if(ev>=105&&la!=null&&la>=10&&la<=45)s=52;
+  if(pulled&&ev>=95&&la!=null&&la>=15&&la<=42)s+=14;
+  if(dist>=390)s+=12; else if(dist>=360)s+=7; else if(dist>=340)s+=3;
+  return clamp(s);
+}
+function bbeSummary(player){
+  const evs=recentBBE(player), n=evs.length;
+  if(!n)return null;
+  const scoresC=evs.map(contactEventScore), scoresH=evs.map(hrEventScore);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+  const newest=evs.slice(-5), prior=evs.slice(0,Math.max(0,n-5));
+  const newestHR=avg(newest.map(hrEventScore)), priorHR=avg(prior.map(hrEventScore));
+  const trendDelta=prior.length?newestHR-priorHR:0;
+  const trend=!prior.length?'NEW':trendDelta>=12?'RISING':trendDelta<=-12?'FALLING':'FLAT';
+  const count=(fn)=>evs.filter(fn).length;
+  const hrq=count(x=>hrEventScore(x)>=72), near=count(x=>hrEventScore(x)>=52&&hrEventScore(x)<72);
+  return {
+    n, contact:avg(scoresC), hrshape:avg(scoresH), hrq, near,
+    ev95:count(x=>(x.ev||0)>=95), ev100:count(x=>(x.ev||0)>=100), ev105:count(x=>(x.ev||0)>=105),
+    pulledAir:count(x=>pulledBool(x.pulled)&&x.la!=null&&x.la>=15&&(x.ev||0)>=90),
+    hardFlat:count(x=>(x.ev||0)>=95&&x.la!=null&&x.la<15),
+    soft:count(x=>(x.ev||0)<85), trend, trendDelta, newestHR, priorHR,
+    maxEV:Math.max(...evs.map(x=>x.ev||0)), maxDist:Math.max(...evs.map(x=>x.dist||0))
+  };
+}
+function weightedAvailable(parts){
+  let nume=0, den=0;
+  parts.forEach(([v,w])=>{if(v!==null&&v!==undefined&&!Number.isNaN(+v)){nume+=(+v)*w;den+=w;}});
+  return den?nume/den:null;
+}
+function norm(v,lo,hi){if(v==null||Number.isNaN(+v))return null;return clamp(100*((+v)-lo)/(hi-lo));}
+function powerCapability(p){
+  return weightedAvailable([
+    [norm(p.barrel,5,20),24],[norm(p.ev,87,94),18],[norm(p.iso,.130,.300),20],
+    [norm(p.hh,32,55),14],[norm(p.pullair,12,32),12],[norm(p.blast,5,18),12]
+  ]);
+}
+function contextScore(p){
+  let s=50, used=0;
+  const pt=String(p.pitcher_tier||'').toLowerCase();
+  if(pt){used++; if(pt==='weak')s+=18; else if(pt==='bubble')s+=8; else if(pt==='strong')s-=8; else if(pt.includes('elite'))s-=16;}
+  if(p.pitcher_hr9!=null){used++; s+=clamp((p.pitcher_hr9-1.0)*20,-14,24);}
+  if(p.bullpen_hr9!=null){used++; s+=clamp((p.bullpen_hr9-1.1)*12,-8,15);}
+  if(p.pitch_fit!=null){used++; s+=(p.pitch_fit-50)*0.28;}
+  if(p.platoon_iso!=null){used++; s+=clamp((p.platoon_iso-.180)*65,-8,16);}
+  return used?clamp(s):null;
+}
+function marketScore(p){
+  if(p.delta==null)return null;
+  // Market is confirmation/challenge, never the whole case. Mild fades are not automatic penalties.
+  if(p.delta>=5)return 90; if(p.delta>=3)return 80; if(p.delta>=1)return 67;
+  if(p.delta<=-5)return 40; if(p.delta<=-3)return 46; if(p.delta<=-1)return 52;
+  return 60;
+}
+function tonightHRScore(p){
+  const bs=bbeSummary(p.player), power=powerCapability(p), ctx=contextScore(p), mkt=marketScore(p);
+  return weightedAvailable([[power,45],[bs?.hrshape,30],[ctx,18],[mkt,7]]);
+}
+function compressionEscape(p){
+  const bs=bbeSummary(p.player), power=powerCapability(p), tonight=tonightHRScore(p);
+  const pt=String(p.pitcher_tier||'').toLowerCase();
+  const suppressed=pt==='strong'||pt.includes('elite')||(p.delta!=null&&p.delta<=-1);
+  const compressed=(p.model_score??p.score??99)<=52;
+  const realHR=(power!=null&&power>=62)||(bs&&bs.hrshape>=58)||(p.barrel!=null&&p.barrel>=12&&p.iso!=null&&p.iso>=.190);
+  return !!(suppressed&&compressed&&realHR&&tonight!=null&&tonight>=48);
+}
+function hiddenLongshot(p){
+  const bs=bbeSummary(p.player), price=(p.now??p.odds??0), power=powerCapability(p), pt=String(p.pitcher_tier||'').toLowerCase();
+  const hitterProof=(p.barrel!=null&&p.barrel>=8)||(p.iso!=null&&p.iso>=.180)||(bs&&bs.hrshape>=48)||(power!=null&&power>=52);
+  const independent=pt==='weak'||(p.delta!=null&&p.delta>=1)||(p.lenses?.length||0)>=3||(p.pitcher_hr9!=null&&p.pitcher_hr9>=1.4);
+  return price>=700&&hitterProof&&independent;
+}
+
+function metricPass(v,thr){return v!=null && +v>thr;}
+function archetypeCheck(p, defs, need){
+  let pass=0, known=0, missing=[];
+  defs.forEach(([key,label,thr])=>{const v=p[key]; if(v==null||Number.isNaN(+v))missing.push(label); else {known++; if(+v>thr)pass++;}});
+  return {pass,known,total:defs.length,need,missing,qualified:known===defs.length&&pass>=need,provisional:known<defs.length&&pass>=need};
+}
+function profileArchetypes(p){
+  const foundation=archetypeCheck(p,[['barrel','BRL',10],['hh','HH',40],['pullair','PullAir',20],['iso','ISO',.200],['ev','EV',90],['blast','Blast',10]],5);
+  const longshot=archetypeCheck(p,[['barrel','BRL',8],['hh','HH',35],['pullair','PullAir',18],['iso','ISO',.180],['ev','EV',89],['blast','Blast',8]],4);
+  const pullpower=archetypeCheck(p,[['hh','HH',40],['pullair','PullAir',30],['iso','ISO',.220],['barrel','BRL',10],['pull','Pull',40],['blast','Blast',10]],5);
+  const barrelmonster=archetypeCheck(p,[['barrel','BRL',15],['hh','HH',50],['ev','EV',92],['iso','ISO',.250],['pullair','PullAir',25],['blast','Blast',15]],5);
+  const tags=[];
+  if(foundation.qualified)tags.push('FOUNDATION');
+  if(longshot.qualified)tags.push('LONGSHOT');
+  if(pullpower.qualified)tags.push('PULL POWER');
+  if(barrelmonster.qualified)tags.push('BARREL MONSTER');
+  const eliteSignals=[metricPass(p.ev,92),metricPass(p.hh,50),metricPass(p.barrel,14),metricPass(p.iso,.240),metricPass(p.blast,14)].filter(Boolean).length;
+  const eliteContact=eliteSignals>=3 || (metricPass(p.ev,93)&&metricPass(p.hh,52));
+  return {foundation,longshot,pullpower,barrelmonster,tags,eliteContact};
+}
+function archetypeCell(p){
+  const a=profileArchetypes(p); const parts=[...a.tags]; if(a.eliteContact)parts.push('ELITE CONTACT WATCH');
+  const near=[];
+  [['F',a.foundation],['L',a.longshot],['PP',a.pullpower],['BM',a.barrelmonster]].forEach(([n,x])=>{if(!x.qualified&&(x.provisional||x.pass>=x.need-1))near.push(`${n} ${x.pass}/${x.known}${x.missing.length?' +'+x.missing.length+' missing':''}`)});
+  return (parts.length?parts.map(x=>`<span class="pill">${x}</span>`).join(''):'—')+(near.length?`<div class="small muted">Near: ${near.join(' • ')}</div>`:'');
+}
+function marketFlags(p){
+  const flags=[]; const d=p.delta, model=p.model_score??p.score, pt=String(p.pitcher_tier||'').toLowerCase(), value=p.value_score;
+  if(d!=null&&d<=-3&&d>=-5)flags.push('3–5% FADE');
+  if(model!=null&&model>=40&&model<=52&&pt==='strong'&&d!=null&&d>=-1&&d<=1&&value!=null&&value<=35)flags.push('HAPP TYPE');
+  if(d!=null&&d>=1.5&&value!=null&&value>=65&&(pt==='weak'||pt==='bubble'||(p.pitcher_hr9!=null&&p.pitcher_hr9>=1.4)))flags.push('CAL/DEVERS');
+  return flags;
+}
+function propLane(p){
+  const bs=bbeSummary(p.player), h=bs?.hrshape, c=bs?.contact, pc=powerCapability(p);
+  if(h!=null&&h>=60&&c!=null&&c>=62)return 'HR + TB/RBI';
+  if(h!=null&&h>=58)return 'HR';
+  if(c!=null&&c>=64&&h!=null&&h<50)return 'HITS / TB';
+  if(c!=null&&c>=56&&h!=null&&h<56)return 'TB / HITS lean';
+  if(pc!=null&&pc>=68&&h==null)return 'HR profile — RC missing';
+  return 'No auto lane';
+}
+function loadHistory(){
+  try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]')||[];}catch(e){return [];}
+}
+function persistHistory(){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(historyRows));return true;}catch(e){return false;}}
+function profileTagList(p){const a=profileArchetypes(p);return [...a.tags,...(a.eliteContact?['ELITE CONTACT WATCH']:[])];}
+function similarHistoryRows(p){
+  const cur=new Set(profileTagList(p));
+  return historyRows.filter(h=>{
+    if(h.player!==p.player)return false;
+    const old=new Set(h.profile_tags||[]); let overlap=0; cur.forEach(x=>{if(old.has(x))overlap++;});
+    return overlap>=1 || (h.compression_escape&&compressionEscape(p)) || (h.hidden_longshot&&hiddenLongshot(p));
+  });
+}
+function historicalConvergence(p){
+  const rows=similarHistoryRows(p), hrs=rows.filter(r=>String(r.outcome||'').toUpperCase()==='HR').length;
+  const near=rows.filter(r=>String(r.outcome||'').toUpperCase()==='NEAR_HR').length;
+  const escapeHits=rows.filter(r=>String(r.outcome||'').toUpperCase()==='HR'&&(r.compression_escape||r.hidden_longshot)).length;
+  return {n:rows.length,hrs,near,escapeHits,positive:hrs>=1||(rows.length>=3&&((hrs+near)/rows.length)>=.34)};
+}
+function historyCell(p){const h=historicalConvergence(p);if(!h.n)return 'NEW / no saved match';return `${h.hrs} HR / ${h.n} similar${h.near?` • ${h.near} near-HR`:''}${h.escapeHits?` • ${h.escapeHits} escape HR`:''}`;}
+function escapeGate(p){
+  const bs=bbeSummary(p.player), a=profileArchetypes(p), hist=historicalConvergence(p), pc=powerCapability(p), pt=String(p.pitcher_tier||'').toLowerCase();
+  const hitterSignals=[];
+  if(a.tags.length)hitterSignals.push('strict profile');
+  if(a.eliteContact)hitterSignals.push('elite-contact watch');
+  if(pc!=null&&pc>=62)hitterSignals.push('power');
+  if(bs?.hrshape>=55)hitterSignals.push('recent HR shape');
+  if(p.barrel!=null&&p.barrel>10&&p.iso!=null&&p.iso>.180)hitterSignals.push('BRL+ISO');
+  const independent=[];
+  if(pt==='weak'||(p.pitcher_hr9!=null&&p.pitcher_hr9>=1.4))independent.push('SP vulnerability');
+  if(p.bullpen_hr9!=null&&p.bullpen_hr9>=1.45)independent.push('bullpen HR');
+  if(p.pitch_fit!=null&&p.pitch_fit>=60)independent.push('pitch fit');
+  if(p.platoon_iso!=null&&p.platoon_iso>.220)independent.push('platoon damage');
+  if(p.delta!=null&&p.delta>=1)independent.push('market confirm');
+  if(hist.positive)independent.push('history convergence');
+  const compressed=(p.model_score??p.score??99)<=52 || pt==='strong'||pt.includes('elite')||(p.delta!=null&&p.delta<=-1);
+  const mandatory=hitterSignals.length>=1&&independent.length>=1&&compressed;
+  const protectedGate=hitterSignals.length>=2&&independent.length>=1;
+  return {mandatory,protectedGate,hitterSignals,independent,label:mandatory?'🚨 MANDATORY ESCAPE':protectedGate?'🛡️ PROTECT / REVIEW':'—'};
+}
+function workflowRead(p){
+  const a=profileArchetypes(p), bs=bbeSummary(p.player), eg=escapeGate(p), h=historicalConvergence(p), th=tonightHRScore(p);
+  if(eg.mandatory)return 'ESCAPE CHECK — do not auto-cut';
+  if(th!=null&&th>=72&&(a.tags.length||a.eliteContact))return 'LOCK-QUALITY TRAJECTORY';
+  if(th!=null&&th>=58)return 'FINAL-CUT SURVIVOR';
+  if(bs&&bs.contact>=62&&bs.hrshape<50)return 'NON-HR PROP LEAN';
+  if(h.positive)return 'HISTORY RESCUE REVIEW';
+  return 'RESEARCH / NEEDS PROOF';
+}
+function saveHistorySnapshot(silent=false){
+  const date=document.getElementById('slateDate')?.value||detectedSlateDate||new Date().toISOString().slice(0,10);
+  const names=new Set(Object.keys(players));
+  historyRows=historyRows.filter(h=>!(h.date===date&&names.has(h.player)));
+  Object.values(players).forEach(p=>{
+    const bs=bbeSummary(p.player), r=results[p.player]||{};
+    historyRows.push({date,player:p.player,profile_tags:profileTagList(p),model:p.model_score??p.score??null,tonight_hr:tonightHRScore(p),contact_rc:bs?.contact??null,hrshape_rc:bs?.hrshape??null,trend:bs?.trend??null,odds:p.now??p.odds??null,delta:p.delta??null,pitcher_tier:p.pitcher_tier||null,pitcher_hr9:p.pitcher_hr9??null,compression_escape:compressionEscape(p),hidden_longshot:hiddenLongshot(p),market_flags:marketFlags(p),decision:hrDecision(p),outcome:r.outcome||null,locked:r.locked||null,tier:r.tier||p.tier||p.model_tier||null});
+  });
+  const ok=persistHistory(); const el=document.getElementById('historyStatus');
+  if(el&&!silent)el.textContent=ok?`Saved ${Object.keys(players).length} players for ${date}. History now has ${historyRows.length} player-slate rows.`:'Browser blocked local history storage.';
+  renderProfileHistory();
+}
+function clearLocalHistory(){historyRows=[];persistHistory();const el=document.getElementById('historyStatus');if(el)el.textContent='Local BANDALYTICS history cleared.';renderProfileHistory();}
+function renderProfileHistory(){
+  const el=document.getElementById('profileTable'); if(!el)return;
+  const rows=filtered().map(p=>({p,a:profileArchetypes(p),h:historicalConvergence(p),eg:escapeGate(p),bs:bbeSummary(p.player)}))
+    .sort((x,y)=>(y.eg.mandatory-x.eg.mandatory)||(tonightHRScore(y.p)||0)-(tonightHRScore(x.p)||0));
+  document.getElementById('profileCards').innerHTML=[
+    ['Foundation',rows.filter(x=>x.a.foundation.qualified).length],['Longshot',rows.filter(x=>x.a.longshot.qualified).length],
+    ['Pull Power',rows.filter(x=>x.a.pullpower.qualified).length],['Barrel Monster',rows.filter(x=>x.a.barrelmonster.qualified).length],
+    ['Elite Contact watch',rows.filter(x=>x.a.eliteContact).length],['Mandatory escapes',rows.filter(x=>x.eg.mandatory).length],
+    ['History matches',rows.filter(x=>x.h.n>0).length],['3–5% fades',rows.filter(x=>marketFlags(x.p).includes('3–5% FADE')).length]
+  ].map(([a,b])=>`<div class="stat"><span class="muted">${a}</span><b>${b}</b></div>`).join('');
+  table(el,['Player','Profile check','Tonight HR','Contact RC','HR-Shape RC','Prop lane','Market test','History profile','Mandatory escape','Workflow read'],
+    rows.map(x=>[x.p.player,archetypeCell(x.p),fmt(tonightHRScore(x.p),0),x.bs?fmt(x.bs.contact,0):'—',x.bs?fmt(x.bs.hrshape,0):'—',propLane(x.p),marketFlags(x.p).map(v=>`<span class="pill">${v}</span>`).join('')||'—',historyCell(x.p),x.eg.label,workflowRead(x.p)]));
+}
+
+function hrDecision(p){
+  const t=tonightHRScore(p), ce=compressionEscape(p), hl=hiddenLongshot(p);
+  if(ce)return '🛟 Compression Escape';
+  if(hl)return '🟣 Hidden Longshot';
+  if(t!=null&&t>=72)return '🟢 Tonight HR Lead';
+  if(t!=null&&t>=58)return '🟡 HR Survivor';
+  if(t!=null&&t<40)return '🔻 HR weak';
+  return '⚪ Needs evidence';
+}
+function status(p){
+  const L=p.lenses?.length||0, weak=String(p.pitcher_tier).toLowerCase()==='weak';
+  const long=(p.now??p.odds??0)>=+document.getElementById('longshotOdds').value;
+  if(long && ((p.barrel||0)>=8 || (p.ev||0)>=89) && (weak || L>=3)) return '🟣 Longshot proof';
+  if(L>=5 && ((p.barrel||0)>=10 || (p.ev||0)>=91)) return '🟢 Lock-quality lead';
+  if(L>=3) return '🟡 Research survivor';
+  return '⚪ Raw only';
+}
+function table(el, headers, rows){
+  el.innerHTML='<thead><tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${c??''}</td>`).join('')+'</tr>').join('')+'</tbody>';
+}
+function render(){
+  const arr=filtered().sort((a,b)=>(b.lenses?.length||0)-(a.lenses?.length||0)||(b.score||0)-(a.score||0));
+  document.getElementById('stats').innerHTML=[
+    ['Players',arr.length],['Multi-lens 3+',arr.filter(p=>(p.lenses?.length||0)>=3).length],
+    ['Weak-SP',arr.filter(p=>String(p.pitcher_tier).toLowerCase()==='weak').length],
+    ['Longshots',arr.filter(p=>(p.now??p.odds??0)>=+document.getElementById('longshotOdds').value).length],
+    ['Compression escapes',arr.filter(compressionEscape).length],['Hidden longshots',arr.filter(hiddenLongshot).length]
+  ].map(([a,b])=>`<div class="stat"><span class="muted">${a}</span><b>${b}</b></div>`).join('');
+
+  table(document.getElementById('unionTable'),
+    ['Player','Team','Matchup','Lenses','Power','Contact RC','HR-Shape RC','Tonight HR','EV','Barrel%','ISO','Odds','SP','P Tier','Decision','Lens sources'],
+    arr.map(p=>{const bs=bbeSummary(p.player), pc=powerCapability(p), th=tonightHRScore(p); return [p.player,p.team||'—',p.matchup||'—',`<b>${p.lenses?.length||0}</b>`,pc==null?'—':fmt(pc,0),bs?fmt(bs.contact,0):'—',bs?fmt(bs.hrshape,0):'—',th==null?'—':`<b>${fmt(th,0)}</b>`,fmt(p.ev),fmt(p.barrel),fmt(p.iso,3),odds(p.now??p.odds),p.opp_pitcher||'—',p.pitcher_tier||'—',hrDecision(p),(p.lenses||[]).map(x=>`<span class="pill">${x}</span>`).join('')];})
+  );
+
+  const market=Object.values(players).filter(p=>p.open!=null&&p.now!=null).sort((a,b)=>(b.delta||0)-(a.delta||0));
+  table(document.getElementById('marketTable'),['Player','Matchup','Open','Now','Δ implied','Model','Power','HR-Shape RC','Tonight HR','P Tier','Review'],
+    market.map(p=>{const bs=bbeSummary(p.player),pc=powerCapability(p),th=tonightHRScore(p); return [p.player,p.matchup||'—',odds(p.open),odds(p.now),`<span class="${(p.delta||0)>=2?'good':(p.delta||0)<=-2?'bad':''}">${fmt(p.delta,2)}%</span>`,fmt(p.model_score),pc==null?'—':fmt(pc,0),bs?fmt(bs.hrshape,0):'—',th==null?'—':fmt(th,0),p.pitcher_tier||'—',compressionEscape(p)?'🛟 Compression Escape':(p.delta||0)<=-3?'🟠 Fade review':(p.delta||0)>=3?'🟢 Strong steam':'Neutral'];})
+  );
+
+  const longCut=+document.getElementById('longshotOdds').value;
+  const longs=Object.values(players).filter(p=>(p.now??p.odds??0)>=longCut).sort((a,b)=>(tonightHRScore(b)||0)-(tonightHRScore(a)||0));
+  table(document.getElementById('longTable'),['Player','Odds','Lenses','Power','HR-Shape RC','Tonight HR','EV','Barrel%','ISO','SP Tier','Proof status'],
+    longs.map(p=>{const bs=bbeSummary(p.player),pc=powerCapability(p),th=tonightHRScore(p);return [p.player,odds(p.now??p.odds),p.lenses?.length||0,pc==null?'—':fmt(pc,0),bs?fmt(bs.hrshape,0):'—',th==null?'—':fmt(th,0),fmt(p.ev),fmt(p.barrel),fmt(p.iso,3),p.pitcher_tier||'—',hiddenLongshot(p)?'🟣 Hidden Longshot Convergence':status(p)];})
+  );
+
+  const tonight=Object.values(players).map(p=>({p,score:tonightHRScore(p),bs:bbeSummary(p.player),pc:powerCapability(p)})).filter(x=>x.score!=null).sort((a,b)=>b.score-a.score);
+  table(document.getElementById('tonightTable'),['Player','Tonight HR','Profile','Power Capability','Contact RC','HR-Shape RC','Trend','Prop lane','Model','Odds','SP Tier','Δ implied','Flags'],
+    tonight.map(x=>[x.p.player,`<b>${fmt(x.score,0)}</b>`,archetypeCell(x.p),x.pc==null?'—':fmt(x.pc,0),x.bs?fmt(x.bs.contact,0):'—',x.bs?fmt(x.bs.hrshape,0):'—',x.bs?x.bs.trend:'—',propLane(x.p),fmt(x.p.model_score??x.p.score),odds(x.p.now??x.p.odds),x.p.pitcher_tier||'—',x.p.delta==null?'—':fmt(x.p.delta,2)+'%',[escapeGate(x.p).mandatory?'🚨 MANDATORY ESCAPE':'',compressionEscape(x.p)?'🛟 COMPRESSION ESCAPE':'',hiddenLongshot(x.p)?'🟣 HIDDEN LONGSHOT':'',...marketFlags(x.p),hrDecision(x.p)].filter(Boolean).join('<br>')])
+  );
+  renderBBE(); renderProfileHistory(); renderCalibration();
+}
+function renderBBE(){
+  const summaries=Object.keys(bbe).map(player=>[player,bbeSummary(player)]).filter(x=>x[1]).sort((a,b)=>b[1].hrshape-a[1].hrshape);
+  const all=summaries.map(x=>x[1]);
+  document.getElementById('bbeCards').innerHTML=[
+    ['Players with BBE',summaries.length],['Avg Contact RC',all.length?fmt(all.reduce((a,x)=>a+x.contact,0)/all.length,0):'—'],
+    ['Avg HR-Shape RC',all.length?fmt(all.reduce((a,x)=>a+x.hrshape,0)/all.length,0):'—'],['Rising HR shape',all.filter(x=>x.trend==='RISING').length]
+  ].map(([a,b])=>`<div class="stat"><span class="muted">${a}</span><b>${b}</b></div>`).join('');
+  table(document.getElementById('bbeTable'),['Player','Recent BBE','Contact RC','HR-Shape RC','Trend','HR-quality','Near-HR','95+','100+','105+','Pulled air','Hard/flat','Soft','Max EV','Max dist'],
+    summaries.map(([player,x])=>[player,x.n,fmt(x.contact,0),`<b>${fmt(x.hrshape,0)}</b>`,x.trend,x.hrq,x.near,x.ev95,x.ev100,x.ev105,x.pulledAir,x.hardFlat,x.soft,fmt(x.maxEV),fmt(x.maxDist,0)])
+  );
+}
+function renderCalibration(){
+  const rows=Object.entries(results).map(([p,o])=>[p,o.outcome||'—',o.locked||'—',o.tier||players[p]?.tier||'—',odds(num(o.odds)||players[p]?.now||players[p]?.odds),players[p]?.lenses?.length||0]);
+  table(document.getElementById('calTable'),['Player','Outcome','Locked?','Tier','Odds','Lens count'],rows);
+  const total=rows.length, hr=rows.filter(r=>String(r[1]).toUpperCase()==='HR').length, near=rows.filter(r=>String(r[1]).toUpperCase()==='NEAR_HR').length;
+  document.getElementById('calibrationCards').innerHTML=[
+    ['Logged',total],['HR',hr],['HR capture',total?fmt(100*hr/total,1)+'%':'—'],['HR + near-HR',total?fmt(100*(hr+near)/total,1)+'%':'—']
+  ].map(([a,b])=>`<div class="stat"><span class="muted">${a}</span><b>${b}</b></div>`).join('');
+}
+document.getElementById('files').addEventListener('change',async e=>{
+  try{
+    setImportStatus('Loading…'); const msgs=[];
+    for(const f of e.target.files)msgs.push(await processUploadFile(f));
+    setImportStatus(msgs.join(' '),'good');
+    if(document.getElementById('autoBBE')?.checked) await autoFetchRecentBBE();
+  }catch(err){setImportStatus('Import error: '+err.message,'bad'); console.error(err);}
+});
+document.getElementById('fetchBBE').onclick=()=>autoFetchRecentBBE(true);
+document.getElementById('slateDate').addEventListener('change',()=>{detectedSlateDate=document.getElementById('slateDate').value||null;});
+document.getElementById('bbeFile').addEventListener('change',async e=>{ const rows=parseCSV(await e.target.files[0].text()); loadBBERows(rows); render(); });
+document.getElementById('resultFile').addEventListener('change',async e=>{ const rows=parseCSV(await e.target.files[0].text()); loadResultRows(rows); renderCalibration(); saveHistorySnapshot(true); });
+document.getElementById('savantFile').addEventListener('change',async e=>{
+  savantSourceRows=parseCSV(await e.target.files[0].text());
+  const tracked=savantSourceRows.filter(r=>num(r.launch_speed||r.ev||r.EV)!=null||num(r.launch_angle||r.LA)!=null).length;
+  document.getElementById('bbeGenStatus').textContent=`Loaded ${savantSourceRows.length} Statcast rows; ${tracked} contain tracked BBE contact.`;
+  document.getElementById('generateBBE').disabled=!tracked;
+});
+document.getElementById('generateBBE').onclick=()=>{
+  const limit=Math.max(5,Math.min(30,+document.getElementById('bbeLimit').value||15));
+  generatedBBERows=makeRecentBBE(savantSourceRows,limit); renderBBEGenerator();
+  const hitters=new Set(generatedBBERows.map(r=>r.player)).size;
+  document.getElementById('bbeGenStatus').textContent=`Generated ${generatedBBERows.length} recent BBE rows for ${hitters} hitters. Review the preview, then download or use it immediately.`;
+  document.getElementById('downloadBBE').disabled=!generatedBBERows.length; document.getElementById('useGeneratedBBE').disabled=!generatedBBERows.length;
+};
+document.getElementById('downloadBBE').onclick=()=>{
+  const cols=['player','ev','launch_angle','distance','pulled','date','sequence'];
+  downloadText(rowsToCSV(generatedBBERows,cols),'recent_bbe.csv');
+};
+document.getElementById('useGeneratedBBE').onclick=()=>{
+  loadBBERows(generatedBBERows); render(); document.getElementById('bbeGenStatus').textContent+=' Loaded into Recent Contact Lab.';
+};
+document.getElementById('saveSnapshot').onclick=()=>saveHistorySnapshot(false);
+document.getElementById('clearHistory').onclick=()=>{if(confirm('Clear BANDALYTICS history saved in this browser?'))clearLocalHistory();};
+['search','minLenses','onlyWeak','hideExcluded','excluded','longshotOdds'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+document.getElementById('loadDemo').onclick=loadDemo;
+document.getElementById('clear').onclick=()=>{players={};bbe={};results={};generatedBBERows=[];savantSourceRows=[];detectedSlateDate=null;setImportStatus('Cleared current slate. Saved history was kept.');setAutoBBEStatus('Upload the slate ZIP. BANDALYTICS will then fetch recent Statcast BBE automatically.');render();renderBBEGenerator();renderProfileHistory()};
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.querySelectorAll('.panel').forEach(x=>x.classList.add('hidden'));document.getElementById(b.dataset.tab).classList.remove('hidden')});
+document.getElementById('slateDate').value=isoDate(new Date());
+renderBBEGenerator();
+renderProfileHistory();
+loadDemo();
+</script>
+</body></html>

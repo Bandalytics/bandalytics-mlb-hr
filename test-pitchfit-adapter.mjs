@@ -1,0 +1,10 @@
+import assert from'node:assert/strict';
+import{aliasTeam,canon,withVerifiedId}from'./research/pitchfit-adapter.mjs';
+assert.equal(aliasTeam('OAK'),'ATH');assert.equal(aliasTeam('ari'),'AZ');assert.equal(canon('Max Muncy'),canon('Max-Muncy'));
+const verified={id:571970,name:'Max Muncy',team:'LAD'};
+let z=withVerifiedId({players:{'Max Muncy':{score:44.2,status:'TRUE'}}},{name:'Max Muncy'},verified);
+assert.equal(z.players['Max Muncy'].player_id,571970);assert.equal(z.players['Max Muncy'].identity_verified,true);
+assert.throws(()=>withVerifiedId({players:{'Max Muncy':{player_id:691777,score:44}}},{name:'Max Muncy'},verified),/MLBAM mismatch/);
+assert.throws(()=>withVerifiedId({players:{'Other':{score:44}}},{name:'Max Muncy'},verified),/name mismatch/);
+assert.throws(()=>withVerifiedId({players:{A:{},B:{}}},{name:'Max Muncy'},verified),/returned 2 hitters/);
+console.log('PITCHFIT ADAPTER UNIT PASS 7/7');

@@ -1,0 +1,10 @@
+import assert from'node:assert/strict';
+import{parseCsv,buildSavantProfileUrl,summarizeSavantCsv,profileBatchPlan,profileParityState}from'./profile-api.mjs';
+const csv='batter,launch_speed,bb_type,launch_speed_angle,events\n571970,100,fly_ball,6,home_run\n571970,90,ground_ball,2,single\n691777,96,line_drive,5,double\n';
+const p=parseCsv(csv);assert.equal(p.length,3);assert.equal(p[0].batter,'571970');
+const u=buildSavantProfileUrl({playerIds:[571970,691777,571970],end:'2026-08-28'});assert.match(u,/571970/);assert.match(u,/691777/);assert.equal((u.match(/571970/g)||[]).length,1);
+const out=summarizeSavantCsv(csv,[{player:'Max Muncy',team:'LAD',player_id:571970},{player:'Max Muncy',team:'ATH',player_id:691777}]);
+assert.equal(out.length,2);assert.equal(out[0].player_id,571970);assert.equal(out[1].player_id,691777);assert.equal(out[0].scoring_eligible,false);assert.equal(out[0].pullair,null);assert.equal(out[0].blast,null);assert.equal(out[0].barrel,50);assert.equal(out[1].hard_hit,100);
+assert.deepEqual(profileBatchPlan(Array.from({length:41},(_,i)=>({player_id:i+1})),20).map(x=>x.length),[20,20,1]);
+const st=profileParityState(out[0]);assert.equal(st.state,'RESEARCH_PARTIAL');assert.equal(st.scoring_eligible,false);assert.deepEqual(st.pending_fields,['pullair','blast']);
+console.log('PROFILE API PASS');

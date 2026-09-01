@@ -1,0 +1,121 @@
+{
+  "slates": [
+    {
+      "date": "2026-08-26",
+      "market_entities": 272,
+      "exported_metric_files": {
+        "EV": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "HH": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "Barrel": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "ISO": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "Pull": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "FB": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        }
+      },
+      "pullair_exported": false,
+      "blast_exported": false,
+      "finding": "Historical ZIP boards do not export PullAir% or Blast% values. Metric-sort Pull/FB/HH files preserve ranking membership but not their sorted metric value; they cannot prove exact PullAir/Blast semantics."
+    },
+    {
+      "date": "2026-08-27",
+      "market_entities": 229,
+      "exported_metric_files": {
+        "HH": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "Barrel": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "ISO": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "Pull": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "FB": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        }
+      },
+      "pullair_exported": false,
+      "blast_exported": false,
+      "finding": "Historical ZIP boards do not export PullAir% or Blast% values. Metric-sort Pull/FB/HH files preserve ranking membership but not their sorted metric value; they cannot prove exact PullAir/Blast semantics."
+    },
+    {
+      "date": "2026-08-28",
+      "market_entities": 266,
+      "exported_metric_files": {
+        "EV": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "HH": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "Barrel": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "ISO": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "Pull": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        },
+        "FB": {
+          "rows": 40,
+          "entities": 40,
+          "universe_coverage": 40
+        }
+      },
+      "pullair_exported": false,
+      "blast_exported": false,
+      "finding": "Historical ZIP boards do not export PullAir% or Blast% values. Metric-sort Pull/FB/HH files preserve ranking membership but not their sorted metric value; they cannot prove exact PullAir/Blast semantics."
+    }
+  ],
+  "aggregate": {
+    "pullair_value_exports": 0,
+    "blast_value_exports": 0,
+    "parity_status": "BLOCKED_NO_LEGACY_FIELD_VALUES"
+  }
+}

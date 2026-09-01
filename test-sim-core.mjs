@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {estimateTeamRuns,simulateGame,runBandalyticsSim,evPerUnit} from './sim-core.mjs';
+const neutral=estimateTeamRuns({});
+assert(neutral.expectedRuns>4&&neutral.expectedRuns<5);
+const weak=estimateTeamRuns({opponentStarter:{xERA:6.2,FIP:5.6,HR9:1.9,KminusBBPct:8}});
+assert(weak.expectedRuns>neutral.expectedRuns);
+const s=simulateGame({away:'A',home:'H',awayExpectedRuns:4.2,homeExpectedRuns:5.2,sims:10000});
+assert(s.fullGame.homeWinPct>s.fullGame.awayWinPct);
+assert(s.topCorrectScores.length>0);
+const p=runBandalyticsSim({awayCode:'A',homeCode:'H',sims:10000,away:{},home:{}});
+assert(p.estimates&&p.sim);
+assert(evPerUnit(.60,-110)>0);
+console.log('SIM CORE PASS');

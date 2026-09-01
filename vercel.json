@@ -1,0 +1,78 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/core",
+      "destination": "https://bandalytics-v42-history.vercel.app/api/core"
+    },
+    {
+      "source": "/api/context",
+      "destination": "https://bandalytics-v42-history.vercel.app/api/context"
+    },
+    {
+      "source": "/api/environment",
+      "destination": "https://bandalytics-v42-history.vercel.app/api/environment"
+    },
+    {
+      "source": "/api/pitchfit",
+      "destination": "https://bandalytics-v42-history.vercel.app/api/pitchfit"
+    },
+    {
+      "source": "/api/results",
+      "destination": "https://bandalytics-v42-history.vercel.app/api/results"
+    },
+    {
+      "source": "/api/direct-preview",
+      "destination": "https://bandalytics-v88-direct-coverage.vercel.app/api/direct-preview"
+    },
+    {
+      "source": "/api/player-bbe",
+      "destination": "https://bandalytics-native-data.vercel.app/api/player-bbe"
+    },
+    {
+      "source": "/slate-cache",
+      "destination": "https://bandalytics-v88-direct-coverage.vercel.app/slate-cache"
+    },
+    {
+      "source": "/api/native-profile",
+      "destination": "https://bandalytics-native-profile.vercel.app/api/bulk"
+    },
+    {
+      "source": "/api/native-pull-air",
+      "destination": "https://bandalytics-native-profile.vercel.app/api/pull-air"
+    },
+    {
+      "source": "/api/native-bullpen",
+      "destination": "https://bandalytics-native-context.vercel.app/api/bullpen"
+    },
+    {
+      "source": "/api/native-park",
+      "destination": "https://bandalytics-native-context.vercel.app/api/park"
+    },
+    {
+      "source": "/api/native-weather",
+      "destination": "https://bandalytics-native-context.vercel.app/api/weather"
+    }
+  ]
+}

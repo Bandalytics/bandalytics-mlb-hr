@@ -1,0 +1,5 @@
+import assert from 'node:assert/strict';import {jointReplayRecord,appendReplayRecord} from './sim-joint-replay-core.mjs';import {rngFromSeed} from './seeded-rng.mjs';
+const a=rngFromSeed('abc'),b=rngFromSeed('abc');for(let i=0;i<20;i++)assert.equal(a(),b());
+const base={date:'2026-08-31',gamePk:1,simResult:{ok:true,sims:10000,model:'X',joint:{probability:.12},independenceBenchmark:{probability:.10},correlationLift:1.2},playerSelections:[{playerId:1,market:'hit1'}],gameSelections:[{market:'home_ml'}],statsCutoffDate:'2026-08-30',seed:'x'};
+let r=jointReplayRecord({...base,settled:{status:'win',invalid:0,pushes:0}});assert.equal(r.valid,true);assert.equal(r.outcome,1);assert.equal(r.statsCutoffDate,'2026-08-30');assert.equal(appendReplayRecord([],r).length,1);
+r=jointReplayRecord({...base,settled:{status:'push',invalid:0,pushes:1}});assert.equal(r.valid,false);assert.equal(r.outcome,null);assert.equal(r.exclusionReason,'push_present');assert.equal(appendReplayRecord([],r).length,0);console.log('joint replay record test passed');

@@ -1,0 +1,1 @@
+{"scripts": {"build": "node phase9-bootstrap.mjs"}, "type": "module"}

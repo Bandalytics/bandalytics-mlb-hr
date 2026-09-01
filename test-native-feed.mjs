@@ -1,0 +1,10 @@
+import assert from'node:assert/strict';
+import{scheduleItems,parseGameFeed,buildNativeFeed}from'./native-feed-core.mjs';
+const schedule={dates:[{games:[{gamePk:1,status:{detailedState:'Scheduled'},teams:{away:{team:{abbreviation:'OAK'},probablePitcher:{fullName:'Away SP'}},home:{team:{abbreviation:'ARI'},probablePitcher:{fullName:'Home SP'}}}}]}]};
+const items=scheduleItems(schedule);assert.equal(items[0].away,'ATH');assert.equal(items[0].home,'AZ');
+const mk=(prefix)=>Object.fromEntries(Array.from({length:9},(_,i)=>['ID'+(prefix+i),{person:{id:prefix+i,fullName:'P'+(prefix+i)},seasonStats:{batting:{avg:'.250',slg:'.450'}}}]));
+const feed={liveData:{boxscore:{teams:{away:{team:{abbreviation:'OAK'},battingOrder:Array.from({length:9},(_,i)=>100+i),players:mk(100)},home:{team:{abbreviation:'ARI'},battingOrder:Array.from({length:9},(_,i)=>200+i),players:mk(200)}}}}};
+const q=parseGameFeed(feed,items[0]);assert.equal(q.away.length,9);assert.equal(q.home.length,9);assert.equal(q.away[0].matchup,'ATH @ AZ');assert.equal(q.away[0].opp_pitcher,'Home SP');assert.equal(q.away[0].iso,.2);
+const fetcher=async url=>({ok:true,json:async()=>url.includes('/schedule?')?schedule:feed});
+const out=await buildNativeFeed({date:'2026-08-31',fetcher});assert.equal(out.games,1);assert.equal(out.starters,2);assert.equal(out.lineups,2);assert.equal(out.lineup_players.length,18);assert.equal(out.source,'MLB_STATSAPI_DIRECT');assert.equal(out.model_scoring_changed,false);
+console.log('NATIVE FEED PASS');

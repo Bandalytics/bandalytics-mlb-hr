@@ -1,0 +1,5 @@
+import crypto from 'node:crypto';
+const sortObj=x=>Array.isArray(x)?x.map(sortObj):x&&typeof x==='object'?Object.fromEntries(Object.keys(x).sort().map(k=>[k,sortObj(x[k])])):x;
+export function replayRecordIdentity(input={}){const core={date:input.date||null,gamePk:+input.gamePk||null,protocolId:input.protocolId||null,protocolVersion:input.protocolVersion||null,modelFingerprint:input.modelFingerprint||null,seed:input.seed==null?null:String(input.seed),playerSelections:sortObj(input.playerSelections||[]),gameSelections:sortObj(input.gameSelections||[])};const hex=crypto.createHash('sha256').update(JSON.stringify(core)).digest('hex');return`rr_${hex.slice(0,24)}`}
+export function withReplayRecordId(record={}){return record.recordId?record:{...record,recordId:replayRecordIdentity(record)}}
+export function dedupeReplayRecords(records=[]){const seen=new Set(),unique=[],duplicates=[];for(const raw of records||[]){const r=withReplayRecordId(raw),id=r.recordId;if(seen.has(id)){duplicates.push(r);continue}seen.add(id);unique.push(r)}return{unique,duplicates,duplicateCount:duplicates.length,inputCount:(records||[]).length}}
