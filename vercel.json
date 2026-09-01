@@ -23,6 +23,22 @@
   ],
   "rewrites": [
     {
+      "source": "/api/iso-savant-split-qa",
+      "destination": "/api/aux?route=iso-savant-split-qa"
+    },
+    {
+      "source": "/api/profile-native-qa",
+      "destination": "/api/aux?route=profile-native-qa"
+    },
+    {
+      "source": "/api/native-feed-standalone",
+      "destination": "/api/aux?route=native-feed-standalone"
+    },
+    {
+      "source": "/api/player-bbe-native-standalone",
+      "destination": "/api/aux?route=player-bbe-native-standalone"
+    },
+    {
       "source": "/api/core",
       "destination": "https://bandalytics-v42-history.vercel.app/api/core"
     },
@@ -73,6 +89,14 @@
     {
       "source": "/api/native-weather",
       "destination": "https://bandalytics-native-context.vercel.app/api/weather"
+    },
+    {
+      "source": "/api/native-starter",
+      "destination": "https://bandalytics-savant-datecheck.vercel.app/api/starter"
+    },
+    {
+      "source": "/api/native-pitchfit",
+      "destination": "https://bandalytics-savant-datecheck.vercel.app/api/pitchfit"
     }
   ]
 }
