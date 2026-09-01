@@ -23,84 +23,132 @@
   ],
   "rewrites": [
     {
+      "source": "/api/direct-profile",
+      "destination": "/api/router?route=direct-profile"
+    },
+    {
+      "source": "/api/feed-status",
+      "destination": "/api/router?route=feed-status"
+    },
+    {
+      "source": "/api/iso-savant-split-qa",
+      "destination": "/api/router?route=iso-savant-split-qa"
+    },
+    {
+      "source": "/api/market-identity",
+      "destination": "/api/router?route=market-identity"
+    },
+    {
+      "source": "/api/market-native",
+      "destination": "/api/router?route=market-native"
+    },
+    {
+      "source": "/api/native-feed-standalone",
+      "destination": "/api/router?route=native-feed-standalone"
+    },
+    {
+      "source": "/api/player-bbe-native-standalone",
+      "destination": "/api/router?route=player-bbe-native-standalone"
+    },
+    {
+      "source": "/api/player-bbe-native",
+      "destination": "/api/router?route=player-bbe-native"
+    },
+    {
+      "source": "/api/profile-native-qa",
+      "destination": "/api/router?route=profile-native-qa"
+    },
+    {
+      "source": "/api/profile-research",
+      "destination": "/api/router?route=profile-research"
+    },
+    {
+      "source": "/api/research-status",
+      "destination": "/api/router?route=research-status"
+    },
+    {
+      "source": "/api/results-identity",
+      "destination": "/api/router?route=results-identity"
+    },
+    {
+      "source": "/api/sim-calibrate-range",
+      "destination": "/api/router?route=sim-calibrate-range"
+    },
+    {
+      "source": "/api/sim-calibrate",
+      "destination": "/api/router?route=sim-calibrate"
+    },
+    {
+      "source": "/api/sim-exact-parlay",
+      "destination": "/api/router?route=sim-exact-parlay"
+    },
+    {
+      "source": "/api/sim-joint-calibration-batch",
+      "destination": "/api/router?route=sim-joint-calibration-batch"
+    },
+    {
+      "source": "/api/sim-joint-calibration",
+      "destination": "/api/router?route=sim-joint-calibration"
+    },
+    {
+      "source": "/api/sim-joint-game-player",
+      "destination": "/api/router?route=sim-joint-game-player"
+    },
+    {
+      "source": "/api/sim-joint-holdout",
+      "destination": "/api/router?route=sim-joint-holdout"
+    },
+    {
+      "source": "/api/sim-joint-offer-eval",
+      "destination": "/api/router?route=sim-joint-offer-eval"
+    },
+    {
+      "source": "/api/sim-joint-player",
+      "destination": "/api/router?route=sim-joint-player"
+    },
+    {
+      "source": "/api/sim-joint-replay",
+      "destination": "/api/router?route=sim-joint-replay"
+    },
+    {
+      "source": "/api/sim-joint-walkforward",
+      "destination": "/api/router?route=sim-joint-walkforward"
+    },
+    {
+      "source": "/api/sim-market",
+      "destination": "/api/router?route=sim-market"
+    },
+    {
+      "source": "/api/sim-players",
+      "destination": "/api/router?route=sim-players"
+    },
+    {
+      "source": "/api/sim-research-readiness",
+      "destination": "/api/router?route=sim-research-readiness"
+    },
+    {
+      "source": "/api/sim-settle-joint",
+      "destination": "/api/router?route=sim-settle-joint"
+    },
+    {
+      "source": "/api/sim-slate-standalone",
+      "destination": "/api/router?route=sim-slate-standalone"
+    },
+    {
+      "source": "/api/sim-slate",
+      "destination": "/api/router?route=sim-slate"
+    },
+    {
+      "source": "/api/sim",
+      "destination": "/api/router?route=sim"
+    },
+    {
       "source": "/sim",
       "destination": "/sim.html"
     },
     {
-      "source": "/api/iso-savant-split-qa",
-      "destination": "/api/aux?route=iso-savant-split-qa"
-    },
-    {
-      "source": "/api/profile-native-qa",
-      "destination": "/api/aux?route=profile-native-qa"
-    },
-    {
-      "source": "/api/native-feed-standalone",
-      "destination": "/api/aux?route=native-feed-standalone"
-    },
-    {
-      "source": "/api/player-bbe-native-standalone",
-      "destination": "/api/aux?route=player-bbe-native-standalone"
-    },
-    {
-      "source": "/api/core",
-      "destination": "https://bandalytics-v42-history.vercel.app/api/core"
-    },
-    {
-      "source": "/api/context",
-      "destination": "https://bandalytics-v42-history.vercel.app/api/context"
-    },
-    {
-      "source": "/api/environment",
-      "destination": "https://bandalytics-v42-history.vercel.app/api/environment"
-    },
-    {
-      "source": "/api/pitchfit",
-      "destination": "https://bandalytics-v42-history.vercel.app/api/pitchfit"
-    },
-    {
-      "source": "/api/results",
-      "destination": "https://bandalytics-v42-history.vercel.app/api/results"
-    },
-    {
-      "source": "/api/direct-preview",
-      "destination": "https://bandalytics-v88-direct-coverage.vercel.app/api/direct-preview"
-    },
-    {
-      "source": "/api/player-bbe",
-      "destination": "https://bandalytics-native-data.vercel.app/api/player-bbe"
-    },
-    {
       "source": "/slate-cache",
       "destination": "https://bandalytics-v88-direct-coverage.vercel.app/slate-cache"
-    },
-    {
-      "source": "/api/native-profile",
-      "destination": "https://bandalytics-native-profile.vercel.app/api/bulk"
-    },
-    {
-      "source": "/api/native-pull-air",
-      "destination": "https://bandalytics-native-profile.vercel.app/api/pull-air"
-    },
-    {
-      "source": "/api/native-bullpen",
-      "destination": "https://bandalytics-native-context.vercel.app/api/bullpen"
-    },
-    {
-      "source": "/api/native-park",
-      "destination": "https://bandalytics-native-context.vercel.app/api/park"
-    },
-    {
-      "source": "/api/native-weather",
-      "destination": "https://bandalytics-native-context.vercel.app/api/weather"
-    },
-    {
-      "source": "/api/native-starter",
-      "destination": "https://bandalytics-savant-datecheck.vercel.app/api/starter"
-    },
-    {
-      "source": "/api/native-pitchfit",
-      "destination": "https://bandalytics-savant-datecheck.vercel.app/api/pitchfit"
     }
   ]
 }
