@@ -8,6 +8,7 @@ on:
     paths:
       - 'scripts/summarize-v38-promotion-readiness.mjs'
       - 'v38-final-pool-promotion-gate.mjs'
+      - 'v38-evidence-manifest.mjs'
       - '.github/workflows/v38-promotion-readiness.yml'
 permissions:
   contents: read
@@ -50,17 +51,24 @@ jobs:
           python3 - <<'PY'
           import json
           z=json.load(open('snapshots/v38-promotion-readiness.json'))
-          assert z['protocol']=='V38_PROMOTION_READINESS_AGGREGATE_V1'
+          assert z['protocol']=='V38_PROMOTION_READINESS_AGGREGATE_V2'
           assert z['research_only'] is True
           assert z['scoring_enabled'] is False
           assert z['scoring_eligible'] is False
           assert z['auto_promote'] is False
-          assert z['dedupe_rule']=='date + immutable snapshot_sha256'
+          assert z['manifest_required'] is True
+          assert z['dedupe_rule']=='valid V38_EVIDENCE_MANIFEST_V1 dedupe_key, then one immutable evidence set per slate date'
           assert z['selected_definition']=='quality_plus_pitchfit'
+          assert isinstance(z['rejected_artifacts'], list)
           assert z['gate']['auto_promote'] is False
           assert z['gate']['scoring_enabled'] is False
           assert z['evidence']['pool_target_forced'] is False
-          print('V38_PROMOTION_GATE='+json.dumps({'prospective':z['prospective'],'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
+          for s in z.get('slates',[]):
+            assert isinstance(s.get('evidence_dedupe_key'),str) and s['evidence_dedupe_key']
+            assert isinstance(s.get('manifest_digest'),str) and len(s['manifest_digest'])==64
+            assert isinstance(s.get('rule_fingerprint'),str) and len(s['rule_fingerprint'])==64
+            assert isinstance(s.get('artifact_fingerprint'),str) and len(s['artifact_fingerprint'])==64
+          print('V38_PROMOTION_GATE='+json.dumps({'prospective':z['prospective'],'rejected_artifacts':len(z['rejected_artifacts']),'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
           PY
       - uses: actions/upload-artifact@v4
         with:
