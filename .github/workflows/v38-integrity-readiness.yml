@@ -7,6 +7,7 @@ on:
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-park-factor-policy.mjs'
       - 'v38-evidence-manifest.mjs'
+      - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'test-v38-research-board.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-park-factor-policy.mjs'
@@ -31,3 +32,5 @@ jobs:
         run: node test-v38-park-factor-policy.mjs
       - name: Test immutable evidence manifest
         run: node test-v38-evidence-manifest.mjs
+      - name: Syntax-check V5 report + manifest augmentation
+        run: node --check scripts/augment-v38-selected-pool-report.mjs
