@@ -24,18 +24,38 @@ jobs:
         run: |
           set -euo pipefail
           DATE=$(date -u -d 'yesterday' +%F)
-          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=30" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1)
-          if [ -z "${RUN_ID:-}" ]; then echo "No successful v38 pregame snapshot for ${DATE}"; exit 3; fi
           echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=30" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
+          if [ -z "${RUN_ID:-}" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No successful v38 pregame snapshot for ${DATE}; nothing to evaluate."
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
           echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
           mkdir -p incoming
           gh run download "$RUN_ID" --repo "$GH_REPO" --name "v38-pregame-${RUN_ID}" --dir incoming
           SNAP=$(find incoming -type f -name 'v38-pregame-*.json' | head -1)
-          if [ -z "${SNAP:-}" ]; then echo "Snapshot JSON missing"; exit 4; fi
+          if [ -z "${SNAP:-}" ]; then echo "Snapshot artifact exists but JSON is missing"; exit 4; fi
           echo "snapshot=${SNAP}" >> "$GITHUB_OUTPUT"
       - name: Evaluate only after every eligible game is final
-        run: node scripts/evaluate-v38-pregame-snapshot.mjs "${{ steps.find.outputs.snapshot }}"
+        id: eval
+        if: steps.find.outputs.found == 'true'
+        shell: bash
+        run: |
+          set +e
+          node scripts/evaluate-v38-pregame-snapshot.mjs "${{ steps.find.outputs.snapshot }}"
+          RC=$?
+          set -e
+          if [ "$RC" -eq 2 ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Eligible slate is not fully final yet; prospective evaluation deferred."
+            exit 0
+          fi
+          if [ "$RC" -ne 0 ]; then exit "$RC"; fi
+          echo "ready=true" >> "$GITHUB_OUTPUT"
       - name: Verify qualifying prospective contract
+        if: steps.eval.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -55,6 +75,7 @@ jobs:
           print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['date','eligible_games','played_profiled_hitters','unique_hr_hitters','summary']}))
           PY
       - uses: actions/upload-artifact@v4
+        if: steps.eval.outputs.ready == 'true'
         with:
           name: v38-postgame-${{ steps.find.outputs.date }}-${{ github.run_id }}
           path: incoming/*-evaluated.json
