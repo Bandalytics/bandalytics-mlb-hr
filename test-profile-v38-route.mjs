@@ -1,0 +1,27 @@
+import assert from'node:assert/strict';
+import handler from'./api-handlers/profile-v38-candidate.js';
+const oldFetch=globalThis.fetch;
+globalThis.fetch=async url=>{
+  const u=String(url);
+  if(u.includes('/api/bulk'))return new Response(JSON.stringify({items:[{player_id:592450,ev:94.1,hard_hit:57.3,barrel:21.7,iso:.350,sweet_spot:33.6,pull:43.4,blast_contact:20.8,blast_swing:14.5}]}),{status:200,headers:{'content-type':'application/json'}});
+  if(u.includes('/api/pull-air'))return new Response(JSON.stringify({items:[{player_id:592450,pull_air:18.2}]}),{status:200,headers:{'content-type':'application/json'}});
+  throw Error('unexpected URL '+u);
+};
+let statusCode=200,body=null;const res={status(n){statusCode=n;return this},json(x){body=x;return x}};
+await handler({query:{ids:'592450',year:'2026'}},res);
+globalThis.fetch=oldFetch;
+assert.equal(statusCode,200);
+assert.equal(body.ok,true);
+assert.equal(body.model,'v38');
+assert.equal(body.research_only,true);
+assert.equal(body.scoring_enabled,false);
+assert.equal(body.scoring_eligible,false);
+assert.equal(body.model_scoring_changed,false);
+assert.equal(body.v37_parity_verified,false);
+assert.equal(body.point_in_time_verified,false);
+assert.equal(body.backtest_eligible,false);
+assert.equal(body.items[0].player_id,592450);
+assert.equal(body.items[0].pullair,18.2);
+assert.equal(body.items[0].blast,14.5);
+assert.equal(body.items[0].scoring_eligible,false);
+console.log('V38 PROFILE ROUTE CONTRACT PASS');
