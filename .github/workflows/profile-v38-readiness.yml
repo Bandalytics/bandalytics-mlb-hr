@@ -7,16 +7,21 @@ on:
       - 'profile-cutover-gate.mjs'
       - 'v38-profile-validity.mjs'
       - 'v38-gate-rules.mjs'
+      - 'v38-context-selector.mjs'
+      - 'v38-context-eval.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gate-combinations.mjs'
+      - 'scripts/capture-v38-context-snapshot.mjs'
       - 'test-profile-v38-candidate.mjs'
       - 'test-profile-v38-route.mjs'
       - 'test-profile-cutover-gate.mjs'
       - 'test-v38-pregame-snapshot-protocol.mjs'
       - 'test-v38-gate-rules.mjs'
+      - 'test-v38-context-selector.mjs'
+      - 'test-v38-context-eval.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -39,3 +44,7 @@ jobs:
         run: node test-v38-pregame-snapshot-protocol.mjs
       - name: Test v38 gate-rule invariants
         run: node test-v38-gate-rules.mjs
+      - name: Test latest-valid pregame context selection
+        run: node test-v38-context-selector.mjs
+      - name: Test constrained context convergence rules
+        run: node test-v38-context-eval.mjs
