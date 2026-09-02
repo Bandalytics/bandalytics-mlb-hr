@@ -19,6 +19,7 @@
     {"source":"/api/profile-native-qa","destination":"/api/router?route=profile-native-qa"},
     {"source":"/api/profile-research","destination":"/api/router?route=profile-research"},
     {"source":"/api/profile-v38-candidate","destination":"/api/router?route=profile-v38-candidate"},
+    {"source":"/api/profile-v38-leakage-replay","destination":"/api/router?route=profile-v38-leakage-replay"},
     {"source":"/api/research-status","destination":"/api/router?route=research-status"},
     {"source":"/api/results-identity","destination":"/api/router?route=results-identity"},
     {"source":"/api/sim-calibrate-range","destination":"/api/router?route=sim-calibrate-range"},
