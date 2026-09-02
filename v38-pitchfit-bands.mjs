@@ -1,0 +1,3 @@
+const finite=v=>v!==null&&v!==''&&Number.isFinite(+v);
+export function quantile(values,q){const s=(values||[]).map(Number).filter(Number.isFinite).sort((a,b)=>a-b);if(!s.length)return null;const p=(s.length-1)*q,lo=Math.floor(p),hi=Math.ceil(p);return +(s[lo]+(s[hi]-s[lo])*(p-lo)).toFixed(1)}
+export function buildPitchfitBands(rows=[]){const stable=rows.filter(r=>r?.fit_status==='TRUE'&&finite(r.fit_score)),scores=stable.map(r=>+r.fit_score),p75=quantile(scores,.75),p90=quantile(scores,.90);return{population:stable.length,p75,p90,classify(row){if(row?.fit_status!=='TRUE'||!finite(row.fit_score))return'INELIGIBLE';const s=+row.fit_score;if(p90!==null&&s>=p90)return'TOP_DECILE';if(p75!==null&&s>=p75)return'TOP_QUARTILE';return'BASE_TRUE'}}}
