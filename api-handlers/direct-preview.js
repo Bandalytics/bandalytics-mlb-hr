@@ -1,6 +1,7 @@
 import {buildNativeFeed} from '../native-feed-core.mjs';
 import {buildSavantProfileUrl,summarizeSavantCsv,profileBatchPlan} from '../profile-api.mjs';
 
+const PROFILE_CONCURRENCY=5;
 async function fetchText(url,timeoutMs=15000){
   const c=new AbortController(),t=setTimeout(()=>c.abort(),timeoutMs);
   try{
@@ -18,18 +19,24 @@ const sampleGrade=x=>{
   return'NONE';
 };
 
+async function loadProfileBatch(batch,date){
+  const csv=await fetchText(buildSavantProfileUrl({playerIds:batch.map(x=>x.player_id),start:`${date.slice(0,4)}-03-01`,end:date,season:+date.slice(0,4)}));
+  return summarizeSavantCsv(csv,batch);
+}
+
 export default async function handler(req,res){
   try{
     const date=String(req.query?.date||'');
     if(!/^20\d\d-\d\d-\d\d$/.test(date))return res.status(400).json({ok:false,error:'date required',research_only:true,scoring_enabled:false});
     const feed=await buildNativeFeed({date,timeoutMs:12000}),lineup=Array.isArray(feed.lineup_players)?feed.lineup_players:[];
     const entities=lineup.map(x=>({player:x.player,team:x.team,player_id:+x.player_id})).filter(x=>x.player&&x.team&&Number.isInteger(x.player_id)&&x.player_id>0);
-    const profileById=new Map(),batchErrors=[];
-    for(const batch of profileBatchPlan(entities,20)){
-      try{
-        const csv=await fetchText(buildSavantProfileUrl({playerIds:batch.map(x=>x.player_id),start:`${date.slice(0,4)}-03-01`,end:date,season:+date.slice(0,4)}));
-        for(const p of summarizeSavantCsv(csv,batch))profileById.set(+p.player_id,p);
-      }catch(e){batchErrors.push(e?.name==='AbortError'?'Baseball Savant timeout':(e?.message||String(e)))}
+    const profileById=new Map(),batchErrors=[],batches=profileBatchPlan(entities,20);
+    for(let i=0;i<batches.length;i+=PROFILE_CONCURRENCY){
+      const wave=batches.slice(i,i+PROFILE_CONCURRENCY),settled=await Promise.allSettled(wave.map(batch=>loadProfileBatch(batch,date)));
+      settled.forEach((result,j)=>{
+        if(result.status==='fulfilled')for(const p of result.value)profileById.set(+p.player_id,p);
+        else batchErrors.push({player_ids:wave[j].map(x=>x.player_id),error:result.reason?.name==='AbortError'?'Baseball Savant timeout':(result.reason?.message||String(result.reason))});
+      });
     }
     const items=lineup.map(x=>{
       const p=profileById.get(+x.player_id)||{};
@@ -37,6 +44,6 @@ export default async function handler(req,res){
     });
     const stable_samples=items.filter(x=>x.sample_grade==='STABLE').length,usable_samples=items.filter(x=>x.sample_grade==='USABLE').length;
     res.setHeader('Cache-Control','s-maxage=60, stale-while-revalidate=120');
-    return res.status(200).json({ok:true,date,items,posted_hitters:lineup.length,savant_matched:profileById.size,stable_samples,usable_samples,feed:{games:feed.games,starters:feed.starters,lineups:feed.lineups},partial:batchErrors.length>0,batch_errors:batchErrors,source:'MLB_STATSAPI_PLUS_BASEBALL_SAVANT_DIRECT_RESEARCH',research_only:true,scoring_enabled:false,model_scoring_changed:false,scoring_cutover:false});
+    return res.status(200).json({ok:true,date,items,posted_hitters:lineup.length,savant_matched:profileById.size,stable_samples,usable_samples,feed:{games:feed.games,starters:feed.starters,lineups:feed.lineups},profile_batches:batches.length,profile_concurrency:PROFILE_CONCURRENCY,partial:batchErrors.length>0,batch_errors:batchErrors,source:'MLB_STATSAPI_PLUS_BASEBALL_SAVANT_DIRECT_RESEARCH',research_only:true,scoring_enabled:false,model_scoring_changed:false,scoring_cutover:false});
   }catch(e){return res.status(502).json({ok:false,date:String(req.query?.date||''),error:e?.name==='AbortError'?'Direct preview timeout':(e?.message||String(e)),research_only:true,scoring_enabled:false,model_scoring_changed:false,scoring_cutover:false})}
 }
