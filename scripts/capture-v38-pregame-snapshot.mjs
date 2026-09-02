@@ -1,13 +1,12 @@
 import fs from'node:fs/promises';
 import crypto from'node:crypto';
 import{normalizeV38Candidate,V38_PROFILE_CANDIDATE}from'../profile-v38-candidate.mjs';
+import{profileComplete}from'../v38-profile-validity.mjs';
 
 const MLB='https://statsapi.mlb.com',PROFILE='https://bandalytics-native-profile.vercel.app';
 const SNAPSHOT_PROTOCOL='V38_PREGAME_SNAPSHOT_V1';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uniq=a=>[...new Set(a)];
-const finite=v=>v!==null&&v!==''&&Number.isFinite(+v);
-export const profileComplete=x=>[x.ev,x.hh,x.barrel,x.iso,x.sweet,x.pullair,x.blast].every(finite);
 async function get(url,ms=20000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{headers:{accept:'application/json','user-agent':'BANDALYTICS-v38-snapshot/2'},signal:c.signal});const text=await r.text();if(!r.ok)throw Error(`${url} HTTP ${r.status}: ${text.slice(0,160)}`);return JSON.parse(text)}finally{clearTimeout(t)}}
 function etDate(d=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
 function chunks(a,n){const o=[];for(let i=0;i<a.length;i+=n)o.push(a.slice(i,i+n));return o}
