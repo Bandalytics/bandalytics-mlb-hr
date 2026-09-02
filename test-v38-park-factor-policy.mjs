@@ -1,0 +1,12 @@
+import assert from'node:assert/strict';
+import{V38_PARK_FACTOR_POLICY,validParkFactorSnapshot,selectLatestPregameParkSnapshot,parkFactorForVenue}from'./v38-park-factor-policy.mjs';
+const base={protocol:V38_PARK_FACTOR_POLICY.protocol,point_in_time:true,research_only:true,scoring_enabled:false,scoring_eligible:false,source:'STATCAST_PARK_FACTORS',factors:[{venue:'Coors Field',bat_side:'ALL',hr_factor:110},{venue:'Coors Field',bat_side:'L',hr_factor:122}]};
+const early={...base,captured_at:'2026-09-02T16:00:00Z'},late={...base,captured_at:'2026-09-02T23:00:00Z'},bad={...base,captured_at:'2026-09-02T17:00:00Z',scoring_enabled:true};
+assert.equal(validParkFactorSnapshot(early),true);assert.equal(validParkFactorSnapshot(bad),false);
+assert.equal(selectLatestPregameParkSnapshot([early,late,bad],'2026-09-02T22:00:00Z').captured_at,early.captured_at);
+assert.equal(selectLatestPregameParkSnapshot([late],'2026-09-02T22:00:00Z'),null);
+assert.equal(parkFactorForVenue(early,'Coors Field','L').hr_factor,122);
+assert.equal(parkFactorForVenue(early,'Coors Field','R').hr_factor,110);
+assert.equal(parkFactorForVenue(early,'Unknown Park','L'),null);
+assert.equal(V38_PARK_FACTOR_POLICY.hard_gate,false);assert.equal(V38_PARK_FACTOR_POLICY.standalone_hr_boost,false);assert.equal(V38_PARK_FACTOR_POLICY.historical_reconstruction_without_pregame_snapshot,false);assert.equal(V38_PARK_FACTOR_POLICY.scoring_enabled,false);
+console.log('V38_PARK_FACTOR_POLICY_PASS');
