@@ -1,0 +1,3 @@
+import fs from'node:fs/promises';
+import{selectedPoolReport}from'../v38-selected-pool-report.mjs';
+const p=process.argv[2];if(!p)throw Error('usage: node scripts/augment-v38-selected-pool-report.mjs <evaluated.json>');const z=JSON.parse(await fs.readFile(p,'utf8'));if(z.evaluation_protocol!=='V38_PREGAME_OUTCOME_EVAL_V5'||z.status!=='FINAL'||z.prospective_validation!==true||z.research_only!==true||z.scoring_enabled!==false)throw Error('selected-pool report requires final V5 prospective research evaluation');z.selected_pool_report=selectedPoolReport(z.rows||[]);await fs.writeFile(p,JSON.stringify(z,null,2)+'\n');console.log('V38_SELECTED_POOL_REPORT='+JSON.stringify(z.selected_pool_report));
