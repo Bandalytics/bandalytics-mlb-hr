@@ -1,0 +1,27 @@
+name: v38 Pitchfit Distribution
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/analyze-v38-pitchfit-slate.mjs'
+      - '.github/workflows/v38-pitchfit-distribution.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Analyze current-slate as-of pitchfit distribution
+        run: node scripts/analyze-v38-pitchfit-slate.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-pitchfit-${{ github.run_id }}
+          path: snapshots/v38-pitchfit-*.json
+          if-no-files-found: error
+          retention-days: 30
