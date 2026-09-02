@@ -1,0 +1,35 @@
+name: v38 Leakage Diagnostic
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'v38-leakage-replay-core.mjs'
+      - 'api-handlers/profile-v38-leakage-replay.js'
+      - 'test-v38-leakage-replay-core.mjs'
+      - '.github/workflows/v38-leakage-diagnostic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test replay core
+        run: node test-v38-leakage-replay-core.mjs
+      - name: Run Aug 26-28 leakage diagnostic
+        run: |
+          node --input-type=module <<'NODE'
+          import handler from './api-handlers/profile-v38-leakage-replay.js';
+          for(const date of ['2026-08-26','2026-08-27','2026-08-28']){
+            let statusCode=200,body=null;
+            const res={status(n){statusCode=n;return this},json(x){body=x;return x}};
+            await handler({query:{date}},res);
+            if(statusCode!==200||!body?.ok)throw new Error(`${date} replay failed ${statusCode}: ${JSON.stringify(body).slice(0,500)}`);
+            const out={date:body.date,mode:body.mode,qualifying_backtest:body.qualifying_backtest,cutover_evidence:body.cutover_evidence,profile_snapshot_date:body.profile_snapshot_date,forward_leakage_days:body.forward_leakage_days,games:body.games,lineup_hitters:body.lineup_hitters,unique_hr_hitters:body.unique_hr_hitters,profile_coverage:body.profile_coverage,summary:body.summary};
+            console.log('V38_LEAKAGE_RESULT='+JSON.stringify(out));
+          }
+          NODE
