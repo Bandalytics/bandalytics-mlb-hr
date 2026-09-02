@@ -18,6 +18,7 @@ on:
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-longshot-quality.mjs'
       - 'v38-longshot-promotion-gate.mjs'
+      - 'v38-final-pool-promotion-gate.mjs'
       - 'v38-nightly-longshot-context.mjs'
       - 'v38-selected-pool-objective.mjs'
       - 'v38-research-pool-hierarchy.mjs'
@@ -53,6 +54,7 @@ on:
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-longshot-quality.mjs'
       - 'test-v38-longshot-promotion-gate.mjs'
+      - 'test-v38-final-pool-promotion-gate.mjs'
       - 'test-v38-nightly-longshot-context.mjs'
       - 'test-v38-selected-pool-objective.mjs'
       - 'test-v38-research-pool-hierarchy.mjs'
@@ -87,6 +89,8 @@ jobs:
         run: node test-v38-longshot-quality.mjs
       - name: Test fail-closed longshot promotion gate
         run: node test-v38-longshot-promotion-gate.mjs
+      - name: Test fail-closed general final-pool promotion gate
+        run: node test-v38-final-pool-promotion-gate.mjs
       - name: Test research-only nightly longshot context hierarchy
         run: node test-v38-nightly-longshot-context.mjs
       - name: Test selected-pool optimization objective
