@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'api-handlers/research-board.js'
+      - 'direct-research-ui.js'
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-park-factor-policy.mjs'
       - 'v38-evidence-manifest.mjs'
@@ -12,6 +13,7 @@ on:
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gascan-slate.mjs'
+      - 'test-direct-research-ui.mjs'
       - 'test-v38-research-board.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-park-factor-policy.mjs'
@@ -34,6 +36,8 @@ jobs:
         run: node test-mlb-hr-locked-policy.mjs
       - name: Test research-board policy contract
         run: node test-v38-research-board.mjs
+      - name: Test Direct Lab automated-board safety contract
+        run: node test-direct-research-ui.mjs
       - name: Test point-in-time park-factor policy
         run: node test-v38-park-factor-policy.mjs
       - name: Test immutable evidence manifest
