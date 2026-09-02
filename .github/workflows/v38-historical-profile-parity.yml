@@ -1,0 +1,24 @@
+name: v38 Historical Profile Parity
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/validate-v38-historical-profile-parity.mjs'
+      - 'v38-historical-profile-core.mjs'
+      - '.github/workflows/v38-historical-profile-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/validate-v38-historical-profile-parity.mjs
+      - name: Compare reconstructed Sep2 profile to retained state
+        run: node scripts/validate-v38-historical-profile-parity.mjs
