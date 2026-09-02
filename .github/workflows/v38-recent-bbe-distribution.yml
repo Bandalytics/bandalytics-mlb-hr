@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/analyze-v38-recent-bbe-slate.mjs
       - name: Analyze current-slate as-of Recent BBE distribution
         run: node scripts/analyze-v38-recent-bbe-slate.mjs
       - uses: actions/upload-artifact@v4
