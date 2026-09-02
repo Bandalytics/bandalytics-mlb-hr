@@ -22,6 +22,7 @@
     }
   ],
   "rewrites": [
+    {"source":"/api/direct-preview","destination":"/api/router?route=direct-preview"},
     {"source":"/api/direct-profile","destination":"/api/router?route=direct-profile"},
     {"source":"/api/feed-status","destination":"/api/router?route=feed-status"},
     {"source":"/api/iso-savant-split-qa","destination":"/api/router?route=iso-savant-split-qa"},
