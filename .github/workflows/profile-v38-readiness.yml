@@ -17,6 +17,7 @@ on:
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-longshot-quality.mjs'
       - 'v38-longshot-promotion-gate.mjs'
+      - 'v38-nightly-longshot-context.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
@@ -40,6 +41,7 @@ on:
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-longshot-quality.mjs'
       - 'test-v38-longshot-promotion-gate.mjs'
+      - 'test-v38-nightly-longshot-context.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -68,6 +70,8 @@ jobs:
         run: node test-v38-longshot-quality.mjs
       - name: Test fail-closed longshot promotion gate
         run: node test-v38-longshot-promotion-gate.mjs
+      - name: Test research-only nightly longshot context hierarchy
+        run: node test-v38-nightly-longshot-context.mjs
       - name: Test latest-valid pregame context selection
         run: node test-v38-context-selector.mjs
       - name: Test constrained context convergence rules
