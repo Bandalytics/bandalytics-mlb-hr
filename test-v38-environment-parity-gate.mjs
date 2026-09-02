@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {evaluateEnvironmentParity,V38_ENVIRONMENT_PARITY_GATE} from './v38-environment-parity-gate.mjs';
+const sep2Partial=evaluateEnvironmentParity({captured_games:14,weather_covered_games:4,venue_exact_rate_pct:100,weather_condition_agreement_pct:100,wind_class_agreement_pct:100,temperature_mae_f:0,wind_mph_mae:0,threshold_review:false,deliberate_approval:false});
+assert.equal(sep2Partial.pass,false,'4 weather-covered games must fail closed');
+assert.equal(sep2Partial.checks.weather_covered_games,false);
+const complete=evaluateEnvironmentParity({captured_games:15,weather_covered_games:12,venue_exact_rate_pct:100,weather_condition_agreement_pct:90,wind_class_agreement_pct:90,temperature_mae_f:3,wind_mph_mae:2,threshold_review:true,deliberate_approval:true});
+assert.equal(complete.pass,true);
+assert.equal(V38_ENVIRONMENT_PARITY_GATE.auto_promote,false);
+assert.equal(V38_ENVIRONMENT_PARITY_GATE.scoring_enabled,false);
+console.log('v38 environment parity gate PASS');
