@@ -7,6 +7,8 @@ on:
       - 'scripts/evaluate-v38-historical-convergence.mjs'
       - 'scripts/analyze-v38-starter-damage-slate.mjs'
       - 'scripts/analyze-v38-bullpen-freshness-slate.mjs'
+      - 'scripts/analyze-v38-lineup-position-slate.mjs'
+      - 'scripts/analyze-v38-environment-slate.mjs'
       - 'v38-baseball-convergence.mjs'
       - 'v38-pitchfit-bands.mjs'
       - 'v38-bbe-bands.mjs'
@@ -38,6 +40,8 @@ jobs:
           node --check scripts/analyze-v38-recent-bbe-slate.mjs
           node --check scripts/analyze-v38-starter-damage-slate.mjs
           node --check scripts/analyze-v38-bullpen-freshness-slate.mjs
+          node --check scripts/analyze-v38-lineup-position-slate.mjs
+          node --check scripts/analyze-v38-environment-slate.mjs
           node --check scripts/evaluate-v38-historical-convergence.mjs
       - name: Rebuild point-in-time profile
         run: node scripts/run-v38-point-in-time-replay.mjs "${{ matrix.replay_date }}"
@@ -49,6 +53,10 @@ jobs:
         run: node scripts/analyze-v38-starter-damage-slate.mjs "${{ matrix.replay_date }}" "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
       - name: Evaluate as-of bullpen freshness
         run: node scripts/analyze-v38-bullpen-freshness-slate.mjs "${{ matrix.replay_date }}" "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
+      - name: Evaluate lineup position modifier
+        run: node scripts/analyze-v38-lineup-position-slate.mjs "${{ matrix.replay_date }}" "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
+      - name: Evaluate historical environment diagnostic
+        run: node scripts/analyze-v38-environment-slate.mjs "${{ matrix.replay_date }}" "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
       - name: Evaluate frozen convergence registry
         run: node scripts/evaluate-v38-historical-convergence.mjs "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json" "snapshots/v38-pitchfit-${{ matrix.replay_date }}.json" "snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json"
       - uses: actions/upload-artifact@v4
@@ -60,6 +68,8 @@ jobs:
             snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json
             snapshots/v38-starter-damage-${{ matrix.replay_date }}.json
             snapshots/v38-bullpen-freshness-${{ matrix.replay_date }}.json
+            snapshots/v38-lineup-position-${{ matrix.replay_date }}.json
+            snapshots/v38-environment-${{ matrix.replay_date }}.json
             snapshots/v38-historical-convergence-${{ matrix.replay_date }}.json
           if-no-files-found: error
           retention-days: 90
