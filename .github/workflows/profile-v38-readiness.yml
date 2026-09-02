@@ -28,6 +28,7 @@ on:
       - 'scripts/analyze-v38-pitchfit-slate.mjs'
       - 'scripts/analyze-v38-recent-bbe-slate.mjs'
       - 'scripts/evaluate-v38-longshot-market-funnel.mjs'
+      - 'scripts/summarize-v38-point-in-time-window.mjs'
       - 'test-profile-v38-candidate.mjs'
       - 'test-profile-v38-route.mjs'
       - 'test-profile-cutover-gate.mjs'
@@ -79,6 +80,8 @@ jobs:
         run: node test-v38-selected-pool-objective.mjs
       - name: Syntax-check +700 market funnel evaluator
         run: node --check scripts/evaluate-v38-longshot-market-funnel.mjs
+      - name: Syntax-check full HR workflow summary
+        run: node --check scripts/summarize-v38-point-in-time-window.mjs
       - name: Test latest-valid pregame context selection
         run: node test-v38-context-selector.mjs
       - name: Test constrained context convergence rules
