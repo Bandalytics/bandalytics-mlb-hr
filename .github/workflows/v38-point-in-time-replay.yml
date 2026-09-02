@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: 'Replay date YYYY-MM-DD; blank runs frozen Aug 26-28 window'
+        description: 'Replay date YYYY-MM-DD; blank runs frozen Aug 29-31 window'
         required: false
         default: ''
 permissions:
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        replay_date: ${{ inputs.date && fromJSON(format('["{0}"]', inputs.date)) || fromJSON('["2026-08-26","2026-08-27","2026-08-28"]') }}
+        replay_date: ${{ inputs.date && fromJSON(format('["{0}"]', inputs.date)) || fromJSON('["2026-08-29","2026-08-30","2026-08-31"]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
