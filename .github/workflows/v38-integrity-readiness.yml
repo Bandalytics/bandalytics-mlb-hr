@@ -8,13 +8,16 @@ on:
       - 'v38-park-factor-policy.mjs'
       - 'v38-evidence-manifest.mjs'
       - 'v38-selected-pool-report.mjs'
+      - 'v38-stack-gascan-policy.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
+      - 'scripts/analyze-v38-gascan-slate.mjs'
       - 'test-v38-research-board.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-park-factor-policy.mjs'
       - 'test-v38-evidence-manifest.mjs'
       - 'test-v38-selected-pool-report.mjs'
+      - 'test-v38-stack-gascan-policy.mjs'
       - '.github/workflows/v38-integrity-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -37,6 +40,10 @@ jobs:
         run: node test-v38-evidence-manifest.mjs
       - name: Test selected-pool HR and market-return reporting
         run: node test-v38-selected-pool-report.mjs
+      - name: Test stack and gas-can research guardrails
+        run: node test-v38-stack-gascan-policy.mjs
+      - name: Syntax-check gas-can historical analyzer
+        run: node --check scripts/analyze-v38-gascan-slate.mjs
       - name: Syntax-check V5 prospective evaluator
         run: node --check scripts/evaluate-v38-pregame-snapshot.mjs
       - name: Syntax-check V5 report + manifest augmentation
