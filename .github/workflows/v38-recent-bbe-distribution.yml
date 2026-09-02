@@ -5,6 +5,8 @@ on:
     paths:
       - 'scripts/analyze-v38-recent-bbe-slate.mjs'
       - '.github/workflows/v38-recent-bbe-distribution.yml'
+  schedule:
+    - cron: '35 16 * * *'
   workflow_dispatch:
 permissions:
   contents: read
