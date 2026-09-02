@@ -1,0 +1,33 @@
+name: v38 Context Snapshot
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/capture-v38-context-snapshot.mjs'
+      - '.github/workflows/v38-context-snapshot.yml'
+  schedule:
+    - cron: '0 14,17,20,22 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  context:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Capture immutable pregame context
+        run: node scripts/capture-v38-context-snapshot.mjs
+      - name: Show context summary
+        run: |
+          F=$(find snapshots -type f -name 'v38-context-*.json' | sort | tail -1)
+          node -e "const z=require('./'+process.argv[1]); console.log(JSON.stringify({date:z.date,captured_at:z.captured_at,pregame_games:z.pregame_game_count,confirmed_lineups:z.confirmed_lineups,lineup_rows:z.lineup_rows.length,market_ok:z.market_ok,market_rows:z.market_rows.length,sha256:z.sha256}))" "$F"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-context-${{ github.run_id }}
+          path: snapshots/v38-context-*.json
+          if-no-files-found: error
+          retention-days: 90
