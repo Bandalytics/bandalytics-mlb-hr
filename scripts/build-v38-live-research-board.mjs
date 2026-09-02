@@ -15,7 +15,7 @@ async function contexts(root,date){const files=await jsonFiles(root),a=[];for(co
 function etDate(d=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
 function genericQuality(p){const c=evaluateV38CandidateRules(p);if(c.gate_count>=5)return'PROTECTED_5OF6_PLUS';if(c.gate_count>=4&&c.passes.iso)return'QUALITY_4OF6_PLUS_ISO';if(c.gate_count>=4)return'BASE_PROFILE_4OF6';return'INELIGIBLE'}
 function gameForPlayer(profile,teamId){return(profile.pregame_games||[]).find(g=>+g.away_team_id===+teamId||+g.home_team_id===+teamId)||null}
-function oddsOf(m){const v=Number(m?.current_odds??m?.american_odds);return Number.isFinite(v)?v:null}
+function oddsOf(m){const v=Number(m?.best_odds??m?.current_odds??m?.american_odds);return Number.isFinite(v)?v:null}
 function rankBand(x){return({CORE_PROTECTED_PLUS:1,CORE_PROTECTED:2,CORE_QUALITY_PLUS:3,CORE_QUALITY:4,STRONG_PROFILE:5,QUALITY_WITH_BBE_SUPPORT:6,QUALITY_PROFILE:7,WATCH_BASE_ELIGIBLE:8,EXCLUDE_OR_OTHER_MARKET_RULE:99})[x]??50}
 
 const profileDir=process.argv[2]||'incoming/profile',contextDir=process.argv[3]||'incoming/contexts',modifierDir=process.argv[4]||'incoming/modifiers',date=process.argv[5]||etDate();
