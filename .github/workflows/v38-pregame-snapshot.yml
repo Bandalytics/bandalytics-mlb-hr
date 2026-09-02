@@ -1,0 +1,44 @@
+name: v38 Pregame Snapshot
+on:
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/capture-v38-pregame-snapshot.mjs'
+      - '.github/workflows/v38-pregame-snapshot.yml'
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Capture immutable pregame v38 profile snapshot
+        run: node scripts/capture-v38-pregame-snapshot.mjs
+      - name: Show snapshot summary
+        run: |
+          python3 - <<'PY'
+          import json,glob
+          p=sorted(glob.glob('snapshots/v38-pregame-*.json'))[-1]
+          z=json.load(open(p))
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['model_scoring_changed'] is False
+          assert z['point_in_time'] is True
+          assert len(z['sha256'])==64
+          print('SNAPSHOT='+json.dumps({k:z[k] for k in ['date','captured_at','games_total','team_count','player_count','profile_complete','sha256']}))
+          print('PREGAME_GAMES='+str(len(z['pregame_games'])))
+          print('EXCLUDED_STARTED='+str(len(z['excluded_started_games'])))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-pregame-${{ github.run_id }}
+          path: snapshots/v38-pregame-*.json
+          if-no-files-found: error
+          retention-days: 90
