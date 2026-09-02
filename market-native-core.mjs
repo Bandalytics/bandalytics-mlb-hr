@@ -55,6 +55,19 @@ function eventTeams(event){
   const home=normTeam(t?.home?.names?.short || t?.home?.names?.medium || t?.home?.abbreviation || t?.home?.teamID || event?.homeTeam?.abbreviation || event?.homeTeamID || '');
   return {away,home};
 }
+export function eventStartMs(event){
+  const raw=event?.status?.startsAt || event?.startTime || event?.startsAt || null;
+  const ms=raw?Date.parse(raw):NaN;
+  return Number.isFinite(ms)?ms:null;
+}
+export function eventMatchesSlate(event,slateGames=[],toleranceMs=8*60*60*1000){
+  if(!slateGames.length)return true;
+  const {away,home}=eventTeams(event),matchup=matchupKey(away,home),start=eventStartMs(event);
+  const candidates=slateGames.filter(g=>String(g.matchup)===matchup);
+  if(!candidates.length)return false;
+  if(start===null)return false;
+  return candidates.some(g=>{const ms=Date.parse(g.start);return Number.isFinite(ms)&&Math.abs(start-ms)<=toleranceMs});
+}
 function playerFromEvent(event, providerID){
   const p=event?.players?.[providerID];
   if(!p) return {playerID:providerID,name:null,teamID:null};
@@ -67,41 +80,25 @@ function activeBookRows(odd){
     const current=americanNumber(raw?.odds), open=americanNumber(raw?.openOdds);
     if(current===null) continue;
     const currImp=impliedFromAmerican(current), openImp=impliedFromAmerican(open);
-    out.push({
-      book,
-      odds:current,
-      odds_text:americanString(current),
-      open_odds:open,
-      open_odds_text:americanString(open),
-      current_implied:currImp,
-      open_implied:openImp,
-      movement_pp: openImp===null||currImp===null ? null : +(100*(currImp-openImp)).toFixed(3),
-      last_updated_at:raw?.lastUpdatedAt||null,
-      deeplink:raw?.deeplink||null,
-    });
+    out.push({book,odds:current,odds_text:americanString(current),open_odds:open,open_odds_text:americanString(open),current_implied:currImp,open_implied:openImp,movement_pp:openImp===null||currImp===null?null:+(100*(currImp-openImp)).toFixed(3),last_updated_at:raw?.lastUpdatedAt||null,deeplink:raw?.deeplink||null});
   }
   return out;
 }
 function summarizeMovement(books){
-  const moved=books.filter(x=>x.movement_pp!==null);
-  const steam=moved.filter(x=>x.movement_pp>=0.5);
-  const lengthened=moved.filter(x=>x.movement_pp<=-0.5);
-  const avg=moved.length ? moved.reduce((s,x)=>s+x.movement_pp,0)/moved.length : null;
-  return {
-    books_with_open:moved.length,
-    steam_books:steam.map(x=>x.book),
-    lengthened_books:lengthened.map(x=>x.book),
-    avg_movement_pp:avg===null?null:+avg.toFixed(3),
-    signal: steam.length>=2 && steam.length>lengthened.length ? 'STEAM' : lengthened.length>=2 && lengthened.length>steam.length ? 'LINE_LENGTHENED' : 'MIXED_NEUTRAL'
-  };
+  const moved=books.filter(x=>x.movement_pp!==null),steam=moved.filter(x=>x.movement_pp>=0.5),lengthened=moved.filter(x=>x.movement_pp<=-0.5),avg=moved.length?moved.reduce((s,x)=>s+x.movement_pp,0)/moved.length:null;
+  return{books_with_open:moved.length,steam_books:steam.map(x=>x.book),lengthened_books:lengthened.map(x=>x.book),avg_movement_pp:avg===null?null:+avg.toFixed(3),signal:steam.length>=2&&steam.length>lengthened.length?'STEAM':lengthened.length>=2&&lengthened.length>steam.length?'LINE_LENGTHENED':'MIXED_NEUTRAL'};
 }
 
 export function normalizeSportsGameOdds(events=[], opts={}){
   const identityIndex=opts.identityIndex || buildIdentityIndex(opts.identityPlayers||[]);
   const allowedMatchups=new Set((opts.allowedMatchups||[]).map(String));
+  const slateGames=opts.slateGames||[];
   const rows=[], rejected=[];
   for(const event of events||[]){
     const {away,home}=eventTeams(event); const matchup=matchupKey(away,home);
+    if(slateGames.length&&!eventMatchesSlate(event,slateGames)){
+      rejected.push({reason:'OUTSIDE_SLATE_WINDOW',eventID:event?.eventID||null,matchup,starts_at:event?.status?.startsAt||event?.startTime||event?.startsAt||null});continue;
+    }
     if(allowedMatchups.size && !allowedMatchups.has(matchup)){
       rejected.push({reason:'STALE_MATCHUP',eventID:event?.eventID||null,matchup}); continue;
     }
@@ -109,35 +106,10 @@ export function normalizeSportsGameOdds(events=[], opts={}){
       if(odd?.statID!=='batting_homeRuns' || odd?.periodID!=='game' || odd?.betTypeID!=='yn' || odd?.sideID!=='yes') continue;
       const providerID=odd?.playerID || odd?.statEntityID;
       if(!providerID || providerID==='all'||providerID==='home'||providerID==='away') continue;
-      const pp=playerFromEvent(event,providerID);
-      const mlbam=resolveExactPlayer(pp,identityIndex);
-      const books=activeBookRows(odd);
+      const pp=playerFromEvent(event,providerID),mlbam=resolveExactPlayer(pp,identityIndex),books=activeBookRows(odd);
       if(!books.length) continue;
-      const best=books.reduce((a,b)=>b.odds>a.odds?b:a,books[0]);
-      const movement=summarizeMovement(books);
-      const row={
-        event_id:event?.eventID||null,
-        odd_id:oddID,
-        matchup,
-        away,home,
-        provider_player_id:providerID,
-        player:pp.name,
-        team:normTeam(pp.teamID),
-        player_id:mlbam,
-        identity_status:mlbam?'EXACT':'UNRESOLVED',
-        best_odds:best.odds,
-        best_odds_text:best.odds_text,
-        best_book:best.book,
-        consensus_odds:americanNumber(odd?.bookOdds),
-        consensus_odds_text:americanString(odd?.bookOdds),
-        fair_odds:americanNumber(odd?.fairOdds),
-        fair_odds_text:americanString(odd?.fairOdds),
-        implied_best:+(100*impliedFromAmerican(best.odds)).toFixed(3),
-        books,
-        ...movement,
-        source:'SPORTSGAMEODDS',
-      };
-      rows.push(row);
+      const best=books.reduce((a,b)=>b.odds>a.odds?b:a,books[0]),movement=summarizeMovement(books);
+      rows.push({event_id:event?.eventID||null,odd_id:oddID,matchup,away,home,event_starts_at:event?.status?.startsAt||event?.startTime||event?.startsAt||null,provider_player_id:providerID,player:pp.name,team:normTeam(pp.teamID),player_id:mlbam,identity_status:mlbam?'EXACT':'UNRESOLVED',best_odds:best.odds,best_odds_text:best.odds_text,best_book:best.book,consensus_odds:americanNumber(odd?.bookOdds),consensus_odds_text:americanString(odd?.bookOdds),fair_odds:americanNumber(odd?.fairOdds),fair_odds_text:americanString(odd?.fairOdds),implied_best:+(100*impliedFromAmerican(best.odds)).toFixed(3),books,...movement,source:'SPORTSGAMEODDS'});
     }
   }
   return {rows,rejected};
