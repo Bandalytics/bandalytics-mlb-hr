@@ -1,0 +1,47 @@
+name: v38 Historical Convergence
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Optional YYYY-MM-DD; blank runs frozen Aug 26-Sep 1 window'
+        required: false
+        default: ''
+permissions:
+  contents: read
+jobs:
+  convergence:
+    strategy:
+      fail-fast: false
+      matrix:
+        replay_date: ${{ inputs.date && fromJSON(format('["{0}"]', inputs.date)) || fromJSON('["2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01"]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: |
+          node --check scripts/run-v38-point-in-time-replay.mjs
+          node --check scripts/analyze-v38-pitchfit-slate.mjs
+          node --check scripts/analyze-v38-recent-bbe-slate.mjs
+          node --check scripts/evaluate-v38-historical-convergence.mjs
+      - name: Rebuild point-in-time profile
+        run: node scripts/run-v38-point-in-time-replay.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild as-of pitch fit
+        run: node scripts/analyze-v38-pitchfit-slate.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild as-of Recent BBE
+        run: node scripts/analyze-v38-recent-bbe-slate.mjs "${{ matrix.replay_date }}"
+      - name: Evaluate frozen convergence registry
+        run: node scripts/evaluate-v38-historical-convergence.mjs "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json" "snapshots/v38-pitchfit-${{ matrix.replay_date }}.json" "snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-historical-convergence-${{ matrix.replay_date }}-${{ github.run_id }}
+          path: |
+            snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json
+            snapshots/v38-pitchfit-${{ matrix.replay_date }}.json
+            snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json
+            snapshots/v38-historical-convergence-${{ matrix.replay_date }}.json
+          if-no-files-found: error
+          retention-days: 90
