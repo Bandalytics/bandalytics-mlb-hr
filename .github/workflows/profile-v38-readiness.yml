@@ -9,12 +9,16 @@ on:
       - 'v38-gate-rules.mjs'
       - 'v38-context-selector.mjs'
       - 'v38-context-eval.mjs'
+      - 'v38-pitchfit-bands.mjs'
+      - 'v38-bbe-bands.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gate-combinations.mjs'
       - 'scripts/capture-v38-context-snapshot.mjs'
+      - 'scripts/analyze-v38-pitchfit-slate.mjs'
+      - 'scripts/analyze-v38-recent-bbe-slate.mjs'
       - 'test-profile-v38-candidate.mjs'
       - 'test-profile-v38-route.mjs'
       - 'test-profile-cutover-gate.mjs'
@@ -22,6 +26,8 @@ on:
       - 'test-v38-gate-rules.mjs'
       - 'test-v38-context-selector.mjs'
       - 'test-v38-context-eval.mjs'
+      - 'test-v38-pitchfit-bands.mjs'
+      - 'test-v38-bbe-bands.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -48,3 +54,7 @@ jobs:
         run: node test-v38-context-selector.mjs
       - name: Test constrained context convergence rules
         run: node test-v38-context-eval.mjs
+      - name: Test TRUE-only slate-relative pitchfit bands
+        run: node test-v38-pitchfit-bands.mjs
+      - name: Test full-sample Recent BBE bands
+        run: node test-v38-bbe-bands.mjs
