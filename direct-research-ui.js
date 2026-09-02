@@ -6,7 +6,7 @@
   const RELEASE='v95-direct-research-site';
   const state={open:false,loading:false,date:null,preview:null,feed:null,contract:null,parity:null,error:null,lastLoadedAt:null,bodyOverflow:null};
   const $=(s,r=document)=>r.querySelector(s);
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const localYmd=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
   const ymd=()=>{try{return (window.ZIPDATE&&/^20\d\d-\d\d-\d\d$/.test(window.ZIPDATE))?window.ZIPDATE:localYmd()}catch{return localYmd()}};
   const n=(v,d=0)=>v==null?'—':Number(v).toFixed(d);
@@ -48,7 +48,7 @@
       items,feed,total:items.length,ids:count(items,x=>x.player_id!=null),profile4:count(items,x=>x.ev!=null&&x.hard_hit!=null&&x.barrel!=null&&x.iso!=null),stable:state.preview?.stable_samples??count(items,x=>x.sample_grade==='STABLE'),usable:state.preview?.usable_samples??count(items,x=>x.sample_grade==='USABLE'),posted:feed.length||count(items,x=>x.lineup!=null),starters:count(items,x=>x.opp_pitcher),duplicates:dups
     };
   }
-  function gate(name,status,detail){const c=status==='PASS'?'bdGood':status==='LOCKED'?'bdGood':status==='PARTIAL'?'bdWarn':'bdBad';return `<div class="bdGate"><span class="bdMuted">${esc(name)}</span><b class="${c}">${esc(status)}</b><small>${esc(detail)}</small></div>`}
+  function gate(name,status,detail){const c=(status==='PASS'||status==='LOCKED')?'bdGood':(status==='PARTIAL'||status==='RESEARCH_READY'||status==='RESEARCH')?'bdWarn':'bdBad';return `<div class="bdGate"><span class="bdMuted">${esc(name)}</span><b class="${c}">${esc(status)}</b><small>${esc(detail)}</small></div>`}
   function gates(c){
     const cg=state.contract?.gates||{},pick=(key,fallbackStatus,fallbackDetail)=>[cg[key]?.status||fallbackStatus,cg[key]?.detail||fallbackDetail];
     const rows=[
@@ -59,7 +59,7 @@
       ['Recent BBE',...pick('bbe','PASS','Player-ID route + recovered latest-15 classifier')],
       ['Lineup',...pick('lineup',c.posted?'PASS':'PARTIAL',`${c.posted} posted lineup hitters returned`)],
       ['Starter',...pick('starter',c.starters?'PARTIAL':'BLOCKED',`${c.starters}/${c.total} starter names in preview`)],
-      ['True Pitch Fit',...pick('pitchfit','BLOCKED','Duplicate exact-ID upstream proof still fail-closed')],
+      ['True Pitch Fit',...pick('pitchfit','RESEARCH_READY','Native exact hitter MLBAM ID + exact pitcher MLBAM ID route is live; legacy score parity remains unproven')],
       ['Environment',...pick('environment','PARTIAL','Existing backend feed; direct normalized parity not promoted')],
       ['v37 Scoring',...pick('v37','BLOCKED','Direct data cannot enter scoring')],
       ['Final Pool',...pick('final_pool','BLOCKED','ZIP workflow only')],
@@ -86,6 +86,7 @@
       <div class="bdSection">Legacy Lens Parity</div>
       <div class="bdGateGrid">${Object.entries(state.contract?.legacy_lenses||{}).map(([k,v])=>gate(k.replaceAll('_',' '),v.status||'RESEARCH',v.detail||'')).join('')||gate('Sharp Money','LOCKED','71/71 exact; other recreated lenses remain research-only')}</div>
       <div class="bdNotice"><b>Production invariant:</b> ZIP remains the scoring source of truth. Direct mode cannot create a qualification, Tonight HR score, Final Pool player, Daily Card entry, or ticket until every parity gate is independently proven.</div>
+      <div class="bdNotice bdInfo"><b>Exact-ID Pitch Fit:</b> native hitter MLBAM ID + pitcher MLBAM ID research path is available at /api/pitchfit-native. Identity ambiguity is removed, but parity_verified remains false and scoring cutover remains disabled.</div>
       <div class="bdNotice bdInfo"><b>Duplicate identity audit:</b> ${esc(dupText)}</div>
       <div class="bdSection">Direct Preview Rows</div>
       ${rows?`<div style="overflow:auto;max-height:330px"><table class="bdTable"><thead><tr><th>Player</th><th>Team</th><th>MLB ID</th><th>Profile</th><th>Sample</th><th>Order</th><th>Starter</th></tr></thead><tbody>${rows}</tbody></table></div>`:'<div class="bdEmpty">No direct preview loaded.</div>'}
