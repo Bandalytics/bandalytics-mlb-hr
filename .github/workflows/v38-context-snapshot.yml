@@ -6,7 +6,7 @@ on:
       - 'scripts/capture-v38-context-snapshot.mjs'
       - '.github/workflows/v38-context-snapshot.yml'
   schedule:
-    - cron: '0 14,17,20,22 * * *'
+    - cron: '0 14,17,19,21,23 * * *'
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
       - name: Show context summary
         run: |
           F=$(find snapshots -type f -name 'v38-context-*.json' | sort | tail -1)
-          node -e "const z=require('./'+process.argv[1]); console.log(JSON.stringify({date:z.date,captured_at:z.captured_at,pregame_games:z.pregame_game_count,confirmed_lineups:z.confirmed_lineups,lineup_rows:z.lineup_rows.length,market_ok:z.market_ok,market_rows:z.market_rows.length,sha256:z.sha256}))" "$F"
+          node -e "const z=require('./'+process.argv[1]); console.log(JSON.stringify({date:z.date,captured_at:z.captured_at,pregame_games:z.pregame_game_count,weather_covered_games:z.weather_covered_games,weather_coverage_pct:z.weather_coverage_pct,confirmed_lineups:z.confirmed_lineups,lineup_rows:z.lineup_rows.length,market_ok:z.market_ok,market_rows:z.market_rows.length,sha256:z.sha256}))" "$F"
       - uses: actions/upload-artifact@v4
         with:
           name: v38-context-${{ github.run_id }}
