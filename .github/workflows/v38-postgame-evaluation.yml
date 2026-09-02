@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
+      - 'scripts/augment-v38-selected-pool-report.mjs'
+      - 'v38-selected-pool-report.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
       - '.github/workflows/v38-postgame-evaluation.yml'
@@ -107,6 +109,13 @@ jobs:
           fi
           if [ "$RC" -ne 0 ]; then exit "$RC"; fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Add selected-pool decision report
+        if: steps.eval.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVAL=$(find incoming/profile -type f -name '*-evaluated.json' | head -1)
+          node scripts/augment-v38-selected-pool-report.mjs "$EVAL"
       - name: Verify V5 qualifying prospective contract
         if: steps.eval.outputs.ready == 'true'
         shell: bash
@@ -131,6 +140,10 @@ jobs:
           assert isinstance(z['context_convergence_results'],list)
           assert isinstance(z['baseball_convergence_results'],list)
           assert isinstance(z['modifier_coverage'],dict)
+          assert isinstance(z['selected_pool_report'],dict)
+          assert z['selected_pool_report']['protocol']=='V38_SELECTED_POOL_REPORT_V1'
+          assert z['selected_pool_report']['scoring_enabled'] is False
+          assert z['selected_pool_report']['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
           assert z['context_coverage']['snapshots_loaded'] >= 0
           assert z['modifier_coverage']['pitchfit_artifacts_loaded'] >= 0
           assert z['modifier_coverage']['bbe_artifacts_loaded'] >= 0
@@ -140,7 +153,7 @@ jobs:
               assert ev.get('per_game_strictly_pregame') is True
             if ev.get('bbe_captured_at'):
               assert ev.get('per_game_strictly_pregame') is True
-          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results']}))
+          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results','selected_pool_report']}))
           PY
       - uses: actions/upload-artifact@v4
         if: steps.eval.outputs.ready == 'true'
