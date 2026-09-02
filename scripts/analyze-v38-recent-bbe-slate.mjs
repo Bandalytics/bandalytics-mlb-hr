@@ -8,7 +8,14 @@ function chunks(a,n){const out=[];for(let i=0;i<a.length;i+=n)out.push(a.slice(i
 function q(a,p){const s=a.filter(Number.isFinite).sort((x,y)=>x-y);if(!s.length)return null;const pos=(s.length-1)*p,lo=Math.floor(pos),hi=Math.ceil(pos);return +(s[lo]+(s[hi]-s[lo])*(pos-lo)).toFixed(2)}
 const requested=process.argv[2],date=/^2026-\d\d-\d\d$/.test(String(requested||''))?requested:etDate(),feed=await buildNativeFeed({date,timeoutMs:16000}),lineups=(feed.lineup_players||[]).filter(x=>Number.isInteger(+x.player_id));
 const byId=new Map(lineups.map(x=>[+x.player_id,x])),summaries=[];
-for(const batch of chunks([...byId.keys()],20)){try{const{url}=buildSavantBbeUrl({ids:batch,date}),csv=await fetchText(url,{timeoutMs:25000}),z=summarizeBbeCsv(csv,{ids:batch,date});for(const x of z){const p=byId.get(+x.player_id)||{};summaries.push({...x,player:p.player||null,team:p.team||null,lineup:p.lineup??null,matchup:p.matchup||null})}}catch(e){for(const id of batch){const p=byId.get(id)||{};summaries.push({player_id:id,player:p.player||null,team:p.team||null,lineup:p.lineup??null,matchup:p.matchup||null,tracked_bbe:0,bbe:null,error:e.message})}}
+for(const batch of chunks([...byId.keys()],20)){
+  try{
+    const{url}=buildSavantBbeUrl({ids:batch,date}),csv=await fetchText(url,{timeoutMs:25000}),z=summarizeBbeCsv(csv,{ids:batch,date});
+    for(const x of z){const p=byId.get(+x.player_id)||{};summaries.push({...x,player:p.player||null,team:p.team||null,lineup:p.lineup??null,matchup:p.matchup||null})}
+  }catch(e){
+    for(const id of batch){const p=byId.get(id)||{};summaries.push({player_id:id,player:p.player||null,team:p.team||null,lineup:p.lineup??null,matchup:p.matchup||null,tracked_bbe:0,bbe:null,error:e.message})}
+  }
+}
 const usable=summaries.filter(x=>x.bbe&&x.tracked_bbe>0),full=summaries.filter(x=>x.bbe&&x.tracked_bbe>=15),metrics=['contact','hrshape','hrq','near','ev95','ev100','ev105','pulledAir','trendDelta','newestHR','priorHR','maxEV','maxDist'];
 const quantiles=Object.fromEntries(metrics.map(m=>[m,{p10:q(usable.map(x=>+x.bbe?.[m]),.1),p25:q(usable.map(x=>+x.bbe?.[m]),.25),p50:q(usable.map(x=>+x.bbe?.[m]),.5),p75:q(usable.map(x=>+x.bbe?.[m]),.75),p90:q(usable.map(x=>+x.bbe?.[m]),.9)}]));
 const trends=usable.reduce((o,x)=>{const k=x.bbe.trend||'UNKNOWN';o[k]=(o[k]||0)+1;return o},{}),out={protocol:'V38_RECENT_BBE_DISTRIBUTION_V1',date,research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,as_of_verified:true,as_of_rule:'Recent BBE query excludes same-day events and includes the prior day, validated on 2026-09-02.',lineup_rows:lineups.length,summary_rows:summaries.length,usable_rows:usable.length,full_15_bbe_rows:full.length,trend_counts:trends,quantiles,top_hrshape:[...usable].sort((a,b)=>(b.bbe?.hrshape||0)-(a.bbe?.hrshape||0)).slice(0,25).map(x=>({player_id:x.player_id,player:x.player,team:x.team,tracked_bbe:x.tracked_bbe,...x.bbe})),rows:summaries};
