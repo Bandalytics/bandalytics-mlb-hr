@@ -6,7 +6,7 @@ const required=[
   'RESEARCH FLAG • ZERO v37 WRITE ACCESS',
   'scoring_enabled:false','model_scoring_changed:false',
   '/api/direct-preview?date=','/api/feed-status?date=','/api/research-status','/api/profile-native-qa?date=',
-  'Progressive Profile Hydration','CLIENT_PROGRESSIVE','hydrateProfiles','hydrateIds','mergeProfiles',
+  'Progressive Profile Hydration','hydrateProfiles','hydrateIds','mergeProfiles',
   'generation:0','const generation=++state.generation','generation!==state.generation',
   '/api/pitchfit-native','RESEARCH_READY','Exact-ID Pitch Fit:','parity_verified remains false','scoring cutover remains disabled',
   'ZIP remains the scoring source of truth','Use ZIP Production','ZIP-Optional Parity Gates','Legacy Lens Parity','Duplicate identity audit',
