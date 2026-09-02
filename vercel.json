@@ -6,12 +6,10 @@
     {"source":"/assets/(.*)","headers":[{"key":"Cache-Control","value":"public, max-age=31536000, immutable"}]}
   ],
   "rewrites": [
-    {"source":"/api/legacy-core-upstream","destination":"https://bandalytics-v42-history.vercel.app/api/core"},
     {"source":"/api/direct-preview","destination":"/api/router?route=direct-preview"},
     {"source":"/api/direct-profile","destination":"/api/router?route=direct-profile"},
     {"source":"/api/feed-status","destination":"/api/router?route=feed-status"},
     {"source":"/api/iso-savant-split-qa","destination":"/api/router?route=iso-savant-split-qa"},
-    {"source":"/api/legacy-profile-parity-probe","destination":"/api/router?route=legacy-profile-parity-probe"},
     {"source":"/api/market-identity","destination":"/api/router?route=market-identity"},
     {"source":"/api/market-native","destination":"/api/router?route=market-native"},
     {"source":"/api/native-feed-standalone","destination":"/api/router?route=native-feed-standalone"},
