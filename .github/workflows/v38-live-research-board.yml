@@ -1,0 +1,77 @@
+name: v38 Live Research Board
+on:
+  schedule:
+    - cron: '45 16,19,21,23 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build-v38-live-research-board.mjs'
+      - 'v38-research-pool-hierarchy.mjs'
+      - 'v38-longshot-quality.mjs'
+      - 'v38-prospective-modifier-selector.mjs'
+      - 'v38-modifier-artifacts.mjs'
+      - '.github/workflows/v38-live-research-board.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  board:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/build-v38-live-research-board.mjs
+      - name: Download latest valid daily research evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE=$(TZ=America/New_York date +%F)
+          mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe
+          PROFILE_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
+          if [ -z "${PROFILE_ID:-}" ]; then echo "No profile snapshot for ${DATE}"; exit 3; fi
+          gh run download "$PROFILE_ID" --repo "$GH_REPO" --name "v38-pregame-${PROFILE_ID}" --dir incoming/profile
+          mapfile -t CTX_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          for ID in "${CTX_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/contexts/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true; done
+          mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          for ID in "${PF_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/pitchfit/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true; done
+          mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          for ID in "${BB_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/bbe/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true; done
+          echo "DATE=$DATE" >> "$GITHUB_ENV"
+          echo "profile=$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l) context=$(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) pitchfit=$(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l) bbe=$(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l)"
+      - name: Build canonical research board
+        run: node scripts/build-v38-live-research-board.mjs incoming/profile incoming/contexts incoming/modifiers "$DATE"
+      - name: Verify fail-closed board contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          BOARD=$(find snapshots -type f -name 'v38-live-research-board-*.json' | sort | tail -1)
+          python3 - "$BOARD" <<'PY'
+          import json,sys
+          z=json.load(open(sys.argv[1]))
+          assert z['protocol']=='V38_LIVE_RESEARCH_BOARD_V1'
+          assert z['point_in_time'] is True
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['pool_target_forced'] is False
+          assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          assert isinstance(z['rows'],list)
+          for r in z['rows']:
+            if r.get('american_odds') is not None and r['american_odds']>=700:
+              assert isinstance(r.get('longshot_policy'),dict)
+          print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-live-research-board-${{ github.run_id }}
+          path: snapshots/v38-live-research-board-*.json
+          if-no-files-found: error
+          retention-days: 30
