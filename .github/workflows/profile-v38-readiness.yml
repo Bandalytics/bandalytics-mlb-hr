@@ -1,0 +1,30 @@
+name: Profile v38 Readiness
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'profile-v38-candidate.mjs'
+      - 'profile-cutover-gate.mjs'
+      - 'api-handlers/profile-v38-candidate.js'
+      - 'api-handlers/research-status.js'
+      - 'test-profile-v38-candidate.mjs'
+      - 'test-profile-v38-route.mjs'
+      - 'test-profile-cutover-gate.mjs'
+      - '.github/workflows/profile-v38-readiness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  profile-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test frozen v37 cutover gate
+        run: node test-profile-cutover-gate.mjs
+      - name: Test v38 candidate semantics
+        run: node test-profile-v38-candidate.mjs
+      - name: Test v38 route fail-closed contract
+        run: node test-profile-v38-route.mjs
