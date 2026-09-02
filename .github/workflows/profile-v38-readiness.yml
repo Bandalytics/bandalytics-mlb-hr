@@ -21,12 +21,14 @@ on:
       - 'v38-selected-pool-objective.mjs'
       - 'v38-context-modifier-policy.mjs'
       - 'v38-environment-parity-gate.mjs'
+      - 'v38-environment-parity-core.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gate-combinations.mjs'
       - 'scripts/capture-v38-context-snapshot.mjs'
+      - 'scripts/evaluate-v38-environment-parity.mjs'
       - 'scripts/analyze-v38-pitchfit-slate.mjs'
       - 'scripts/analyze-v38-recent-bbe-slate.mjs'
       - 'scripts/analyze-v38-starter-damage-slate.mjs'
@@ -52,6 +54,7 @@ on:
       - 'test-v38-selected-pool-objective.mjs'
       - 'test-v38-context-modifier-policy.mjs'
       - 'test-v38-environment-parity-gate.mjs'
+      - 'test-v38-environment-parity-core.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -88,6 +91,10 @@ jobs:
         run: node test-v38-context-modifier-policy.mjs
       - name: Test fail-closed environment parity gate
         run: node test-v38-environment-parity-gate.mjs
+      - name: Test exact-game environment parity core
+        run: node test-v38-environment-parity-core.mjs
+      - name: Syntax-check environment parity evaluator
+        run: node --check scripts/evaluate-v38-environment-parity.mjs
       - name: Syntax-check +700 market funnel evaluator
         run: node --check scripts/evaluate-v38-longshot-market-funnel.mjs
       - name: Syntax-check full HR workflow summary
