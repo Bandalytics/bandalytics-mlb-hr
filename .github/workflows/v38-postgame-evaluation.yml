@@ -6,11 +6,12 @@ on:
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'v38-selected-pool-report.mjs'
+      - 'v38-evidence-manifest.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
       - '.github/workflows/v38-postgame-evaluation.yml'
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '0 6,8,10 * * *'
   workflow_dispatch:
     inputs:
       evaluation_date:
@@ -109,13 +110,13 @@ jobs:
           fi
           if [ "$RC" -ne 0 ]; then exit "$RC"; fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
-      - name: Add selected-pool decision report
+      - name: Add selected-pool report and immutable evidence manifest
         if: steps.eval.outputs.ready == 'true'
         shell: bash
         run: |
           set -euo pipefail
           EVAL=$(find incoming/profile -type f -name '*-evaluated.json' | head -1)
-          node scripts/augment-v38-selected-pool-report.mjs "$EVAL"
+          node scripts/augment-v38-selected-pool-report.mjs "$EVAL" incoming/contexts incoming/modifiers
       - name: Verify V5 qualifying prospective contract
         if: steps.eval.outputs.ready == 'true'
         shell: bash
@@ -144,6 +145,15 @@ jobs:
           assert z['selected_pool_report']['protocol']=='V38_SELECTED_POOL_REPORT_V1'
           assert z['selected_pool_report']['scoring_enabled'] is False
           assert z['selected_pool_report']['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          m=z['evidence_manifest']
+          assert m['protocol']=='V38_EVIDENCE_MANIFEST_V1'
+          assert m['immutable'] is True and m['point_in_time'] is True
+          assert m['research_only'] is True and m['scoring_enabled'] is False and m['scoring_eligible'] is False
+          assert m['pullair_threshold_deg']==15.5
+          assert isinstance(m['rule_fingerprint'],str) and len(m['rule_fingerprint'])==64
+          assert isinstance(m['artifact_fingerprint'],str) and len(m['artifact_fingerprint'])==64
+          assert isinstance(m['manifest_digest'],str) and len(m['manifest_digest'])==64
+          assert len(m['artifacts'])>=1
           assert z['context_coverage']['snapshots_loaded'] >= 0
           assert z['modifier_coverage']['pitchfit_artifacts_loaded'] >= 0
           assert z['modifier_coverage']['bbe_artifacts_loaded'] >= 0
@@ -153,7 +163,7 @@ jobs:
               assert ev.get('per_game_strictly_pregame') is True
             if ev.get('bbe_captured_at'):
               assert ev.get('per_game_strictly_pregame') is True
-          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results','selected_pool_report']}))
+          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results','selected_pool_report','evidence_manifest']}))
           PY
       - uses: actions/upload-artifact@v4
         if: steps.eval.outputs.ready == 'true'
