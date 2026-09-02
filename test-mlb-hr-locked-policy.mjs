@@ -1,0 +1,16 @@
+import assert from'node:assert/strict';
+import{LONGSHOT_700_POLICY,evaluateLongshot700}from'./mlb-hr-locked-policy.mjs';
+assert.equal(LONGSHOT_700_POLICY.american_odds_min,700);
+assert.equal(LONGSHOT_700_POLICY.qualification_required,4);
+assert.deepEqual(Object.keys(LONGSHOT_700_POLICY.metrics),['barrel','hh','blast','pullair','ev','iso']);
+const four={barrel:9,hh:36,blast:9,pullair:19,ev:88,iso:.17};
+assert.equal(evaluateLongshot700(four,700).pass_count,4);
+assert.equal(evaluateLongshot700(four,700).qualifies,true);
+assert.equal(evaluateLongshot700(four,699).applicable,false);
+assert.equal(evaluateLongshot700(four,699).qualifies,false);
+assert.equal(evaluateLongshot700({barrel:8,hh:35,blast:8,pullair:18,ev:89,iso:.180},900).pass_count,0);
+const five={barrel:9,hh:36,blast:9,pullair:19,ev:90,iso:.17};
+assert.equal(evaluateLongshot700(five,1200).stronger_5of6,true);
+assert.equal(LONGSHOT_700_POLICY.locked,true);
+assert.equal(LONGSHOT_700_POLICY.scoring_change_requires_deliberate_approval,true);
+console.log('MLB_HR_LOCKED_POLICY=PASS');
