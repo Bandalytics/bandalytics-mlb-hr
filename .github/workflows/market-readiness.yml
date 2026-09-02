@@ -1,0 +1,29 @@
+name: Market Readiness
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'market-native-core.mjs'
+      - 'api-handlers/market-native.js'
+      - 'api/market-native.js'
+      - 'test-market-native.mjs'
+      - 'test-market-route.mjs'
+      - '.github/workflows/market-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  market-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Test market normalizer and slate isolation
+        run: node test-market-native.mjs
+      - name: Test missing-key fail-closed contract
+        run: node test-market-route.mjs
