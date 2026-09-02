@@ -54,7 +54,7 @@ export function buildResearchBoardPlan(feed={}){
       pool_target_forced:false,
       longshot_700_policy_id:LONGSHOT_700_POLICY.id,
       longshot_700_min_odds:LONGSHOT_700_POLICY.american_odds_min,
-      longshot_700_required_passes:LONGSHOT_700_POLICY.qualification_min_passes,
+      longshot_700_required_passes:LONGSHOT_700_POLICY.qualification_required,
       longshot_policy_scope:'ONLY_APPLIES_AT_+700_OR_LONGER',
       general_core_scope:'PROFILE_QUALITY_THEN_PITCHFIT_PRIMARY_THEN_BBE_SUPPORT'
     },
