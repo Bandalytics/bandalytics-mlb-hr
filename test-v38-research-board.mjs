@@ -14,6 +14,7 @@ assert.equal(b.automation.canonical_artifact_protocol,'V38_LIVE_RESEARCH_BOARD_V
 assert.equal(b.automation.vig_dependency,'OPTIONAL_CROSS_CHECK_ONLY');
 assert.equal(b.policy.pool_target_forced,false);
 assert.equal(b.policy.longshot_700_min_odds,700);
+assert.equal(b.policy.longshot_700_required_passes,4);
 assert.equal(b.policy.longshot_policy_scope,'ONLY_APPLIES_AT_+700_OR_LONGER');
 assert.equal(b.policy.hierarchy_rules.includes('NEVER_WEAKEN_GATE_TO_FILL_POOL'),true);
 assert.equal(b.counts.hitters,2);assert.equal(b.counts.profile_batches,1);assert.equal(b.counts.pitchfit_requests,2);assert.equal(b.counts.bbe_batches,1);
