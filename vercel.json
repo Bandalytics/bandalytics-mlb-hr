@@ -22,133 +22,38 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/direct-profile",
-      "destination": "/api/router?route=direct-profile"
-    },
-    {
-      "source": "/api/feed-status",
-      "destination": "/api/router?route=feed-status"
-    },
-    {
-      "source": "/api/iso-savant-split-qa",
-      "destination": "/api/router?route=iso-savant-split-qa"
-    },
-    {
-      "source": "/api/market-identity",
-      "destination": "/api/router?route=market-identity"
-    },
-    {
-      "source": "/api/market-native",
-      "destination": "/api/router?route=market-native"
-    },
-    {
-      "source": "/api/native-feed-standalone",
-      "destination": "/api/router?route=native-feed-standalone"
-    },
-    {
-      "source": "/api/player-bbe-native-standalone",
-      "destination": "/api/router?route=player-bbe-native-standalone"
-    },
-    {
-      "source": "/api/player-bbe-native",
-      "destination": "/api/router?route=player-bbe-native"
-    },
-    {
-      "source": "/api/profile-native-qa",
-      "destination": "/api/router?route=profile-native-qa"
-    },
-    {
-      "source": "/api/profile-research",
-      "destination": "/api/router?route=profile-research"
-    },
-    {
-      "source": "/api/research-status",
-      "destination": "/api/router?route=research-status"
-    },
-    {
-      "source": "/api/results-identity",
-      "destination": "/api/router?route=results-identity"
-    },
-    {
-      "source": "/api/sim-calibrate-range",
-      "destination": "/api/router?route=sim-calibrate-range"
-    },
-    {
-      "source": "/api/sim-calibrate",
-      "destination": "/api/router?route=sim-calibrate"
-    },
-    {
-      "source": "/api/sim-exact-parlay",
-      "destination": "/api/router?route=sim-exact-parlay"
-    },
-    {
-      "source": "/api/sim-joint-calibration-batch",
-      "destination": "/api/router?route=sim-joint-calibration-batch"
-    },
-    {
-      "source": "/api/sim-joint-calibration",
-      "destination": "/api/router?route=sim-joint-calibration"
-    },
-    {
-      "source": "/api/sim-joint-game-player",
-      "destination": "/api/router?route=sim-joint-game-player"
-    },
-    {
-      "source": "/api/sim-joint-holdout",
-      "destination": "/api/router?route=sim-joint-holdout"
-    },
-    {
-      "source": "/api/sim-joint-offer-eval",
-      "destination": "/api/router?route=sim-joint-offer-eval"
-    },
-    {
-      "source": "/api/sim-joint-player",
-      "destination": "/api/router?route=sim-joint-player"
-    },
-    {
-      "source": "/api/sim-joint-replay",
-      "destination": "/api/router?route=sim-joint-replay"
-    },
-    {
-      "source": "/api/sim-joint-walkforward",
-      "destination": "/api/router?route=sim-joint-walkforward"
-    },
-    {
-      "source": "/api/sim-market",
-      "destination": "/api/router?route=sim-market"
-    },
-    {
-      "source": "/api/sim-players",
-      "destination": "/api/router?route=sim-players"
-    },
-    {
-      "source": "/api/sim-research-readiness",
-      "destination": "/api/router?route=sim-research-readiness"
-    },
-    {
-      "source": "/api/sim-settle-joint",
-      "destination": "/api/router?route=sim-settle-joint"
-    },
-    {
-      "source": "/api/sim-slate-standalone",
-      "destination": "/api/router?route=sim-slate-standalone"
-    },
-    {
-      "source": "/api/sim-slate",
-      "destination": "/api/router?route=sim-slate"
-    },
-    {
-      "source": "/api/sim",
-      "destination": "/api/router?route=sim"
-    },
-    {
-      "source": "/sim",
-      "destination": "/sim.html"
-    },
-    {
-      "source": "/slate-cache",
-      "destination": "https://bandalytics-v88-direct-coverage.vercel.app/slate-cache"
-    }
+    {"source":"/api/direct-profile","destination":"/api/router?route=direct-profile"},
+    {"source":"/api/feed-status","destination":"/api/router?route=feed-status"},
+    {"source":"/api/iso-savant-split-qa","destination":"/api/router?route=iso-savant-split-qa"},
+    {"source":"/api/market-identity","destination":"/api/router?route=market-identity"},
+    {"source":"/api/market-native","destination":"/api/router?route=market-native"},
+    {"source":"/api/native-feed-standalone","destination":"/api/router?route=native-feed-standalone"},
+    {"source":"/api/pitchfit-native","destination":"/api/router?route=pitchfit-native"},
+    {"source":"/api/player-bbe-native-standalone","destination":"/api/router?route=player-bbe-native-standalone"},
+    {"source":"/api/player-bbe-native","destination":"/api/router?route=player-bbe-native"},
+    {"source":"/api/profile-native-qa","destination":"/api/router?route=profile-native-qa"},
+    {"source":"/api/profile-research","destination":"/api/router?route=profile-research"},
+    {"source":"/api/research-status","destination":"/api/router?route=research-status"},
+    {"source":"/api/results-identity","destination":"/api/router?route=results-identity"},
+    {"source":"/api/sim-calibrate-range","destination":"/api/router?route=sim-calibrate-range"},
+    {"source":"/api/sim-calibrate","destination":"/api/router?route=sim-calibrate"},
+    {"source":"/api/sim-exact-parlay","destination":"/api/router?route=sim-exact-parlay"},
+    {"source":"/api/sim-joint-calibration-batch","destination":"/api/router?route=sim-joint-calibration-batch"},
+    {"source":"/api/sim-joint-calibration","destination":"/api/router?route=sim-joint-calibration"},
+    {"source":"/api/sim-joint-game-player","destination":"/api/router?route=sim-joint-game-player"},
+    {"source":"/api/sim-joint-holdout","destination":"/api/router?route=sim-joint-holdout"},
+    {"source":"/api/sim-joint-offer-eval","destination":"/api/router?route=sim-joint-offer-eval"},
+    {"source":"/api/sim-joint-player","destination":"/api/router?route=sim-joint-player"},
+    {"source":"/api/sim-joint-replay","destination":"/api/router?route=sim-joint-replay"},
+    {"source":"/api/sim-joint-walkforward","destination":"/api/router?route=sim-joint-walkforward"},
+    {"source":"/api/sim-market","destination":"/api/router?route=sim-market"},
+    {"source":"/api/sim-players","destination":"/api/router?route=sim-players"},
+    {"source":"/api/sim-research-readiness","destination":"/api/router?route=sim-research-readiness"},
+    {"source":"/api/sim-settle-joint","destination":"/api/router?route=sim-settle-joint"},
+    {"source":"/api/sim-slate-standalone","destination":"/api/router?route=sim-slate-standalone"},
+    {"source":"/api/sim-slate","destination":"/api/router?route=sim-slate"},
+    {"source":"/api/sim","destination":"/api/router?route=sim"},
+    {"source":"/sim","destination":"/sim.html"},
+    {"source":"/slate-cache","destination":"https://bandalytics-v88-direct-coverage.vercel.app/slate-cache"}
   ]
 }
