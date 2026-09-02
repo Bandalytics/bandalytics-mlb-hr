@@ -12,7 +12,7 @@ const gates=Object.freeze({
   prospective:{status:'V5_ACTIVE',detail:'V38_PREGAME_OUTCOME_EVAL_V5 selects the latest valid context, pitch-fit and Recent BBE evidence strictly before each individual game start. Current-slate smoke testing correctly defers while any eligible game is unfinished. Final prospective artifacts remain research-only and scoring-ineligible.'},
   v37:{status:'BLOCKED',detail:'Frozen v37 remains unchanged and scoring-ineligible because exact legacy PullAir/Blast parity is not proven.'},
   v38:{status:'MIGRATION_CANDIDATE',detail:'Historical point-in-time reconstruction and seven-slate convergence are validated for research. Prospective market-linked finalized slates, threshold review, regression and deliberate approval are still required before any production scoring cutover.'},
-  final_pool:{status:'BLOCKED_PENDING_PROSPECTIVE',detail:'Research pool hierarchy is defined and never forces the 20-25 target. Production final-pool promotion remains blocked pending prospective finalized evidence and deliberate scoring approval.'},
+  final_pool:{status:'BLOCKED_PENDING_PROSPECTIVE',detail:'General final-pool promotion is fail-closed under V38_FINAL_POOL_PROMOTION_GATE_V1. Required evidence includes at least 10 historical slates, selected-pool lift >=1.50x baseline, HR capture >=30%, positive lift on >=70% of slates, at least 3 finalized V5 prospective slates with >=40 selected hitters and >=6 HR, >=90% context coverage, >=80% modifier-evidence coverage, market-band reporting, escape audit, threshold review and deliberate approval. The 20-25 pool size is a target only and is never forced.'},
   tickets:{status:'BLOCKED',detail:'Pool-before-tickets remains enforced; native ticket construction cannot precede final-pool promotion.'}
 });
 const legacy_lenses=Object.freeze({
@@ -24,5 +24,5 @@ const legacy_lenses=Object.freeze({
   remaining:{status:'RESEARCH',detail:'Barrel Match, Mispriced, Hidden Edge, Sleeper Edge and other legacy tags remain non-scoring until exact semantics and validation are established.'}
 });
 export default function handler(req,res){
-  return res.status(200).json({release:'v95-direct-research-site',production_source:'GITHUB_AHEAD_OF_LAST_STABLE_VERCEL_DEPLOY',direct_mode:'RESEARCH_ONLY',scoring_enabled:false,model_scoring_changed:false,pool_before_tickets:true,prospective_protocol:'V38_PREGAME_OUTCOME_EVAL_V5',gates,legacy_lenses});
+  return res.status(200).json({release:'v95-direct-research-site',production_source:'GITHUB_AHEAD_OF_LAST_STABLE_VERCEL_DEPLOY',direct_mode:'RESEARCH_ONLY',scoring_enabled:false,model_scoring_changed:false,pool_before_tickets:true,prospective_protocol:'V38_PREGAME_OUTCOME_EVAL_V5',final_pool_promotion_protocol:'V38_FINAL_POOL_PROMOTION_GATE_V1',gates,legacy_lenses});
 }
