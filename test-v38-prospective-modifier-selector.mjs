@@ -1,0 +1,12 @@
+import assert from'node:assert/strict';
+import{selectLatestProspectiveModifier,prospectiveModifierEvidence}from'./v38-prospective-modifier-selector.mjs';
+const date='2026-09-02',gamePk=123,startTime='2026-09-02T23:00:00Z';
+const base={date,research_only:true,scoring_enabled:false,scoring_eligible:false,as_of_verified:true,prospective_pregame_only:true,pregame_game_pks:[123],rows:[{player_id:7,matchup:'A @ B',fit_status:'TRUE',fit_score:55}]};
+const p1={...base,protocol:'V38_PITCHFIT_DISTRIBUTION_V1',captured_at:'2026-09-02T21:00:00Z'};
+const p2={...base,protocol:'V38_PITCHFIT_DISTRIBUTION_V1',captured_at:'2026-09-02T22:30:00Z'};
+const pLate={...base,protocol:'V38_PITCHFIT_DISTRIBUTION_V1',captured_at:'2026-09-02T23:01:00Z'};
+assert.equal(selectLatestProspectiveModifier([p1,pLate,p2],{date,gamePk,startTime,type:'pitchfit'}),p2);
+const b={...base,protocol:'V38_RECENT_BBE_DISTRIBUTION_V1',captured_at:'2026-09-02T22:00:00Z',rows:[{player_id:7,matchup:'A @ B',tracked_bbe:15,bbe:{hrshape:20}}]};
+const e=prospectiveModifierEvidence({pitchfitArtifacts:[p1,p2,pLate],bbeArtifacts:[b],date,gamePk,startTime,playerId:7,matchup:'A @ B'});
+assert.equal(e.pitchfit.fit_score,55);assert.equal(e.bbe.tracked_bbe,15);assert.equal(e.pitchfit_artifact_captured_at,p2.captured_at);assert.equal(e.bbe_artifact_captured_at,b.captured_at);assert.equal(e.scoring_enabled,false);
+console.log('v38 prospective modifier selector PASS');
