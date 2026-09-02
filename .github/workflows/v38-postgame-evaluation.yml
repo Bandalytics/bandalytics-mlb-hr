@@ -1,0 +1,62 @@
+name: v38 Postgame Evaluation
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Find prior-day successful pregame snapshot
+        id: find
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE=$(date -u -d 'yesterday' +%F)
+          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=30" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1)
+          if [ -z "${RUN_ID:-}" ]; then echo "No successful v38 pregame snapshot for ${DATE}"; exit 3; fi
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+          mkdir -p incoming
+          gh run download "$RUN_ID" --repo "$GH_REPO" --name "v38-pregame-${RUN_ID}" --dir incoming
+          SNAP=$(find incoming -type f -name 'v38-pregame-*.json' | head -1)
+          if [ -z "${SNAP:-}" ]; then echo "Snapshot JSON missing"; exit 4; fi
+          echo "snapshot=${SNAP}" >> "$GITHUB_OUTPUT"
+      - name: Evaluate only after every eligible game is final
+        run: node scripts/evaluate-v38-pregame-snapshot.mjs "${{ steps.find.outputs.snapshot }}"
+      - name: Verify qualifying prospective contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVAL=$(find incoming -type f -name '*-evaluated.json' | head -1)
+          python3 - "$EVAL" <<'PY'
+          import json,sys
+          z=json.load(open(sys.argv[1]))
+          assert z['point_in_time'] is True
+          assert z['qualifying_backtest'] is True
+          assert z['prospective_validation'] is True
+          assert z['status']=='FINAL'
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['model_scoring_changed'] is False
+          assert z['final_games']==z['eligible_games']
+          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['date','eligible_games','played_profiled_hitters','unique_hr_hitters','summary']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-postgame-${{ steps.find.outputs.date }}-${{ github.run_id }}
+          path: incoming/*-evaluated.json
+          if-no-files-found: error
+          retention-days: 90
