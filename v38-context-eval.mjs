@@ -1,10 +1,13 @@
 export const V38_CONTEXT_CONVERGENCE_RULES={
   '4of6+steam':r=>r.candidate_rules?.['4of6']===true&&r.context?.market?.signal==='STEAM',
   '5of6+steam':r=>r.candidate_rules?.['5of6']===true&&r.context?.market?.signal==='STEAM',
+  '4of6_iso+steam':r=>r.candidate_rules?.['4of6_iso']===true&&r.context?.market?.signal==='STEAM',
   '4of6+preferred_odds':r=>r.candidate_rules?.['4of6']===true&&preferredOdds(r.context?.market?.best_odds),
   '5of6+preferred_odds':r=>r.candidate_rules?.['5of6']===true&&preferredOdds(r.context?.market?.best_odds),
+  '4of6_iso+preferred_odds':r=>r.candidate_rules?.['4of6_iso']===true&&preferredOdds(r.context?.market?.best_odds),
   '4of6+confirmed_lineup':r=>r.candidate_rules?.['4of6']===true&&r.context?.confirmed_lineup===true,
   '5of6+confirmed_lineup':r=>r.candidate_rules?.['5of6']===true&&r.context?.confirmed_lineup===true,
+  '4of6_iso+confirmed_lineup':r=>r.candidate_rules?.['4of6_iso']===true&&r.context?.confirmed_lineup===true,
   '4of6_barrel_and_iso+preferred_odds':r=>r.candidate_rules?.['4of6_barrel_and_iso']===true&&preferredOdds(r.context?.market?.best_odds)
 };
 export function preferredOdds(v){const n=Number(v);return Number.isFinite(n)&&n>=500&&n<=1500;}
