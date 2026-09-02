@@ -12,6 +12,7 @@ on:
       - 'v38-pitchfit-bands.mjs'
       - 'v38-bbe-bands.mjs'
       - 'v38-baseball-convergence.mjs'
+      - 'v38-modifier-artifacts.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
@@ -30,6 +31,7 @@ on:
       - 'test-v38-pitchfit-bands.mjs'
       - 'test-v38-bbe-bands.mjs'
       - 'test-v38-baseball-convergence.mjs'
+      - 'test-v38-modifier-artifacts.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -62,3 +64,7 @@ jobs:
         run: node test-v38-bbe-bands.mjs
       - name: Test pre-registered baseball convergence rules
         run: node test-v38-baseball-convergence.mjs
+      - name: Test fail-closed modifier artifact joins
+        run: node test-v38-modifier-artifacts.mjs
+      - name: Syntax-check postgame evaluator
+        run: node --check scripts/evaluate-v38-pregame-snapshot.mjs
