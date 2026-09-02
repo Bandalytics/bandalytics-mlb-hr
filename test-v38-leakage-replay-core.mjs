@@ -1,6 +1,7 @@
 import assert from'node:assert/strict';
 import{profileGate,candidatePowerScore,summarizeReplay,daysBetween}from'./v38-leakage-replay-core.mjs';
 
+// Deterministic contract test; live Aug 26-28 diagnostic is executed by focused CI.
 const elite={ev:92,hh:50,barrel:15,iso:.250,pullair:25,sweet:34,blast:14};
 const weak={ev:87,hh:30,barrel:5,iso:.120,pullair:12,sweet:24,blast:4};
 assert.equal(profileGate(elite).pass,6);
