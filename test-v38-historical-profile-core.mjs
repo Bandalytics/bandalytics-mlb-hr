@@ -1,0 +1,7 @@
+import assert from'node:assert/strict';
+import{historicalStatcastProfile,parseHistoricalBlastCsv,assembleHistoricalV38,buildHistoricalStatcastUrl,buildHistoricalBlastUrl}from'./v38-historical-profile-core.mjs';
+const rows=[{batter:'1',launch_speed:'100',launch_angle:'20',launch_speed_angle:'6',bb_type:'fly_ball',events:'home_run'},{batter:'1',launch_speed:'90',launch_angle:'5',launch_speed_angle:'3',bb_type:'ground_ball',events:'single'},{batter:'1',events:'strikeout'}];
+const p=historicalStatcastProfile(rows,1);assert.equal(p.ev,95);assert.equal(p.hh,50);assert.equal(p.barrel,50);assert.equal(p.sweet,50);assert.equal(p.iso,1);
+const blast=parseHistoricalBlastCsv('id,blast_per_swing\n1,0.123\n');assert.equal(blast.verified,true);assert.equal(blast.byId.get(1),12.3);
+const partial=assembleHistoricalV38({statcast:p,blast:12.3,asOf:'2026-08-26'});assert.equal(partial.profile_complete,false);assert.deepEqual(partial.missing_fields,['pullair']);assert.equal(partial.scoring_eligible,false);const full=assembleHistoricalV38({statcast:p,blast:12.3,pullair:19.1,asOf:'2026-08-26'});assert.equal(full.profile_complete,true);assert.equal(full.profile_status,'HISTORICAL_CANDIDATE');assert.equal(full.scoring_eligible,false);
+assert.match(buildHistoricalStatcastUrl([1],'2026-08-26'),/game_date_lt=2026-08-26/);assert.match(buildHistoricalBlastUrl('2026-08-26'),/dateEnd=2026-08-26/);console.log('v38 historical profile core tests passed');
