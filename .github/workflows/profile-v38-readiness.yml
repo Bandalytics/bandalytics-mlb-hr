@@ -6,14 +6,17 @@ on:
       - 'profile-v38-candidate.mjs'
       - 'profile-cutover-gate.mjs'
       - 'v38-profile-validity.mjs'
+      - 'v38-gate-rules.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
+      - 'scripts/analyze-v38-gate-combinations.mjs'
       - 'test-profile-v38-candidate.mjs'
       - 'test-profile-v38-route.mjs'
       - 'test-profile-cutover-gate.mjs'
       - 'test-v38-pregame-snapshot-protocol.mjs'
+      - 'test-v38-gate-rules.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -34,3 +37,5 @@ jobs:
         run: node test-profile-v38-route.mjs
       - name: Test v38 prospective snapshot validity
         run: node test-v38-pregame-snapshot-protocol.mjs
+      - name: Test v38 gate-rule invariants
+        run: node test-v38-gate-rules.mjs
