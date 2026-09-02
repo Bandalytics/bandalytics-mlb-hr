@@ -8,6 +8,8 @@ Seven genuine point-in-time historical slates: 2026-08-26 through 2026-09-01.
 - HR hitters: 171
 - Population HR rate: 10.18% (reference only, not optimization target)
 
+The optimization target is selected-pool HR rate with HR capture, pool count and multi-slate stability guardrails. The population baseline must not be redefined to make performance look better.
+
 Longshot +700 rule remains a separate market-specific eligibility branch. It is not the universal HR target.
 
 ## Individual field separation
@@ -49,6 +51,8 @@ Important split inside exact 4/6:
 
 Therefore the locked +700 4/6 rule remains longshot eligibility only. Exact 4/6 must not become a universal HR-selection rule.
 
+The API contract is now regression-tested to expose exactly `4` required passes at +700 or longer using the locked `MLB_HR_LONGSHOT_700_4OF6_V1` policy.
+
 ## Candidate profile score validation
 The reconstructed v38 profile score is NOT the legacy S/A/B/C board score.
 
@@ -82,6 +86,77 @@ Current interpretation:
 - Recent BBE = supporting modifier, not a mandatory hard gate.
 - Requiring both pitch-fit + BBE is too restrictive at current sample.
 
+## Starter damage validation
+Starter damage is a genuine independent context layer and is not redundant with hitter profile quality.
+
+Seven-slate aggregate:
+- starter HR/9 < 1.2, all hitters: 720 hitters, 55 HR = 7.64%
+- HR/9 < 1.2 + 4/6+ISO: 212 hitters, 25 HR = 11.79%
+- starter HR/9 >= 1.2 + 4/6+ISO: 151 hitters, 37 HR = 24.50%
+- starter HR/9 >= 1.5 + 4/6+ISO: 96 hitters, 22 HR = 22.92%
+- small-sample starter + 4/6+ISO: 114 hitters, 22 HR = 19.30%; this remains a separate caution bucket rather than a stable positive signal.
+
+Interpretation:
+- The existing `<1.2 HR/9` rule remains a material downgrade/caution, not a universal hard cut.
+- Strong profiles can survive a low-HR/9 starter.
+- Quality-profile hitters against >=1.2 HR/9 starters produced roughly twice the HR rate of the equivalent low-HR/9 group in this sample.
+- Small pitcher IP must remain fail-closed/cautionary.
+
+## Bullpen validation
+Generic recent bullpen workload does not deserve a positive HR modifier.
+
+Corrected seven-slate aggregate:
+- all hitters, normal workload: 10.15% HR
+- all hitters, top-quartile workload: 10.15% HR
+- 4/6+ISO, normal workload: 18.21% HR
+- 4/6+ISO, top-quartile workload: 16.67% HR
+
+Interpretation:
+- Generic “Tired Pen” workload alone cannot raise a hitter grade.
+- Specific reliever availability, handedness and bullpen quality may still be valid matchup/escape context.
+- Workload may remain visible in game notes, but it cannot count as an independent positive stacking family.
+
+## Lineup-position validation
+Lineup position is a small plate-appearance / tie-break modifier only.
+
+Seven-slate 4/6+ISO results:
+- spots 1–4: 18.07% HR
+- spots 5–6: 16.33% HR
+- spots 7–9: 18.75% HR, but only 48 hitters
+
+Interpretation:
+- Batting 7–9 cannot veto an otherwise strong power profile.
+- Lineup position is not a qualification gate.
+
+## Environment and park-factor status
+Weather/environment remains fail-closed for production scoring because historical recorded weather has not yet passed a genuine pregame-parity gate. Intraday point-in-time weather capture is active and coverage improves materially later in the day, but this does not justify retroactive use of final/recorded conditions.
+
+Park factor now has its own prospective-only integrity contract:
+- official source: MLB Baseball Savant Statcast Park Factors
+- HR-specific
+- rolling three-year context
+- ALL/L/R batting-side snapshots
+- point-in-time capture required before game start
+- no historical reconstruction from a later park-factor value
+- support / close-call context only
+- no standalone HR boost and no hard gate
+
+The first live official park-factor capture completed successfully on Sep. 2. Because it was created after some Sep. 2 games had already started, it must not be retroactively applied to those games. Clean full-slate park-factor evidence begins prospectively.
+
+## Stack and Gas-Can status
+Same-team stacking is still research-only and requires multiple **independent evidence families** rather than several correlated versions of one starter weakness.
+
+Current protected research families:
+1. starter damage
+2. hitter convergence
+3. specific bullpen context
+4. park/weather context
+5. market context
+
+A stack research candidate requires starter damage plus at least two additional independent families. Generic bullpen workload cannot count. The pool cannot be forced to create a stack.
+
+The gas-can shortlist is deliberately separate from universal HR qualification. Research-candidate starter thresholds are being tested against the frozen seven-slate point-in-time matrix and same-team multi-HR clustering. These thresholds are not production-locked and cannot change scoring without validation and deliberate approval.
+
 ## Market sanity check — Sep 2 pregame snapshot
 Using the six profile thresholds diagnostically across all exact market-linked HR rows, not as universal qualification gates:
 - < +400: 16 market rows; 16 were 4/6+, 16 were 5/6+.
@@ -92,16 +167,53 @@ Using the six profile thresholds diagnostically across all exact market-linked H
 
 This is a structural sanity check only, not an outcome backtest. It shows reconstructed profile quality generally moves in the same direction as market HR pricing while leaving potential mispricing opportunities.
 
+The prospective selected-pool report now additionally records flat one-unit profit and ROI at the captured current HR price for every market band and key research group. This is an evaluation metric only; it does not create a staking recommendation.
+
+## Prospective validation integrity
+Protocol `V38_PREGAME_OUTCOME_EVAL_V5` is fail-closed:
+- context, pitch-fit and Recent BBE are selected per game using the latest valid artifact strictly before that game's first pitch
+- unfinished eligible games prevent finalization
+- no partial slate can count as prospective evidence
+- the final V5 row preserves the actual frozen EV, HH, Barrel, ISO, PullAir, Blast and Sweet Spot profile values
+- selected-pool reporting uses the exact locked +700 evaluator rather than a generic gate-count shortcut
+- an immutable `V38_EVIDENCE_MANIFEST_V1` fingerprints the rules, field definitions, PullAir 15.5° threshold, input artifacts and HR outcomes
+- changing a rule or source artifact produces a different reproducibility/dedupe fingerprint
+
+Postgame evaluation now checks the prior ET slate several times overnight and no-ops until every eligible game is final.
+
+## Final-pool promotion gate
+General final-pool promotion remains blocked under `V38_FINAL_POOL_PROMOTION_GATE_V1`.
+
+Required evidence includes at least:
+- 10 historical slates
+- selected-pool historical lift >= 1.50x population baseline
+- HR capture >= 30%
+- positive lift on >=70% of slates
+- 3 finalized V5 prospective slates
+- >=40 prospective selected hitters and >=6 prospective HR
+- >=90% context coverage
+- >=80% modifier-evidence coverage
+- market-band reporting
+- escape audit
+- documented threshold review
+- deliberate approval
+
+The 20–25 pool remains a target only, never a forced count. Auto-promotion is disabled.
+
 ## Workflow interpretation
 Keep the full HR workflow separate from the longshot branch:
 1. Profile qualification establishes durable power quality.
 2. Candidate profile score ranks the broad population, but is not yet a calibrated production tier scale.
 3. Pitch-fit is the primary validated tonight-specific enhancer.
-4. Recent BBE is a smaller modifier.
-5. Starter/bullpen/environment and lineup remain contextual gates requiring continued outcome validation.
-6. Market is a value layer, not a power-profile substitute.
-7. Longshot +700 4/6 eligibility remains locked and separate.
-8. Mandatory Escape Check remains required before final pool lock.
-9. Final pool and ticket scoring remain blocked pending deliberate v38 cutover approval.
+4. Recent BBE is a smaller supporting modifier.
+5. Starter damage is a validated material context layer; `<1.2 HR/9` remains a caution rather than an automatic cut.
+6. Generic bullpen workload cannot boost; specific bullpen quality/availability remains contextual.
+7. Lineup spot is a tie-break/exposure modifier only.
+8. Weather is parity-blocked; park factor is prospective support-only.
+9. Market is a value layer, not a power-profile substitute.
+10. Longshot +700 4/6 eligibility remains locked and separate.
+11. Same-team stack/gas-can logic remains research-only pending frozen-matrix validation.
+12. Mandatory Escape Check remains required before final pool lock.
+13. Final pool and ticket scoring remain blocked pending prospective evidence, threshold review and deliberate approval.
 
-No scoring change was made from this validation.
+No production scoring change was made from this validation.
