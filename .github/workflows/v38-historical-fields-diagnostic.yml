@@ -1,0 +1,23 @@
+name: v38 Historical Fields Diagnostic
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/diagnose-v38-historical-fields.mjs'
+      - '.github/workflows/v38-historical-fields-diagnostic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/diagnose-v38-historical-fields.mjs
+      - name: Probe cutoff-sensitive PullAir and Blast
+        run: node scripts/diagnose-v38-historical-fields.mjs
