@@ -1,7 +1,7 @@
 name: v38 Live Research Board
 on:
   schedule:
-    - cron: '45 16,19,21,23 * * *'
+    - cron: '45 16,17,19,21,23 * * *'
   workflow_dispatch:
   push:
     branches: [main]
