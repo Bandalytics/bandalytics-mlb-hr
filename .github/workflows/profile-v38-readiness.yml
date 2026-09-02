@@ -11,6 +11,7 @@ on:
       - 'v38-context-eval.mjs'
       - 'v38-pitchfit-bands.mjs'
       - 'v38-bbe-bands.mjs'
+      - 'v38-baseball-convergence.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
@@ -28,6 +29,7 @@ on:
       - 'test-v38-context-eval.mjs'
       - 'test-v38-pitchfit-bands.mjs'
       - 'test-v38-bbe-bands.mjs'
+      - 'test-v38-baseball-convergence.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -58,3 +60,5 @@ jobs:
         run: node test-v38-pitchfit-bands.mjs
       - name: Test full-sample Recent BBE bands
         run: node test-v38-bbe-bands.mjs
+      - name: Test pre-registered baseball convergence rules
+        run: node test-v38-baseball-convergence.mjs
