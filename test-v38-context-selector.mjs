@@ -1,0 +1,10 @@
+import assert from'node:assert/strict';
+import{selectLatestPregameContext,contextForGame,validContextSnapshot}from'./v38-context-selector.mjs';
+const base={context_protocol:'V38_CONTEXT_SNAPSHOT_V1',point_in_time:true,research_only:true,scoring_enabled:false,scoring_eligible:false,pregame_games:[{gamePk:1,away:'NYY',home:'BOS'}],lineup_rows:[],market_rows:[]};
+const a={...base,captured_at:'2026-09-02T14:00:00Z',sha256:'a'},b={...base,captured_at:'2026-09-02T17:00:00Z',sha256:'b'},late={...base,captured_at:'2026-09-02T23:00:00Z',sha256:'late'},bad={...base,captured_at:'2026-09-02T18:00:00Z',scoring_enabled:true};
+assert.equal(validContextSnapshot(a),true);assert.equal(validContextSnapshot(bad),false);
+assert.equal(selectLatestPregameContext([a,b,late,bad],1,'2026-09-02T22:00:00Z').sha256,'b');
+assert.equal(selectLatestPregameContext([late],1,'2026-09-02T22:00:00Z'),null);
+assert.equal(selectLatestPregameContext([a,b],2,'2026-09-02T22:00:00Z'),null);
+assert.equal(contextForGame(b,1).game.home,'BOS');
+console.log('V38 CONTEXT SELECTOR PASS');
