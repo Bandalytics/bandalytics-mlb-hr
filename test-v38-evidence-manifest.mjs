@@ -1,0 +1,10 @@
+import assert from'node:assert/strict';
+import{buildEvidenceManifest,validateEvidenceManifest,V38_EVIDENCE_MANIFEST}from'./v38-evidence-manifest.mjs';
+const artifacts=[{name:'context',artifact_id:'101',protocol:'CTX',sha256:'aaa',captured_at:'2026-09-02T17:00:00Z'},{name:'pitchfit',artifact_id:'202',protocol:'PF',sha256:'bbb',captured_at:'2026-09-02T19:00:00Z'}];
+const base={date:'2026-09-02',evaluation_protocol:'V38_PREGAME_OUTCOME_EVAL_V5',field_fingerprint:'fields-v38',pullair_threshold_deg:15.5,rules:{pool_target_forced:false,longshot_700_required:4},artifacts,outcomes_digest:'outcomes123',metadata:{window:'prospective'}};
+const a=buildEvidenceManifest(base),b=buildEvidenceManifest({...base,artifacts:[...artifacts].reverse(),rules:{longshot_700_required:4,pool_target_forced:false}});
+assert.equal(a.protocol,V38_EVIDENCE_MANIFEST.protocol);assert.equal(a.rule_fingerprint,b.rule_fingerprint);assert.equal(a.artifact_fingerprint,b.artifact_fingerprint);assert.equal(a.manifest_digest,b.manifest_digest);assert.equal(a.dedupe_key,b.dedupe_key);assert.equal(validateEvidenceManifest(a),true);
+const changed=buildEvidenceManifest({...base,rules:{pool_target_forced:false,longshot_700_required:5}});assert.notEqual(changed.rule_fingerprint,a.rule_fingerprint);assert.notEqual(changed.dedupe_key,a.dedupe_key);
+assert.throws(()=>buildEvidenceManifest({...base,artifacts:[{name:'bad',artifact_id:'1'}]}));
+assert.equal(a.scoring_enabled,false);assert.equal(a.scoring_eligible,false);assert.equal(a.immutable,true);assert.equal(a.pullair_threshold_deg,15.5);
+console.log('V38_EVIDENCE_MANIFEST_PASS');
