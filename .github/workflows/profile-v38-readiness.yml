@@ -13,6 +13,7 @@ on:
       - 'v38-bbe-bands.mjs'
       - 'v38-baseball-convergence.mjs'
       - 'v38-modifier-artifacts.mjs'
+      - 'v38-prospective-modifier-selector.mjs'
       - 'v38-historical-profile-core.mjs'
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-longshot-quality.mjs'
@@ -47,6 +48,7 @@ on:
       - 'test-v38-bbe-bands.mjs'
       - 'test-v38-baseball-convergence.mjs'
       - 'test-v38-modifier-artifacts.mjs'
+      - 'test-v38-prospective-modifier-selector.mjs'
       - 'test-v38-historical-profile-core.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-longshot-quality.mjs'
@@ -97,6 +99,8 @@ jobs:
         run: node test-v38-environment-parity-gate.mjs
       - name: Test exact-game environment parity core
         run: node test-v38-environment-parity-core.mjs
+      - name: Test per-game prospective modifier selector
+        run: node test-v38-prospective-modifier-selector.mjs
       - name: Syntax-check environment parity evaluator
         run: node --check scripts/evaluate-v38-environment-parity.mjs
       - name: Syntax-check +700 market funnel evaluator
