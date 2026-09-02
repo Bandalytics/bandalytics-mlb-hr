@@ -1,0 +1,60 @@
+name: v38 Park Factor Snapshot
+on:
+  schedule:
+    - cron: '5 14 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/capture-v38-park-factors.mjs'
+      - 'v38-park-factor-policy.mjs'
+      - 'test-v38-park-factor-policy.mjs'
+      - '.github/workflows/v38-park-factor-snapshot.yml'
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/capture-v38-park-factors.mjs
+      - name: Test park-factor policy
+        run: node test-v38-park-factor-policy.mjs
+      - name: Capture official Statcast park factors
+        run: node scripts/capture-v38-park-factors.mjs
+      - name: Verify fail-closed snapshot contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=$(find snapshots -type f -name 'v38-park-factors-*.json' | sort | tail -1)
+          python3 - "$FILE" <<'PY'
+          import json,sys,math
+          z=json.load(open(sys.argv[1]))
+          assert z['protocol']=='V38_PARK_FACTOR_POLICY_V1'
+          assert z['point_in_time'] is True
+          assert z['prospective_only'] is True
+          assert z['historical_backfill_allowed'] is False
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          rows=z['factors']
+          assert len(rows)>=60
+          sides={x['bat_side'] for x in rows}
+          assert {'ALL','L','R'} <= sides
+          for side in ('ALL','L','R'):
+            assert sum(1 for x in rows if x['bat_side']==side)>=20
+          assert len({x['venue'] for x in rows})>=20
+          assert all(isinstance(x.get('hr_factor'),(int,float)) and math.isfinite(x['hr_factor']) for x in rows)
+          print('V38_PARK_FACTOR_CAPTURE_OK',{'rows':len(rows),'venues':len({x['venue'] for x in rows}),'sides':sorted(sides)})
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-park-factors-${{ github.run_id }}
+          path: snapshots/v38-park-factors-*.json
+          if-no-files-found: error
+          retention-days: 90
