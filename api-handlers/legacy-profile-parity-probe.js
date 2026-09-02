@@ -6,7 +6,7 @@ const SAMPLE=Object.freeze([
   {player:'Kyle Schwarber',player_id:656941},
   {player:'Gunnar Henderson',player_id:683002}
 ]);
-const LEGACY='https://bandalytics-v42-history.vercel.app/api/core';
+const LEGACY='https://bandalytics-mlb-hr.vercel.app/api/legacy-core-upstream';
 const NATIVE='https://bandalytics-native-profile.vercel.app';
 
 const num=v=>v==null||v===''?null:(Number.isFinite(+v)?+v:null);
@@ -23,6 +23,6 @@ export default async function handler(req,res){
     ]);
     const byId=new Map((bulk.items||[]).map(x=>[+x.player_id,x])),pa=new Map((pull.items||[]).map(x=>[+x.player_id,x]));
     const items=SAMPLE.map(s=>{const l=pickLegacy(legacy,s.player),n=byId.get(s.player_id)||{},a=pa.get(s.player_id)||{};return{player:s.player,player_id:s.player_id,legacy:l,native:{ev:num(n.ev),hh:num(n.hard_hit),barrel:num(n.barrel),iso:num(n.iso),sweet:num(n.sweet_spot),pull:num(n.pull),pullair:num(a.pull_air),blast_contact:num(n.blast_contact),blast_swing:num(n.blast_swing)}}});
-    return res.status(200).json({ok:true,research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,sample_date:'2026-09-01',legacy_source:'v42 /api/core',native_source:'Baseball Savant retained native-profile service',pullair_definition:pull.definition||null,blast_candidates:{contact:bulk.profile_semantics?.blast_contact||null,swing:bulk.profile_semantics?.blast_swing||null},items});
+    return res.status(200).json({ok:true,research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,sample_date:'2026-09-01',legacy_source:'v42 /api/core via production edge rewrite',native_source:'Baseball Savant retained native-profile service',pullair_definition:pull.definition||null,blast_candidates:{contact:bulk.profile_semantics?.blast_contact||null,swing:bulk.profile_semantics?.blast_swing||null},items});
   }catch(e){return res.status(502).json({ok:false,research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,error:String(e?.message||e)})}
 }
