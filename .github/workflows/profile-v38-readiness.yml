@@ -19,6 +19,8 @@ on:
       - 'v38-longshot-promotion-gate.mjs'
       - 'v38-nightly-longshot-context.mjs'
       - 'v38-selected-pool-objective.mjs'
+      - 'v38-context-modifier-policy.mjs'
+      - 'v38-environment-parity-gate.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
@@ -48,6 +50,8 @@ on:
       - 'test-v38-longshot-promotion-gate.mjs'
       - 'test-v38-nightly-longshot-context.mjs'
       - 'test-v38-selected-pool-objective.mjs'
+      - 'test-v38-context-modifier-policy.mjs'
+      - 'test-v38-environment-parity-gate.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -80,6 +84,10 @@ jobs:
         run: node test-v38-nightly-longshot-context.mjs
       - name: Test selected-pool optimization objective
         run: node test-v38-selected-pool-objective.mjs
+      - name: Test lineup and bullpen modifier guardrails
+        run: node test-v38-context-modifier-policy.mjs
+      - name: Test fail-closed environment parity gate
+        run: node test-v38-environment-parity-gate.mjs
       - name: Syntax-check +700 market funnel evaluator
         run: node --check scripts/evaluate-v38-longshot-market-funnel.mjs
       - name: Syntax-check full HR workflow summary
