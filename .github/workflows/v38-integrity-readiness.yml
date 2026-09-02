@@ -7,11 +7,14 @@ on:
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-park-factor-policy.mjs'
       - 'v38-evidence-manifest.mjs'
+      - 'v38-selected-pool-report.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
+      - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'test-v38-research-board.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-park-factor-policy.mjs'
       - 'test-v38-evidence-manifest.mjs'
+      - 'test-v38-selected-pool-report.mjs'
       - '.github/workflows/v38-integrity-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -32,5 +35,9 @@ jobs:
         run: node test-v38-park-factor-policy.mjs
       - name: Test immutable evidence manifest
         run: node test-v38-evidence-manifest.mjs
+      - name: Test selected-pool HR and market-return reporting
+        run: node test-v38-selected-pool-report.mjs
+      - name: Syntax-check V5 prospective evaluator
+        run: node --check scripts/evaluate-v38-pregame-snapshot.mjs
       - name: Syntax-check V5 report + manifest augmentation
         run: node --check scripts/augment-v38-selected-pool-report.mjs
