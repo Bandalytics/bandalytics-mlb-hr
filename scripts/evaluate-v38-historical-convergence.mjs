@@ -1,6 +1,6 @@
 import fs from 'node:fs';
-import { classifyPitchfitBands } from '../v38-pitchfit-bands.mjs';
-import { classifyBbeBands } from '../v38-bbe-bands.mjs';
+import { buildPitchfitBands } from '../v38-pitchfit-bands.mjs';
+import { buildBbeBands } from '../v38-bbe-bands.mjs';
 import { evaluateBaseballConvergence } from '../v38-baseball-convergence.mjs';
 
 const [profilePath,pitchfitPath,bbePath]=process.argv.slice(2);
@@ -13,17 +13,19 @@ if(pitchfit.protocol!=='V38_PITCHFIT_DISTRIBUTION_V1'||pitchfit.as_of_verified!=
 if(bbe.protocol!=='V38_RECENT_BBE_DISTRIBUTION_V1'||bbe.as_of_verified!==true||bbe.research_only!==true) throw new Error('Invalid BBE artifact');
 if(profile.date!==pitchfit.date||profile.date!==bbe.date) throw new Error('Artifact dates do not match');
 
-const pitchBands=classifyPitchfitBands(pitchfit.rows||[]);
-const bbeBands=classifyBbeBands(bbe.rows||[]);
-const pById=new Map(pitchBands.map(x=>[Number(x.player_id),x]));
-const bById=new Map(bbeBands.map(x=>[Number(x.player_id),x]));
+const pitchBandModel=buildPitchfitBands(pitchfit.rows||[]);
+const bbeBandModel=buildBbeBands(bbe.rows||[]);
+const pById=new Map((pitchfit.rows||[]).map(x=>[Number(x.player_id),x]));
+const bById=new Map((bbe.rows||[]).map(x=>[Number(x.player_id),x]));
 const rows=(profile.rows||[]).filter(r=>r.profile_complete===true).map(r=>{
   const p=pById.get(Number(r.player_id));
   const b=bById.get(Number(r.player_id));
-  return {...r,pitchfit_band:p?.pitchfit_band||null,bbe_band:b?.bbe_band||null,pitchfit_stable:!!p,bbe_full_sample:!!b};
+  const pitchfit_band=p?pitchBandModel.classify(p):'INELIGIBLE';
+  const bbe_band=b?bbeBandModel.classify(b):{eligible:false,hrshape_band:'INELIGIBLE',contact_high:false,rising:false};
+  return {...r,pitchfit_band,bbe_band,pitchfit_stable:pitchfit_band!=='INELIGIBLE',bbe_full_sample:bbe_band.eligible===true};
 });
 const results=evaluateBaseballConvergence(rows);
-const out={protocol:'V38_HISTORICAL_CONVERGENCE_V1',date:profile.date,point_in_time:true,as_of_verified:true,research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,profile_rows:rows.length,pitchfit_joined:rows.filter(r=>r.pitchfit_stable).length,bbe_joined:rows.filter(r=>r.bbe_full_sample).length,both_joined:rows.filter(r=>r.pitchfit_stable&&r.bbe_full_sample).length,results};
+const out={protocol:'V38_HISTORICAL_CONVERGENCE_V1',date:profile.date,point_in_time:true,as_of_verified:true,research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,profile_rows:rows.length,pitchfit_joined:rows.filter(r=>r.pitchfit_stable).length,bbe_joined:rows.filter(r=>r.bbe_full_sample).length,both_joined:rows.filter(r=>r.pitchfit_stable&&r.bbe_full_sample).length,pitchfit_bands:{population:pitchBandModel.population,p75:pitchBandModel.p75,p90:pitchBandModel.p90},bbe_bands:{population:bbeBandModel.population,hrshape_p75:bbeBandModel.hrshape_p75,hrshape_p90:bbeBandModel.hrshape_p90},results};
 const path=`snapshots/v38-historical-convergence-${profile.date}.json`;
 fs.mkdirSync('snapshots',{recursive:true});fs.writeFileSync(path,JSON.stringify(out,null,2)+'\n');
 console.log(`V38_HIST_CONVERGENCE_PATH=${path}`);console.log(`V38_HIST_CONVERGENCE_SUMMARY=${JSON.stringify(out)}`);
