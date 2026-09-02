@@ -6,7 +6,7 @@ on:
       - 'scripts/analyze-v38-pitchfit-slate.mjs'
       - '.github/workflows/v38-pitchfit-distribution.yml'
   schedule:
-    - cron: '30 16 * * *'
+    - cron: '30 16,19,21,23 * * *'
   workflow_dispatch:
 permissions:
   contents: read
