@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {V38_SELECTED_POOL_OBJECTIVE,validateSelectedPoolObjective} from './v38-selected-pool-objective.mjs';
+assert.equal(validateSelectedPoolObjective(),true);
+assert.equal(V38_SELECTED_POOL_OBJECTIVE.population_base_hr_rate_role,'REFERENCE_ONLY');
+assert.equal(V38_SELECTED_POOL_OBJECTIVE.primary_optimization_metric,'SELECTED_POOL_HR_RATE');
+assert.equal(V38_SELECTED_POOL_OBJECTIVE.scoring_enabled,false);
+assert.equal(V38_SELECTED_POOL_OBJECTIVE.scoring_eligible,false);
+assert.ok(V38_SELECTED_POOL_OBJECTIVE.required_guardrail_metrics.includes('HR_CAPTURE'));
+assert.ok(V38_SELECTED_POOL_OBJECTIVE.disallowed.includes('WEAKEN_LOCKED_GATES_TO_FORCE_POOL_SIZE'));
+console.log('v38 selected-pool objective PASS');
