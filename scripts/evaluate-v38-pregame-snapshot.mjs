@@ -1,10 +1,9 @@
 import fs from'node:fs/promises';
 import crypto from'node:crypto';
 import{profileGate,candidatePowerScore,summarizeReplay}from'../v38-leakage-replay-core.mjs';
+import{profileComplete}from'../v38-profile-validity.mjs';
 
 const MLB='https://statsapi.mlb.com';
-const finite=v=>v!==null&&v!==''&&Number.isFinite(+v);
-const profileComplete=x=>[x.ev,x.hh,x.barrel,x.iso,x.sweet,x.pullair,x.blast].every(finite);
 async function get(url,ms=20000){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{headers:{accept:'application/json','user-agent':'BANDALYTICS-v38-snapshot-eval/3'},signal:c.signal});const text=await r.text();if(!r.ok)throw Error(`${url} HTTP ${r.status}: ${text.slice(0,160)}`);return JSON.parse(text)}finally{clearTimeout(t)}}
 function digestSnapshot(z){const {sha256,...body}=z;return crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')}
 const path=process.argv[2];if(!path)throw Error('usage: node scripts/evaluate-v38-pregame-snapshot.mjs <snapshot.json>');
