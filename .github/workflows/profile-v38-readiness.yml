@@ -18,6 +18,7 @@ on:
       - 'v38-longshot-quality.mjs'
       - 'v38-longshot-promotion-gate.mjs'
       - 'v38-nightly-longshot-context.mjs'
+      - 'v38-selected-pool-objective.mjs'
       - 'api-handlers/profile-v38-candidate.js'
       - 'api-handlers/research-status.js'
       - 'scripts/capture-v38-pregame-snapshot.mjs'
@@ -26,6 +27,7 @@ on:
       - 'scripts/capture-v38-context-snapshot.mjs'
       - 'scripts/analyze-v38-pitchfit-slate.mjs'
       - 'scripts/analyze-v38-recent-bbe-slate.mjs'
+      - 'scripts/evaluate-v38-longshot-market-funnel.mjs'
       - 'test-profile-v38-candidate.mjs'
       - 'test-profile-v38-route.mjs'
       - 'test-profile-cutover-gate.mjs'
@@ -42,6 +44,7 @@ on:
       - 'test-v38-longshot-quality.mjs'
       - 'test-v38-longshot-promotion-gate.mjs'
       - 'test-v38-nightly-longshot-context.mjs'
+      - 'test-v38-selected-pool-objective.mjs'
       - '.github/workflows/profile-v38-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -72,6 +75,10 @@ jobs:
         run: node test-v38-longshot-promotion-gate.mjs
       - name: Test research-only nightly longshot context hierarchy
         run: node test-v38-nightly-longshot-context.mjs
+      - name: Test selected-pool optimization objective
+        run: node test-v38-selected-pool-objective.mjs
+      - name: Syntax-check +700 market funnel evaluator
+        run: node --check scripts/evaluate-v38-longshot-market-funnel.mjs
       - name: Test latest-valid pregame context selection
         run: node test-v38-context-selector.mjs
       - name: Test constrained context convergence rules
