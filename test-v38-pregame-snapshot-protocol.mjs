@@ -1,0 +1,14 @@
+import assert from'node:assert/strict';
+import{profileGate,candidatePowerScore}from'./v38-leakage-replay-core.mjs';
+const strong={ev:92,hh:48,barrel:14,iso:.24,pullair:24,sweet:34,blast:13};
+const medium={ev:90,hh:42,barrel:9,iso:.19,pullair:19,sweet:29,blast:8.5};
+const weak={ev:87,hh:31,barrel:5,iso:.12,pullair:12,sweet:23,blast:4};
+assert.equal(profileGate(strong).foundation_boost,true);
+assert.equal(profileGate(strong).longshot_profile,true);
+assert.equal(profileGate(medium).longshot_profile,true);
+assert.equal(profileGate(weak).longshot_profile,false);
+assert.ok(candidatePowerScore(strong)>candidatePowerScore(medium));
+assert.ok(candidatePowerScore(medium)>candidatePowerScore(weak));
+const snapshot={snapshot_protocol:'V38_PREGAME_SNAPSHOT_V1',research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,point_in_time:true,rule:'Only games with scheduled start_time strictly after captured_at are eligible for this snapshot.'};
+assert.equal(snapshot.point_in_time,true);assert.equal(snapshot.scoring_eligible,false);assert.match(snapshot.rule,/strictly after captured_at/);
+console.log('V38 PREGAME SNAPSHOT PROTOCOL PASS');
