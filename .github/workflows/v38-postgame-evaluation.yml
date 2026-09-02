@@ -33,7 +33,7 @@ jobs:
           fi
           echo "found=true" >> "$GITHUB_OUTPUT"
           echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
-          mkdir -p incoming/profile incoming/contexts
+          mkdir -p incoming/profile incoming/contexts incoming/modifiers
           gh run download "$RUN_ID" --repo "$GH_REPO" --name "v38-pregame-${RUN_ID}" --dir incoming/profile
           SNAP=$(find incoming/profile -type f -name 'v38-pregame-*.json' | head -1)
           if [ -z "${SNAP:-}" ]; then echo "Snapshot artifact exists but JSON is missing"; exit 4; fi
@@ -51,13 +51,25 @@ jobs:
             gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true
           done
           echo "Downloaded $(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) context snapshots for ${DATE}."
+      - name: Download same-day pitchfit and Recent BBE modifiers
+        if: steps.find.outputs.found == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE="${{ steps.find.outputs.date }}"
+          PF=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
+          BB=$(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
+          if [ -n "${PF:-}" ]; then gh run download "$PF" --repo "$GH_REPO" --name "v38-pitchfit-${PF}" --dir incoming/modifiers/pitchfit || true; fi
+          if [ -n "${BB:-}" ]; then gh run download "$BB" --repo "$GH_REPO" --name "v38-recent-bbe-${BB}" --dir incoming/modifiers/bbe || true; fi
+          echo "Pitchfit artifacts: $(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l)"
+          echo "Recent BBE artifacts: $(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l)"
       - name: Evaluate only after every eligible game is final
         id: eval
         if: steps.find.outputs.found == 'true'
         shell: bash
         run: |
           set +e
-          node scripts/evaluate-v38-pregame-snapshot.mjs "${{ steps.find.outputs.snapshot }}" incoming/contexts
+          node scripts/evaluate-v38-pregame-snapshot.mjs "${{ steps.find.outputs.snapshot }}" incoming/contexts incoming/modifiers
           RC=$?
           set -e
           if [ "$RC" -eq 2 ]; then
@@ -87,8 +99,10 @@ jobs:
           assert z['final_games']==z['eligible_games']
           assert isinstance(z['candidate_rule_results'],list)
           assert isinstance(z['context_convergence_results'],list)
+          assert isinstance(z['baseball_convergence_results'],list)
+          assert isinstance(z['modifier_coverage'],dict)
           assert z['context_coverage']['snapshots_loaded'] >= 0
-          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','candidate_rule_results','context_convergence_results']}))
+          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results']}))
           PY
       - uses: actions/upload-artifact@v4
         if: steps.eval.outputs.ready == 'true'
