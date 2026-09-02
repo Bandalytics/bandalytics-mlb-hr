@@ -1,0 +1,70 @@
+name: v38 Promotion Readiness
+on:
+  schedule:
+    - cron: '30 10 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/summarize-v38-promotion-readiness.mjs'
+      - 'v38-final-pool-promotion-gate.mjs'
+      - '.github/workflows/v38-promotion-readiness.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/summarize-v38-promotion-readiness.mjs
+      - name: Download finalized V5 postgame artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/postgame
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=100" --jq '.workflow_runs[].id' || true)
+          for ID in "${IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-postgame-"))) | .name' || true)
+            for A in "${ARTS[@]:-}"; do
+              [ -n "$A" ] || continue
+              mkdir -p "incoming/postgame/${ID}/${A}"
+              gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/postgame/${ID}/${A}" || true
+            done
+          done
+          echo "Final V5 JSON files: $(find incoming/postgame -type f -name '*-evaluated.json' | wc -l)"
+      - name: Aggregate promotion readiness
+        run: node scripts/summarize-v38-promotion-readiness.mjs incoming/postgame
+      - name: Verify fail-closed readiness contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          z=json.load(open('snapshots/v38-promotion-readiness.json'))
+          assert z['protocol']=='V38_PROMOTION_READINESS_AGGREGATE_V1'
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['auto_promote'] is False
+          assert z['dedupe_rule']=='date + immutable snapshot_sha256'
+          assert z['selected_definition']=='quality_plus_pitchfit'
+          assert z['gate']['auto_promote'] is False
+          assert z['gate']['scoring_enabled'] is False
+          assert z['evidence']['pool_target_forced'] is False
+          print('V38_PROMOTION_GATE='+json.dumps({'prospective':z['prospective'],'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-promotion-readiness-${{ github.run_id }}
+          path: snapshots/v38-promotion-readiness.json
+          if-no-files-found: error
+          retention-days: 90
