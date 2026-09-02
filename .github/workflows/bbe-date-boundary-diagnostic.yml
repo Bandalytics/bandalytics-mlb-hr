@@ -1,0 +1,20 @@
+name: BBE Date Boundary Diagnostic
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/diagnose-bbe-date-boundary.mjs'
+      - '.github/workflows/bbe-date-boundary-diagnostic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/diagnose-bbe-date-boundary.mjs
