@@ -1,5 +1,12 @@
 name: v38 Postgame Evaluation
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/evaluate-v38-pregame-snapshot.mjs'
+      - 'v38-prospective-modifier-selector.mjs'
+      - 'v38-modifier-artifacts.mjs'
+      - '.github/workflows/v38-postgame-evaluation.yml'
   schedule:
     - cron: '0 10 * * *'
   workflow_dispatch:
@@ -32,6 +39,8 @@ jobs:
           if [[ -n "$INPUT_DATE" ]]; then
             if [[ ! "$INPUT_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then echo "Invalid evaluation_date: $INPUT_DATE"; exit 3; fi
             DATE="$INPUT_DATE"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            DATE=$(TZ=America/New_York date +%F)
           else
             DATE=$(TZ=America/New_York date -d 'yesterday' +%F)
           fi
