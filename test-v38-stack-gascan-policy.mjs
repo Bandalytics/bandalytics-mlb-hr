@@ -1,0 +1,11 @@
+import assert from'node:assert/strict';
+import{V38_STACK_GASCAN_POLICY,evaluateStackContext,evaluateGasCanStarter}from'./v38-stack-gascan-policy.mjs';
+let z=evaluateStackContext({starter_damage:true,hitter_convergence:true,park_weather_context:true,generic_bullpen_workload:true});
+assert.equal(z.stack_candidate,true);assert.equal(z.independent_family_count,3);assert.equal(z.generic_bullpen_workload_can_count,false);
+z=evaluateStackContext({starter_damage:true,hitter_convergence:true,generic_bullpen_workload:true});assert.equal(z.independent_family_count,2);assert.equal(z.stack_candidate,false);
+z=evaluateStackContext({starter_damage:false,hitter_convergence:true,specific_bullpen_context:true,park_weather_context:true,market_context:true});assert.equal(z.stack_candidate,false);
+let g=evaluateGasCanStarter({hr9:2.3,iso_allowed:.234,barrel_allowed:12,ip:80});assert.equal(g.flag_count,3);assert.equal(g.gascan_research_shortlist,true);
+g=evaluateGasCanStarter({hr9:1.6,iso_allowed:.21,barrel_allowed:9,ip:10});assert.equal(g.small_ip,true);assert.equal(g.gascan_research_shortlist,false);
+g=evaluateGasCanStarter({hr9:1.6,iso_allowed:.19,barrel_allowed:9,ip:80});assert.equal(g.flag_count,1);assert.equal(g.gascan_research_shortlist,false);
+assert.equal(V38_STACK_GASCAN_POLICY.scoring_enabled,false);assert.equal(V38_STACK_GASCAN_POLICY.gascan_thresholds_status,'RESEARCH_CANDIDATE_NOT_PRODUCTION_LOCKED');
+console.log('V38_STACK_GASCAN_POLICY_PASS');
