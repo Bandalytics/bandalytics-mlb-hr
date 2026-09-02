@@ -1,4 +1,4 @@
-import handler from './api/market-native.js';
+import handler from './api-handlers/market-native.js';
 const old=process.env.SPORTSGAMEODDS_API_KEY; delete process.env.SPORTSGAMEODDS_API_KEY;
 let statusCode=200,body=null;
 const res={status(n){statusCode=n;return this},json(x){body=x;return x}};
@@ -6,6 +6,7 @@ await handler({query:{date:'2026-08-31'}},res);
 if(statusCode!==503||body?.error!=='MARKET_KEY_REQUIRED'||body?.model_scoring_changed!==false) throw Error('market route must fail closed without key');
 if(body?.ready_to_connect!==true||body?.required_env!=='SPORTSGAMEODDS_API_KEY') throw Error('market route must expose exact connection requirement');
 if(body?.identity_mode!=='MLBAM_EXACT_FAIL_CLOSED'||body?.slate_isolation!=='MLB_GAME_TIME_MATCH') throw Error('market route safety contract missing');
+if(body?.research_only!==true||body?.scoring_eligible!==false) throw Error('market route must remain research-only and scoring-ineligible');
 if(JSON.stringify(body).includes(String(old||'__NO_OLD_KEY__'))&&old) throw Error('market route leaked prior key');
 if(old!==undefined)process.env.SPORTSGAMEODDS_API_KEY=old;
 console.log('NATIVE MARKET ROUTE FAIL-CLOSED PASS');
