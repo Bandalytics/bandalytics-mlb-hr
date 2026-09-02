@@ -9,13 +9,17 @@ on:
   workflow_dispatch:
     inputs:
       date:
-        description: 'Replay date YYYY-MM-DD'
+        description: 'Replay date YYYY-MM-DD; blank runs frozen Aug 26-28 window'
         required: false
-        default: '2026-08-28'
+        default: ''
 permissions:
   contents: read
 jobs:
   replay:
+    strategy:
+      fail-fast: false
+      matrix:
+        replay_date: ${{ inputs.date && fromJSON(format('["{0}"]', inputs.date)) || fromJSON('["2026-08-26","2026-08-27","2026-08-28"]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -26,10 +30,10 @@ jobs:
       - name: Syntax preflight
         run: node --check scripts/run-v38-point-in-time-replay.mjs
       - name: Run genuine point-in-time replay
-        run: node scripts/run-v38-point-in-time-replay.mjs "${{ inputs.date || '2026-08-28' }}"
+        run: node scripts/run-v38-point-in-time-replay.mjs "${{ matrix.replay_date }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: v38-point-in-time-${{ github.run_id }}
-          path: snapshots/v38-point-in-time-replay-*.json
+          name: v38-point-in-time-${{ matrix.replay_date }}-${{ github.run_id }}
+          path: snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json
           if-no-files-found: error
           retention-days: 90
