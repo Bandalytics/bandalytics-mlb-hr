@@ -3,13 +3,18 @@ on:
   schedule:
     - cron: '0 10 * * *'
   workflow_dispatch:
+    inputs:
+      evaluation_date:
+        description: 'Optional YYYY-MM-DD slate date; defaults to prior ET date'
+        required: false
+        type: string
 permissions:
   contents: read
   actions: read
 jobs:
   evaluate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -18,14 +23,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Find prior-day successful pregame snapshot
+      - name: Find successful pregame snapshot
         id: find
         shell: bash
         run: |
           set -euo pipefail
-          DATE=$(date -u -d 'yesterday' +%F)
+          INPUT_DATE='${{ github.event.inputs.evaluation_date || '' }}'
+          if [[ -n "$INPUT_DATE" ]]; then
+            if [[ ! "$INPUT_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then echo "Invalid evaluation_date: $INPUT_DATE"; exit 3; fi
+            DATE="$INPUT_DATE"
+          else
+            DATE=$(TZ=America/New_York date -d 'yesterday' +%F)
+          fi
           echo "date=${DATE}" >> "$GITHUB_OUTPUT"
-          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=30" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
+          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
           if [ -z "${RUN_ID:-}" ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "No successful v38 pregame snapshot for ${DATE}; nothing to evaluate."
@@ -51,18 +62,26 @@ jobs:
             gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true
           done
           echo "Downloaded $(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) context snapshots for ${DATE}."
-      - name: Download same-day pitchfit and Recent BBE modifiers
+      - name: Download all same-day pitchfit and Recent BBE snapshots
         if: steps.find.outputs.found == 'true'
         shell: bash
         run: |
           set -euo pipefail
           DATE="${{ steps.find.outputs.date }}"
-          PF=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
-          BB=$(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
-          if [ -n "${PF:-}" ]; then gh run download "$PF" --repo "$GH_REPO" --name "v38-pitchfit-${PF}" --dir incoming/modifiers/pitchfit || true; fi
-          if [ -n "${BB:-}" ]; then gh run download "$BB" --repo "$GH_REPO" --name "v38-recent-bbe-${BB}" --dir incoming/modifiers/bbe || true; fi
-          echo "Pitchfit artifacts: $(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l)"
-          echo "Recent BBE artifacts: $(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l)"
+          mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          for ID in "${PF_IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mkdir -p "incoming/modifiers/pitchfit/$ID"
+            gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true
+          done
+          for ID in "${BB_IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mkdir -p "incoming/modifiers/bbe/$ID"
+            gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true
+          done
+          echo "Pitchfit snapshots: $(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l)"
+          echo "Recent BBE snapshots: $(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l)"
       - name: Evaluate only after every eligible game is final
         id: eval
         if: steps.find.outputs.found == 'true'
@@ -79,7 +98,7 @@ jobs:
           fi
           if [ "$RC" -ne 0 ]; then exit "$RC"; fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
-      - name: Verify qualifying prospective contract
+      - name: Verify V5 qualifying prospective contract
         if: steps.eval.outputs.ready == 'true'
         shell: bash
         run: |
@@ -88,6 +107,7 @@ jobs:
           python3 - "$EVAL" <<'PY'
           import json,sys
           z=json.load(open(sys.argv[1]))
+          assert z['evaluation_protocol']=='V38_PREGAME_OUTCOME_EVAL_V5'
           assert z['point_in_time'] is True
           assert z['qualifying_backtest'] is True
           assert z['prospective_validation'] is True
@@ -97,12 +117,21 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['model_scoring_changed'] is False
           assert z['final_games']==z['eligible_games']
+          assert z['modifier_selection_rule']=='latest valid artifact strictly before each game start and containing that game'
           assert isinstance(z['candidate_rule_results'],list)
           assert isinstance(z['context_convergence_results'],list)
           assert isinstance(z['baseball_convergence_results'],list)
           assert isinstance(z['modifier_coverage'],dict)
           assert z['context_coverage']['snapshots_loaded'] >= 0
-          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results']}))
+          assert z['modifier_coverage']['pitchfit_artifacts_loaded'] >= 0
+          assert z['modifier_coverage']['bbe_artifacts_loaded'] >= 0
+          for r in z.get('rows',[]):
+            ev=r.get('modifier_evidence') or {}
+            if ev.get('pitchfit_captured_at'):
+              assert ev.get('per_game_strictly_pregame') is True
+            if ev.get('bbe_captured_at'):
+              assert ev.get('per_game_strictly_pregame') is True
+          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results']}))
           PY
       - uses: actions/upload-artifact@v4
         if: steps.eval.outputs.ready == 'true'
