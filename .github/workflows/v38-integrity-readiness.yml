@@ -1,0 +1,33 @@
+name: v38 Integrity Readiness
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api-handlers/research-board.js'
+      - 'mlb-hr-locked-policy.mjs'
+      - 'v38-park-factor-policy.mjs'
+      - 'v38-evidence-manifest.mjs'
+      - 'test-v38-research-board.mjs'
+      - 'test-mlb-hr-locked-policy.mjs'
+      - 'test-v38-park-factor-policy.mjs'
+      - 'test-v38-evidence-manifest.mjs'
+      - '.github/workflows/v38-integrity-readiness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Test locked +700 policy
+        run: node test-mlb-hr-locked-policy.mjs
+      - name: Test research-board policy contract
+        run: node test-v38-research-board.mjs
+      - name: Test point-in-time park-factor policy
+        run: node test-v38-park-factor-policy.mjs
+      - name: Test immutable evidence manifest
+        run: node test-v38-evidence-manifest.mjs
