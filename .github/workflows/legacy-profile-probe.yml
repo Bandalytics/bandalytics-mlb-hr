@@ -1,0 +1,32 @@
+name: Legacy Profile Probe
+on:
+  push:
+    paths:
+      - '.github/workflows/legacy-profile-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe-v42-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: POST small legacy core sample
+        run: |
+          node --input-type=module <<'NODE'
+          const names=['Aaron Judge','Shohei Ohtani','Kyle Schwarber','Gunnar Henderson','Cal Raleigh'];
+          const r=await fetch('https://bandalytics-v42-history.vercel.app/api/core',{
+            method:'POST',headers:{'content-type':'application/json','accept':'application/json'},
+            body:JSON.stringify({names,end:'2026-09-01',year:2026})
+          });
+          const text=await r.text();
+          if(!r.ok) throw new Error(`v42 core HTTP ${r.status}: ${text.slice(0,300)}`);
+          const z=JSON.parse(text);
+          const out={};
+          for(const [name,p] of Object.entries(z?.players||{})) out[name]={ev:p?.ev??null,hh:p?.hh??null,barrel:p?.barrel??null,iso:p?.iso??null,sweet:p?.sweet??null,pull:p?.pull??null,pullair:p?.pullair??null,blast:p?.blast??null,source:p?.source??null,missing_detail:p?.missing_detail??null};
+          console.log('LEGACY_CORE_PROBE='+JSON.stringify({keys:Object.keys(z||{}),players:out}));
+          if(!Object.keys(out).length) throw new Error('legacy core returned no players');
+          NODE
