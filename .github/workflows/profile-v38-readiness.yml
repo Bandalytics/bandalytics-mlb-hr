@@ -19,6 +19,7 @@ on:
       - 'v38-longshot-promotion-gate.mjs'
       - 'v38-nightly-longshot-context.mjs'
       - 'v38-selected-pool-objective.mjs'
+      - 'v38-research-pool-hierarchy.mjs'
       - 'v38-context-modifier-policy.mjs'
       - 'v38-environment-parity-gate.mjs'
       - 'v38-environment-parity-core.mjs'
@@ -52,6 +53,7 @@ on:
       - 'test-v38-longshot-promotion-gate.mjs'
       - 'test-v38-nightly-longshot-context.mjs'
       - 'test-v38-selected-pool-objective.mjs'
+      - 'test-v38-research-pool-hierarchy.mjs'
       - 'test-v38-context-modifier-policy.mjs'
       - 'test-v38-environment-parity-gate.mjs'
       - 'test-v38-environment-parity-core.mjs'
@@ -87,6 +89,8 @@ jobs:
         run: node test-v38-nightly-longshot-context.mjs
       - name: Test selected-pool optimization objective
         run: node test-v38-selected-pool-objective.mjs
+      - name: Test research-only HR pool hierarchy
+        run: node test-v38-research-pool-hierarchy.mjs
       - name: Test lineup and bullpen modifier guardrails
         run: node test-v38-context-modifier-policy.mjs
       - name: Test fail-closed environment parity gate
