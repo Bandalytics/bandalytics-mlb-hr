@@ -1,0 +1,35 @@
+name: v38 Point-in-Time Replay
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/run-v38-point-in-time-replay.mjs'
+      - 'v38-historical-profile-core.mjs'
+      - '.github/workflows/v38-point-in-time-replay.yml'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Replay date YYYY-MM-DD'
+        required: false
+        default: '2026-08-28'
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/run-v38-point-in-time-replay.mjs
+      - name: Run genuine point-in-time replay
+        run: node scripts/run-v38-point-in-time-replay.mjs "${{ inputs.date || '2026-08-28' }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-point-in-time-${{ github.run_id }}
+          path: snapshots/v38-point-in-time-replay-*.json
+          if-no-files-found: error
+          retention-days: 90
