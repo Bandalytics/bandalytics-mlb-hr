@@ -1,0 +1,23 @@
+name: v38 Historical PullAir Calibration
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/calibrate-v38-historical-pullair.mjs'
+      - '.github/workflows/v38-historical-pullair-calibration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/calibrate-v38-historical-pullair.mjs
+      - name: Run held-out PullAir calibration
+        run: node scripts/calibrate-v38-historical-pullair.mjs
