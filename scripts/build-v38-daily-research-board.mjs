@@ -7,7 +7,7 @@ import { selectLatestPregameContext, contextForGame, validContextSnapshot } from
 import { loadModifierArtifactSets, attachProspectiveModifierBands } from '../v38-modifier-artifacts.mjs';
 import { evaluateLongshot700 } from '../mlb-hr-locked-policy.mjs';
 import { validParkFactorSnapshot, selectLatestPregameParkSnapshot, parkFactorForVenue, effectiveParkBatSide } from '../v38-park-factor-policy.mjs';
-import { V38_POOL_SHORTLIST_V3, dynamicReviewPolicy } from '../v38-pool-shortlist-v3.mjs';
+import { V38_POOL_SHORTLIST_V3, snapshotSlateGameCount, dynamicReviewPolicy } from '../v38-pool-shortlist-v3.mjs';
 
 async function files(root) {
   const out = [];
@@ -66,7 +66,8 @@ const profileCandidates = await loadJsons(profileDir);
 const snap = selectLatestValidProfileSnapshot(profileCandidates);
 if (!snap) throw Error('no valid cryptographically verified pregame profile snapshot');
 const date = snap.date;
-const originalSlateGames = (snap.pregame_games || []).length;
+const originalSlateGames = snapshotSlateGameCount(snap);
+if (originalSlateGames < (snap.pregame_games || []).length) throw Error('invalid V3 slate game provenance');
 const reviewPolicy = dynamicReviewPolicy(originalSlateGames);
 const contexts = (await loadJsons(contextDir)).filter(z => z.date === date && validContextSnapshot(z));
 const parkSnapshots = (await loadJsons(parkDir)).filter(z => z.date === date && validParkFactorSnapshot(z));
@@ -125,6 +126,7 @@ const body = {
     shortlist_protocol:V38_POOL_SHORTLIST_V3.protocol,
     first_prospective_date:V38_POOL_SHORTLIST_V3.first_prospective_date,
     original_slate_game_count:originalSlateGames,
+    slate_size_source:'VERIFIED_PROFILE_PREGAME_PLUS_EXCLUDED_STARTED_UNIQUE_GAMEPK',
     dynamic_review_ceiling:reviewPolicy.ceiling,
     dynamic_ceiling_policy:V38_POOL_SHORTLIST_V3.dynamic_ceiling,
     preferred_review_range:V38_POOL_SHORTLIST_V3.preferred_review_range,
@@ -160,7 +162,8 @@ const body = {
   notes:[
     'This board replaces manual cross-site orchestration for the supported data layers; Vig may remain an optional cross-check only.',
     'No scoring or production final-pool promotion occurs here.',
-    '20-25 is a preferred review range only and is never forced; V3 uses a slate-sized ceiling of 20, 25, or 30 based on the original pregame slate.',
+    '20-25 is a preferred review range only and is never forced; V3 uses a slate-sized ceiling of 20, 25, or 30 from unique pregame plus excluded-started games in the verified profile snapshot.',
+    'Candidate rows still exclude games already started; started games only preserve immutable slate-size provenance.',
     'Profile and context provenance are fail-closed: both source snapshot hashes are independently verified before use.',
     'Park factor is support-only, requires exact effective L/R batting side versus the opposing pitcher, and is selected from the latest valid point-in-time snapshot strictly before each game start.',
     'Historical weather parity and final production scoring remain separate blocked gates.'
