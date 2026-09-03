@@ -6,6 +6,7 @@ on:
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'v38-selected-pool-report.mjs'
+      - 'test-v38-selected-pool-report.mjs'
       - 'v38-evidence-manifest.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
@@ -33,6 +34,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Selected-pool market regression
+        run: node test-v38-selected-pool-report.mjs
       - name: Find successful pregame snapshot
         id: find
         shell: bash
