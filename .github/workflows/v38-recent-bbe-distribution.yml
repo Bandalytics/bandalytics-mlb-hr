@@ -23,6 +23,29 @@ jobs:
         run: node --check scripts/analyze-v38-recent-bbe-slate.mjs
       - name: Analyze current-slate as-of Recent BBE distribution
         run: node scripts/analyze-v38-recent-bbe-slate.mjs
+      - name: Verify fail-closed Recent BBE contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=$(find snapshots -type f -name 'v38-recent-bbe-*.json' | sort | tail -1)
+          python3 - "$FILE" <<'PY'
+          import json,sys
+          z=json.load(open(sys.argv[1]))
+          assert z['protocol']=='V38_RECENT_BBE_DISTRIBUTION_V1'
+          assert z['capture_mode']=='AS_OF_RECONSTRUCTABLE'
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['model_scoring_changed'] is False
+          assert z['as_of_verified'] is True
+          assert isinstance(z['pregame_game_pks'],list)
+          assert isinstance(z['rows'],list)
+          assert z['summary_rows']==len(z['rows'])
+          assert z['full_15_bbe_rows'] <= z['usable_rows'] <= z['summary_rows']
+          if z['prospective_pregame_only']:
+            assert all(isinstance(x,int) for x in z['pregame_game_pks'])
+          print('V38_BBE_CONTRACT_OK',{'date':z['date'],'pregame_games':len(z['pregame_game_pks']),'rows':z['summary_rows'],'usable_rows':z['usable_rows'],'full_15_bbe_rows':z['full_15_bbe_rows']})
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: v38-recent-bbe-${{ github.run_id }}
