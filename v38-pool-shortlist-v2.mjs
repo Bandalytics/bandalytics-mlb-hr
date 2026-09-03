@@ -9,6 +9,7 @@ export const V38_POOL_SHORTLIST_V2=Object.freeze({
   production_rule_changed:false,
   pool_target_forced:false,
   review_queue_max:25,
+  cumulative_layer_caps:Object.freeze({through_protected:14,through_quality:23,with_escape:25}),
   role:'EVIDENCE_READINESS_FILTER_INSIDE_LAYERED_RESEARCH_POOL',
   notes:Object.freeze([
     'CORE_ALWAYS_RETAINED_FOR_RESEARCH_REVIEW',
@@ -17,6 +18,7 @@ export const V38_POOL_SHORTLIST_V2=Object.freeze({
     'MISSING_EVIDENCE_IS_PENDING_NOT_AUTOMATIC_NEGATIVE',
     'MAXIMUM_25_REVIEW_QUEUE_WITH_NO_MINIMUM_FILL',
     'CORE_IS_NEVER_DROPPED_BY_QUEUE_CAP',
+    'CUMULATIVE_LAYER_CAPS_PREVENT_PROTECTED_POOL_FROM_CROWDING_OUT_VALUE_AND_ESCAPE',
     'NO_FILL_TO_TARGET'
   ])
 });
@@ -50,10 +52,8 @@ export function poolShortlistReadiness(row={}){
   return{status:'PENDING_EVIDENCE',support_count,flags,reason:'UNKNOWN_LAYER',research_only:true};
 }
 
-const layerRank={CORE:0,PROTECTED_POOL:1,QUALITY_VALUE_POOL:2,ESCAPE_WATCH:3,OUTSIDE_PRIMARY_POOL:9};
 function boolRank(v){return v?0:1}
 export function compareFinalReviewRows(a,b){
-  const la=layerRank[a?.pool_layer]??9,lb=layerRank[b?.pool_layer]??9;if(la!==lb)return la-lb;
   const af=a?.shortlist?.flags||{},bf=b?.shortlist?.flags||{};
   for(const k of ['preferred_market','confirmed_lineup','bbe_support','exact_side_park']){const d=boolRank(af[k])-boolRank(bf[k]);if(d)return d}
   const sc=(Number(b?.shortlist?.support_count)||0)-(Number(a?.shortlist?.support_count)||0);if(sc)return sc;
@@ -61,7 +61,11 @@ export function compareFinalReviewRows(a,b){
   return(Number(a?.player_id)||0)-(Number(b?.player_id)||0);
 }
 
-export function buildFinalReviewQueue(rows=[],maxRows=V38_POOL_SHORTLIST_V2.review_queue_max){
-  const retained=rows.filter(r=>r?.shortlist?.status==='RETAIN_FOR_FINAL_REVIEW'),core=retained.filter(r=>r.pool_layer==='CORE').sort(compareFinalReviewRows),noncore=retained.filter(r=>r.pool_layer!=='CORE').sort(compareFinalReviewRows),max=Math.max(0,Number(maxRows)||0),capacity=Math.max(0,max-core.length),queue=core.concat(noncore.slice(0,capacity));
-  return{queue,retained_count:retained.length,trimmed_count:Math.max(0,retained.length-queue.length),max_rows:max,core_overflow:core.length>max,pool_target_forced:false,research_only:true};
+export function buildFinalReviewQueue(rows=[],caps=V38_POOL_SHORTLIST_V2.cumulative_layer_caps){
+  const retained=rows.filter(r=>r?.shortlist?.status==='RETAIN_FOR_FINAL_REVIEW'),core=retained.filter(r=>r.pool_layer==='CORE').sort(compareFinalReviewRows),protectedRows=retained.filter(r=>r.pool_layer==='PROTECTED_POOL').sort(compareFinalReviewRows),qualityRows=retained.filter(r=>r.pool_layer==='QUALITY_VALUE_POOL').sort(compareFinalReviewRows),escapeRows=retained.filter(r=>r.pool_layer==='ESCAPE_WATCH').sort(compareFinalReviewRows);
+  const queue=[...core];
+  const protectedCap=Math.max(queue.length,Number(caps?.through_protected)||14);queue.push(...protectedRows.slice(0,Math.max(0,protectedCap-queue.length)));
+  const qualityCap=Math.max(queue.length,Number(caps?.through_quality)||23);queue.push(...qualityRows.slice(0,Math.max(0,qualityCap-queue.length)));
+  const escapeCap=Math.max(queue.length,Number(caps?.with_escape)||25);queue.push(...escapeRows.slice(0,Math.max(0,escapeCap-queue.length)));
+  return{queue,retained_count:retained.length,trimmed_count:Math.max(0,retained.length-queue.length),max_rows:Number(caps?.with_escape)||25,core_overflow:core.length>(Number(caps?.with_escape)||25),layer_counts:{core:core.length,protected:protectedRows.length,quality:qualityRows.length,escape:escapeRows.length},pool_target_forced:false,research_only:true};
 }
