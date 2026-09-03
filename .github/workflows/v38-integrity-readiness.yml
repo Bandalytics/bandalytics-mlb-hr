@@ -36,6 +36,7 @@ on:
       - 'test-native-feed.mjs'
       - 'test-direct-research-ui.mjs'
       - 'test-v38-research-board.mjs'
+      - 'test-research-board-v3-policy.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-park-factor-policy.mjs'
       - 'test-v38-park-prospective-policy.mjs'
@@ -71,6 +72,8 @@ jobs:
         run: node test-mlb-hr-locked-policy.mjs
       - name: Test research-board policy contract
         run: node test-v38-research-board.mjs
+      - name: Test research-board V3 dynamic policy metadata
+        run: node test-research-board-v3-policy.mjs
       - name: Test Direct Lab automated-board safety contract
         run: node test-direct-research-ui.mjs
       - name: Test point-in-time park-factor policy
