@@ -1,0 +1,119 @@
+name: v38 Park Prospective Validation
+on:
+  workflow_run:
+    workflows: ['v38 Postgame Evaluation']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  validate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Contract preflight
+        run: |
+          node test-v38-park-factor-policy.mjs
+          node test-v38-park-prospective-policy.mjs
+          node --check scripts/evaluate-v38-park-prospective.mjs
+      - name: Download latest finalized V5 postgame evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/postgame
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            IDS=("${{ github.event.workflow_run.id }}")
+          else
+            mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=20" --jq '.workflow_runs[].id')
+          fi
+          for ID in "${IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-postgame-"))) | .name' || true)
+            for A in "${ARTS[@]:-}"; do
+              [ -n "$A" ] || continue
+              mkdir -p "incoming/postgame/${ID}/${A}"
+              gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/postgame/${ID}/${A}" || true
+            done
+          done
+          EVAL=$(python3 - <<'PY'
+          import glob,json
+          good=[]
+          for f in glob.glob('incoming/postgame/**/*-evaluated.json',recursive=True):
+            try:
+              z=json.load(open(f))
+              if z.get('evaluation_protocol')=='V38_PREGAME_OUTCOME_EVAL_V5' and z.get('status')=='FINAL' and z.get('date','')>='2026-09-03': good.append((z['date'],f))
+            except: pass
+          print(sorted(good)[-1][1] if good else '')
+          PY
+          )
+          if [ -z "$EVAL" ]; then echo 'No eligible FINAL V5 slate on/after 2026-09-03; nothing to validate.'; exit 78; fi
+          DATE=$(python3 - "$EVAL" <<'PY'
+          import json,sys
+          print(json.load(open(sys.argv[1]))['date'])
+          PY
+          )
+          echo "EVAL=$EVAL" >> "$GITHUB_ENV"
+          echo "DATE=$DATE" >> "$GITHUB_ENV"
+      - name: Download point-in-time context and park snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/context incoming/park
+          mapfile -t CTX_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq '.workflow_runs[].id' || true)
+          for ID in "${CTX_IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-context-"))) | .name' || true)
+            for A in "${ARTS[@]:-}"; do mkdir -p "incoming/context/${ID}/${A}"; gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/context/${ID}/${A}" || true; done
+          done
+          mapfile -t PARK_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=100" --jq '.workflow_runs[].id' || true)
+          for ID in "${PARK_IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-park-factors-"))) | .name' || true)
+            for A in "${ARTS[@]:-}"; do mkdir -p "incoming/park/${ID}/${A}"; gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/park/${ID}/${A}" || true; done
+          done
+          echo "context=$(find incoming/context -type f -name 'v38-context-*.json' | wc -l) park=$(find incoming/park -type f -name 'v38-park-factors-*.json' | wc -l)"
+      - name: Evaluate exact pregame park support
+        run: node scripts/evaluate-v38-park-prospective.mjs "$EVAL" incoming/context incoming/park "snapshots/v38-park-prospective-${DATE}.json"
+      - name: Verify prospective-only fail-closed contract
+        shell: bash
+        run: |
+          python3 - "snapshots/v38-park-prospective-${DATE}.json" <<'PY'
+          import json,sys
+          z=json.load(open(sys.argv[1]))
+          assert z['protocol']=='V38_PARK_PROSPECTIVE_VALIDATION_V1'
+          assert z['date']>='2026-09-03'
+          assert z['point_in_time_inputs'] is True
+          assert z['prospective_only'] is True
+          assert z['historical_backfill_allowed'] is False
+          assert z['sep2_backfill_allowed'] is False
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['auto_promote'] is False
+          assert z['threshold_review'] is False
+          assert z['deliberate_approval'] is False
+          for r in z['rows']:
+            pf=r.get('park_factor')
+            if pf:
+              assert r['effective_bat_side'] in ('L','R')
+              assert pf['bat_side']==r['effective_bat_side']
+              assert pf['captured_at'] < r['start_time']
+              assert pf.get('snapshot_sha256')
+          print('V38_PARK_PROSPECTIVE_OK',z['coverage'])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-park-prospective-${{ github.run_id }}
+          path: snapshots/v38-park-prospective-*.json
+          if-no-files-found: error
+          retention-days: 90
