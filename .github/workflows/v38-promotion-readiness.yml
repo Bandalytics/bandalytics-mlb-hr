@@ -7,6 +7,8 @@ on:
     branches: [main]
     paths:
       - 'scripts/summarize-v38-promotion-readiness.mjs'
+      - 'scripts/augment-v38-selected-pool-report.mjs'
+      - 'v38-selected-pool-report.mjs'
       - 'v38-final-pool-promotion-gate.mjs'
       - 'v38-evidence-manifest.mjs'
       - '.github/workflows/v38-promotion-readiness.yml'
@@ -51,13 +53,14 @@ jobs:
           python3 - <<'PY'
           import json
           z=json.load(open('snapshots/v38-promotion-readiness.json'))
-          assert z['protocol']=='V38_PROMOTION_READINESS_AGGREGATE_V2'
+          assert z['protocol']=='V38_PROMOTION_READINESS_AGGREGATE_V3'
           assert z['research_only'] is True
           assert z['scoring_enabled'] is False
           assert z['scoring_eligible'] is False
           assert z['auto_promote'] is False
           assert z['manifest_required'] is True
-          assert z['dedupe_rule']=='valid V38_EVIDENCE_MANIFEST_V1 dedupe_key, then one immutable evidence set per slate date'
+          assert z['dedupe_rule']=='valid V38_EVIDENCE_MANIFEST_V1 dedupe_key, current selected-pool implementation only, then one immutable evidence set per slate date'
+          assert isinstance(z['current_selected_pool_report_implementation_sha256'],str) and len(z['current_selected_pool_report_implementation_sha256'])==64
           assert z['selected_definition']=='quality_plus_pitchfit'
           assert isinstance(z['rejected_artifacts'], list)
           assert z['gate']['auto_promote'] is False
@@ -68,6 +71,7 @@ jobs:
             assert isinstance(s.get('manifest_digest'),str) and len(s['manifest_digest'])==64
             assert isinstance(s.get('rule_fingerprint'),str) and len(s['rule_fingerprint'])==64
             assert isinstance(s.get('artifact_fingerprint'),str) and len(s['artifact_fingerprint'])==64
+            assert s.get('selected_pool_report_implementation_sha256')==z['current_selected_pool_report_implementation_sha256']
           print('V38_PROMOTION_GATE='+json.dumps({'prospective':z['prospective'],'rejected_artifacts':len(z['rejected_artifacts']),'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
           PY
       - uses: actions/upload-artifact@v4
