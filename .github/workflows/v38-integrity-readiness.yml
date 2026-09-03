@@ -20,6 +20,7 @@ on:
       - 'v38-profile-snapshot-selector.mjs'
       - 'v38-pool-architecture-v2.mjs'
       - 'v38-pool-shortlist-v2.mjs'
+      - 'v38-pool-shortlist-v3.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gascan-slate.mjs'
@@ -43,6 +44,7 @@ on:
       - 'test-v38-profile-snapshot-selector.mjs'
       - 'test-v38-pool-architecture-v2.mjs'
       - 'test-v38-pool-shortlist-v2.mjs'
+      - 'test-v38-pool-shortlist-v3.mjs'
       - 'test-v38-pool-queue-caps.mjs'
       - '.github/workflows/v38-integrity-readiness.yml'
   workflow_dispatch:
@@ -84,9 +86,11 @@ jobs:
         run: node test-v38-profile-snapshot-selector.mjs
       - name: Test layered pool architecture
         run: node test-v38-pool-architecture-v2.mjs
-      - name: Test layered pool evidence readiness
+      - name: Test layered pool evidence readiness legacy
         run: node test-v38-pool-shortlist-v2.mjs
-      - name: Test layered review queue cumulative caps
+      - name: Test slate-sized non-forced review ceilings
+        run: node test-v38-pool-shortlist-v3.mjs
+      - name: Test layered review queue cumulative caps legacy
         run: node test-v38-pool-queue-caps.mjs
       - name: Syntax-check gas-can historical analyzer
         run: node --check scripts/analyze-v38-gascan-slate.mjs
