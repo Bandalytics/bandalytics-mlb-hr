@@ -10,6 +10,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'scripts/analyze-v38-historical-escape-audit.mjs'
       - 'scripts/summarize-v38-promotion-readiness.mjs'
       - 'scripts/summarize-v38-historical-promotion-evidence.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
@@ -34,6 +35,7 @@ jobs:
           node-version: '24'
       - name: Syntax preflight
         run: |
+          node --check scripts/analyze-v38-historical-escape-audit.mjs
           node --check scripts/summarize-v38-historical-promotion-evidence.mjs
           node --check scripts/summarize-v38-promotion-readiness.mjs
       - name: Download latest successful preregistered historical convergence run
@@ -51,20 +53,33 @@ jobs:
             done
           fi
           echo "Historical JSON files: $(find incoming/historical -type f -name '*.json' | wc -l)"
+      - name: Build historical escape audit
+        shell: bash
+        run: |
+          set -uo pipefail
+          rm -f snapshots/v38-historical-escape-audit.json
+          if find incoming/historical -type f -name 'v38-historical-convergence-*.json' | grep -q .; then
+            if node scripts/analyze-v38-historical-escape-audit.mjs incoming/historical snapshots/v38-historical-escape-audit.json; then
+              echo 'Ten-slate historical escape audit completed.'
+            else
+              rm -f snapshots/v38-historical-escape-audit.json
+              echo 'Historical escape audit incomplete; promotion remains fail-closed.'
+            fi
+          fi
       - name: Build historical promotion evidence
         shell: bash
         run: |
           set -uo pipefail
           rm -f snapshots/v38-historical-promotion-evidence.json
-          if find incoming/historical -type f -name 'v38-historical-convergence-*.json' | grep -q .; then
-            if node scripts/summarize-v38-historical-promotion-evidence.mjs incoming/historical; then
-              echo 'Preregistered ten-slate historical manifest accepted.'
+          if [ -f snapshots/v38-historical-escape-audit.json ]; then
+            if node scripts/summarize-v38-historical-promotion-evidence.mjs incoming/historical snapshots/v38-historical-escape-audit.json; then
+              echo 'Preregistered ten-slate historical manifest accepted with reproducible escape audit.'
             else
               rm -f snapshots/v38-historical-promotion-evidence.json
               echo 'Historical artifacts do not yet satisfy the preregistered ten-slate manifest; promotion remains fail-closed.'
             fi
           else
-            echo 'No successful historical convergence artifact available yet; promotion remains fail-closed.'
+            echo 'No valid historical escape audit available; promotion remains fail-closed.'
           fi
       - name: Download finalized V5 postgame artifacts
         shell: bash
@@ -116,6 +131,8 @@ jobs:
             assert h['historical_slates']==10
             assert h['selected_definition']=='quality_plus_pitchfit'
             assert h['selected_rule']=='4of6_iso+pitchfit_top_quartile'
+            assert h['escape_audit'] is True
+            assert isinstance(h['escape_audit_manifest_digest'],str) and len(h['escape_audit_manifest_digest'])==64
           else:
             assert z['historical_rejection']=='MISSING_HISTORICAL_PROMOTION_MANIFEST'
             assert z['evidence']['historical_slates']==0
@@ -131,6 +148,7 @@ jobs:
         with:
           name: v38-promotion-readiness-${{ github.run_id }}
           path: |
+            snapshots/v38-historical-escape-audit.json
             snapshots/v38-historical-promotion-evidence.json
             snapshots/v38-promotion-readiness.json
           if-no-files-found: warn
