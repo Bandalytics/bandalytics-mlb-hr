@@ -101,6 +101,26 @@ All numeric gates passed except the locked 80% wind-class agreement threshold. T
 
 During validation, MLB shorthand strings such as `L To R` / `R To L` were found to be unrecognized by the original crosswind parser. The parser was fixed and regression-tested before the parity result above was accepted. The parity-window protocol overwrite bug was also corrected so the output retains `V38_ENVIRONMENT_PARITY_WINDOW_V1` rather than inheriting the lower-level comparison protocol.
 
+## Prospective park-factor support
+
+`V38_PARK_PROSPECTIVE_VALIDATION_V1` was preregistered before Sep. 3 outcomes. It starts with the **Sep. 3** slate and explicitly forbids Sep. 2 or historical backfill.
+
+The live board and the prospective evaluator now require:
+- latest valid park snapshot strictly before first pitch
+- exact venue match
+- exact effective L/R batting side
+- switch-hitter side resolved from the opposing starter hand
+- immutable park snapshot SHA attached to each accepted factor
+
+There is no silent `ALL`-hand fallback. If effective batting side is unknown, or the requested L/R venue factor is unavailable, park support is `UNAVAILABLE` rather than imputed.
+
+Fixed diagnostic bands are preregistered as:
+- `HITTER_FRIENDLY`: HR park factor >= 105
+- `NEUTRAL`: 95 through 104.99
+- `SUPPRESSIVE`: < 95
+
+Those bands are measured both for all exact-park rows and for the existing `4of6_iso` quality subgroup. They are prospective diagnostics only: no band changes hierarchy eligibility, creates an HR boost, changes scoring, fills the pool, or auto-promotes the model. The automated evaluator runs after a finalized V5 postgame slate and cleanly skips when no eligible Sep. 3+ final evidence exists.
+
 ## Other research families
 
 Gas Can remains pinned to its frozen Aug. 26–Sep. 1 seven-slate diagnostic. The expanded 10-slate historical workflow does not silently change that frozen window. Gas Can + strong profile remains promising context, but same-team stacking remains blocked.
