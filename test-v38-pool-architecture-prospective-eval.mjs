@@ -17,7 +17,7 @@ assert.equal(classifyProspectiveArchitectureRow(row(),'2026-09-03').pool_layer,'
 assert.equal(classifyProspectiveArchitectureRow(row(),'2026-09-04').pool_layer,'CORE');
 assert.equal(classifyProspectiveArchitectureRow(row({pitchfit_band:'BASE'}),'2026-09-04').pool_layer,'PROTECTED_POOL');
 assert.equal(classifyProspectiveArchitectureRow(row({gate_count:4,gate_passes:{iso:true},pitchfit_band:'BASE'}),'2026-09-04').pool_layer,'QUALITY_VALUE_POOL');
-const escape=row({gate_count:4,gate_passes:{iso:false},pitchfit_band:'BASE',context:{lineup:7,market:{best_odds:900}},ev:91,hh:40,barrel:10,iso:.15,pullair:20,blast:10});
+const escape=row({gate_count:4,gate_passes:{iso:false},pitchfit_band:'BASE',context:{lineup:7,market:{best_odds:900}},ev:91,hh:40,barrel:10,iso:.15,pullair:20,blast:7});
 assert.equal(classifyProspectiveArchitectureRow(escape,'2026-09-04').pool_layer,'ESCAPE_WATCH');
 const pre=evaluateProspectivePoolArchitecture([row({homer:true})],'2026-09-03');
 assert.equal(pre.eligible,false);assert.equal(pre.auto_promote,false);
