@@ -7,5 +7,11 @@ z=evaluateStackContext({starter_damage:false,hitter_convergence:true,specific_bu
 let g=evaluateGasCanStarter({hr9:2.3,iso_allowed:.234,barrel_allowed:12,ip:80});assert.equal(g.flag_count,3);assert.equal(g.gascan_research_shortlist,true);
 g=evaluateGasCanStarter({hr9:1.6,iso_allowed:.21,barrel_allowed:9,ip:10});assert.equal(g.small_ip,true);assert.equal(g.gascan_research_shortlist,false);
 g=evaluateGasCanStarter({hr9:1.6,iso_allowed:.19,barrel_allowed:9,ip:80});assert.equal(g.flag_count,1);assert.equal(g.gascan_research_shortlist,false);
-assert.equal(V38_STACK_GASCAN_POLICY.scoring_enabled,false);assert.equal(V38_STACK_GASCAN_POLICY.gascan_thresholds_status,'RESEARCH_CANDIDATE_NOT_PRODUCTION_LOCKED');
+assert.equal(V38_STACK_GASCAN_POLICY.scoring_enabled,false);
+assert.equal(V38_STACK_GASCAN_POLICY.gascan_thresholds_status,'HISTORICAL_RESEARCH_PROMISING_NOT_PRODUCTION_LOCKED');
+assert.equal(V38_STACK_GASCAN_POLICY.gascan_counts_as_independent_stack_family,false);
+assert.equal(V38_STACK_GASCAN_POLICY.gascan_window_evidence.quality_gascan_n,49);
+assert.equal(V38_STACK_GASCAN_POLICY.gascan_window_evidence.quality_gascan_hr,17);
+assert.equal(V38_STACK_GASCAN_POLICY.gascan_window_evidence.lift_vs_non_gascan,2.217);
+assert.equal(V38_STACK_GASCAN_POLICY.gascan_window_evidence.multi_hr_lift,1.149);
 console.log('V38_STACK_GASCAN_POLICY_PASS');
