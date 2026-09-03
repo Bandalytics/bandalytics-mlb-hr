@@ -13,6 +13,8 @@ on:
       - 'scripts/build-v38-live-research-board.mjs'
       - 'v38-profile-snapshot-selector.mjs'
       - 'v38-research-pool-hierarchy.mjs'
+      - 'v38-pool-architecture-v2.mjs'
+      - 'test-v38-pool-architecture-v2.mjs'
       - 'v38-longshot-quality.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
@@ -40,6 +42,7 @@ jobs:
           node --check scripts/build-v38-live-research-board.mjs
           node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
+          node test-v38-pool-architecture-v2.mjs
           node test-v38-park-factor-policy.mjs
       - name: Download latest valid daily research evidence
         shell: bash
@@ -78,13 +81,26 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['pool_target_forced'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          assert z['pool_architecture']['protocol']=='V38_POOL_ARCHITECTURE_V2'
+          assert z['pool_architecture']['first_prospective_date']=='2026-09-04'
+          assert z['pool_architecture']['production_rule_changed'] is False
+          assert z['pool_architecture']['final_pool_promoted'] is False
           assert re.fullmatch(r'[a-f0-9]{64}',z.get('profile_snapshot_sha256') or '')
           assert z['park_factor_policy']['requires_exact_effective_bat_side'] is True
           assert z['park_factor_policy']['hard_gate'] is False
           assert z['park_factor_policy']['standalone_hr_boost'] is False
           assert z['park_factor_policy']['scoring_eligible'] is False
           assert isinstance(z['rows'],list)
+          layers={'CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH','OUTSIDE_PRIMARY_POOL'}
+          layer_counts={k:0 for k in layers}
           for r in z['rows']:
+            assert r.get('pool_layer') in layers
+            layer_counts[r['pool_layer']]+=1
+            assert r.get('structured_pool_candidate')==(r['pool_layer']!='OUTSIDE_PRIMARY_POOL')
+            if r['pool_layer']=='ESCAPE_WATCH':
+              assert r.get('quality_tier')=='BASE_ELIGIBLE_4OF6'
+              assert (r.get('american_odds') or 0)>=700
+              assert r.get('longshot_policy',{}).get('qualifies') is True
             if r.get('american_odds') is not None and r['american_odds']>=700:
               assert isinstance(r.get('longshot_policy'),dict)
             if r.get('context',{}).get('captured_at'):
@@ -99,6 +115,11 @@ jobs:
               assert pf['scoring_eligible'] is False
               assert pf['captured_at'] < r['start_time']
               assert pf.get('snapshot_sha256')
+          assert z['counts']['core_rows']==layer_counts['CORE']
+          assert z['counts']['protected_pool_rows']==layer_counts['PROTECTED_POOL']
+          assert z['counts']['quality_value_pool_rows']==layer_counts['QUALITY_VALUE_POOL']
+          assert z['counts']['escape_watch_rows']==layer_counts['ESCAPE_WATCH']
+          assert z['counts']['structured_pool_candidates']==sum(layer_counts[k] for k in ('CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH'))
           print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
