@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/build-v38-daily-research-board.mjs'
+      - 'v38-park-factor-policy.mjs'
       - '.github/workflows/v38-daily-research-board.yml'
   schedule:
     - cron: '45 16,19,21,23 * * *'
@@ -34,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           DATE='${{ steps.date.outputs.date }}'
-          mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe snapshots
+          mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe incoming/park snapshots
           RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
           if [ -z "${RUN_ID:-}" ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
@@ -43,7 +44,7 @@ jobs:
           fi
           gh run download "$RUN_ID" --repo "$GH_REPO" --name "v38-pregame-${RUN_ID}" --dir incoming/profile
           echo "found=true" >> "$GITHUB_OUTPUT"
-      - name: Download all same-day context and modifier snapshots
+      - name: Download all same-day context, modifier, and park snapshots
         if: steps.profile.outputs.found == 'true'
         shell: bash
         run: |
@@ -67,12 +68,19 @@ jobs:
             mkdir -p "incoming/modifiers/bbe/$ID"
             gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true
           done
+          mapfile -t PARK < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          for ID in "${PARK[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mkdir -p "incoming/park/$ID"
+            gh run download "$ID" --repo "$GH_REPO" --name "v38-park-factors-${ID}" --dir "incoming/park/$ID" || true
+          done
           echo "Contexts: $(find incoming/contexts -type f -name '*.json' | wc -l)"
           echo "Pitchfit: $(find incoming/modifiers/pitchfit -type f -name '*.json' | wc -l)"
           echo "BBE: $(find incoming/modifiers/bbe -type f -name '*.json' | wc -l)"
+          echo "Park: $(find incoming/park -type f -name '*.json' | wc -l)"
       - name: Build first-party research board
         if: steps.profile.outputs.found == 'true'
-        run: node scripts/build-v38-daily-research-board.mjs incoming/profile incoming/contexts incoming/modifiers snapshots/v38-daily-research-board-${{ steps.date.outputs.date }}.json
+        run: node scripts/build-v38-daily-research-board.mjs incoming/profile incoming/contexts incoming/modifiers snapshots/v38-daily-research-board-${{ steps.date.outputs.date }}.json incoming/park
       - name: Verify research-only contract
         if: steps.profile.outputs.found == 'true'
         shell: bash
@@ -81,13 +89,22 @@ jobs:
           import glob,json
           p=glob.glob('snapshots/v38-daily-research-board-*.json')[0]
           z=json.load(open(p))
-          assert z['protocol']=='V38_DAILY_RESEARCH_BOARD_V1'
+          assert z['protocol']=='V38_DAILY_RESEARCH_BOARD_V2'
           assert z['point_in_time'] is True
           assert z['research_only'] is True
           assert z['scoring_enabled'] is False
           assert z['scoring_eligible'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
           assert z['vig_required'] is False
+          assert isinstance(z['coverage']['park_snapshots_loaded'], int)
+          assert z['coverage']['rows_with_park_factor'] >= 0
+          for r in z.get('rows',[]):
+            pf=r.get('park_factor')
+            if pf:
+              assert pf['research_only'] is True
+              assert pf['scoring_enabled'] is False
+              assert pf['standalone_hr_boost'] is False
+              assert r['park_factor_captured_at'] < r['start_time']
           print('V38_DAILY_BOARD='+json.dumps({'date':z['date'],'coverage':z['coverage'],'counts':z['counts']}))
           PY
       - uses: actions/upload-artifact@v4
