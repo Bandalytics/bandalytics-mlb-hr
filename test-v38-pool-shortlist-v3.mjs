@@ -1,7 +1,10 @@
 import assert from'node:assert/strict';
-import{V38_POOL_SHORTLIST_V3,dynamicReviewPolicy,buildFinalReviewQueueV3,poolShortlistReadinessV3}from'./v38-pool-shortlist-v3.mjs';
+import{V38_POOL_SHORTLIST_V3,snapshotSlateGameCount,dynamicReviewPolicy,buildFinalReviewQueueV3,poolShortlistReadinessV3}from'./v38-pool-shortlist-v3.mjs';
 assert.equal(V38_POOL_SHORTLIST_V3.first_prospective_date,'2026-09-04');
 assert.equal(V38_POOL_SHORTLIST_V3.pool_target_forced,false);
+const snapshot={pregame_games:Array.from({length:7},(_,i)=>({gamePk:100+i})),excluded_started_games:[{gamePk:107},{gamePk:108},{gamePk:108}]};
+assert.equal(snapshotSlateGameCount(snapshot),9);
+assert.equal(dynamicReviewPolicy(snapshotSlateGameCount(snapshot)).ceiling,25);
 assert.equal(dynamicReviewPolicy(6).ceiling,20);
 assert.equal(dynamicReviewPolicy(8).ceiling,20);
 assert.equal(dynamicReviewPolicy(9).ceiling,25);
