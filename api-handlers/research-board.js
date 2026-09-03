@@ -4,6 +4,8 @@ import {V38_POOL_ARCHITECTURE_V2} from '../v38-pool-architecture-v2.mjs';
 import {V38_POOL_SHORTLIST_V3,dynamicReviewPolicy} from '../v38-pool-shortlist-v3.mjs';
 import {LONGSHOT_700_POLICY} from '../mlb-hr-locked-policy.mjs';
 
+export const API_POLICY_CONTRACT='V38_POOL_API_PARITY_V3';
+
 const chunk=(a,n)=>Array.from({length:Math.ceil(a.length/n)},(_,i)=>a.slice(i*n,(i+1)*n));
 const enc=x=>encodeURIComponent(String(x));
 
@@ -51,6 +53,7 @@ export function buildResearchBoardPlan(feed={}){
       vig_dependency:'OPTIONAL_CROSS_CHECK_ONLY'
     },
     policy:{
+      api_policy_contract:API_POLICY_CONTRACT,
       hierarchy_protocol:V38_RESEARCH_POOL_HIERARCHY.protocol,
       hierarchy_rules:V38_RESEARCH_POOL_HIERARCHY.rules,
       pool_architecture_protocol:V38_POOL_ARCHITECTURE_V2.protocol,
