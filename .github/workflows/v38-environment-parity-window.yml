@@ -1,0 +1,110 @@
+name: v38 Environment Parity Window
+on:
+  workflow_run:
+    workflows: ['v38 Postgame Evaluation']
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/evaluate-v38-environment-parity-window.mjs'
+      - 'v38-environment-parity-core.mjs'
+      - 'v38-environment-parity-gate.mjs'
+      - 'v38-context-selector.mjs'
+      - '.github/workflows/v38-environment-parity-window.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  parity:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax and contract preflight
+        run: |
+          node --check scripts/evaluate-v38-environment-parity-window.mjs
+          node test-v38-environment-parity.mjs
+          node test-v38-environment-parity-core.mjs
+          node test-v38-context-selector.mjs
+      - name: Download recent finalized V5 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/postgame
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=40" --jq '.workflow_runs[].id' || true)
+          for ID in "${IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-postgame-"))) | .name' || true)
+            for A in "${ARTS[@]:-}"; do
+              [ -n "$A" ] || continue
+              mkdir -p "incoming/postgame/${ID}/${A}"
+              gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/postgame/${ID}/${A}" || true
+            done
+          done
+          DATE=$(python3 - <<'PY'
+          import glob,json
+          dates=[]
+          for f in glob.glob('incoming/postgame/**/*-evaluated.json',recursive=True):
+            try:
+              z=json.load(open(f))
+              if z.get('evaluation_protocol')=='V38_PREGAME_OUTCOME_EVAL_V5' and z.get('status')=='FINAL': dates.append(z.get('date',''))
+            except: pass
+          print(max(dates) if dates else '')
+          PY
+          )
+          [ -n "$DATE" ] || { echo 'No finalized V5 date available'; exit 2; }
+          echo "PARITY_DATE=$DATE" >> "$GITHUB_ENV"
+          echo "Parity date: $DATE"
+      - name: Download point-in-time context snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/context
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq '.workflow_runs[].id' || true)
+          for ID in "${IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-context-"))) | .name' || true)
+            for A in "${ARTS[@]:-}"; do
+              [ -n "$A" ] || continue
+              mkdir -p "incoming/context/${ID}/${A}"
+              gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/context/${ID}/${A}" || true
+            done
+          done
+          echo "Context JSON files: $(find incoming/context -type f -name 'v38-context-*.json' | wc -l)"
+      - name: Evaluate per-game latest pre-first-pitch parity
+        run: node scripts/evaluate-v38-environment-parity-window.mjs incoming/context "$PARITY_DATE" "snapshots/v38-environment-parity-window-${PARITY_DATE}.json"
+      - name: Verify fail-closed parity contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,os
+          f=f"snapshots/v38-environment-parity-window-{os.environ['PARITY_DATE']}.json"
+          z=json.load(open(f))
+          assert z['protocol']=='V38_ENVIRONMENT_PARITY_WINDOW_V1'
+          assert z['point_in_time_input'] is True
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['threshold_review'] is False
+          assert z['deliberate_approval'] is False
+          assert z['auto_promote'] is False
+          assert z['gate']['checks']['threshold_review'] is False
+          assert z['gate']['checks']['deliberate_approval'] is False
+          assert z['gate']['pass'] is False
+          print('V38_ENV_PARITY_WINDOW_OK='+json.dumps({'date':z['date'],'snapshots':z['context_snapshots_loaded'],'selected_games':z['selected_games'],'weather_covered_games':z['weather_covered_games'],'venue':z['venue_exact_rate_pct'],'condition':z['weather_condition_agreement_pct'],'wind':z['wind_class_agreement_pct'],'temp_mae':z['temperature_mae_f'],'wind_mae':z['wind_mph_mae'],'checks':z['gate']['checks']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-environment-parity-window-${{ github.run_id }}
+          path: snapshots/v38-environment-parity-window-*.json
+          if-no-files-found: error
+          retention-days: 90
