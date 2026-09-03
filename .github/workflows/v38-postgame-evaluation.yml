@@ -10,6 +10,8 @@ on:
       - 'v38-evidence-manifest.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
+      - 'v38-postgame-game-identity.mjs'
+      - 'test-v38-postgame-game-identity.mjs'
       - '.github/workflows/v38-postgame-evaluation.yml'
   schedule:
     - cron: '13 6,8,10 * * *'
@@ -37,6 +39,7 @@ jobs:
       - name: Prospective evaluator preflight
         run: |
           node --check scripts/evaluate-v38-pregame-snapshot.mjs
+          node test-v38-postgame-game-identity.mjs
           node test-v38-selected-pool-report.mjs
       - name: Find successful pregame snapshot unless date is already immutable
         id: find
@@ -191,17 +194,22 @@ jobs:
           for r in z.get('rows',[]):
             assert r.get('row_identity')=='GAMEPK_PLAYER_ID'
             assert isinstance(r.get('gamePk'),int) and isinstance(r.get('player_id'),int)
+            assert isinstance(r.get('start_time'),str)
             key=(r['gamePk'],r['player_id']); assert key not in seen; seen.add(key)
+            if r.get('context'):
+              assert r['context'].get('captured_at') < r['start_time']
             ev=r.get('modifier_evidence') or {}
             pf=r.get('pitchfit'); bb=r.get('bbe')
             if pf is not None:
               assert ev.get('pitchfit_cryptographically_verified') is True
               assert re.fullmatch(r'[a-f0-9]{64}',ev.get('pitchfit_snapshot_sha256') or '')
+              assert ev.get('pitchfit_captured_at') < r['start_time']
               assert int(pf.get('gamePk'))==int(r['gamePk'])
               assert ev.get('per_game_strictly_pregame') is True
             if bb is not None:
               assert ev.get('bbe_cryptographically_verified') is True
               assert re.fullmatch(r'[a-f0-9]{64}',ev.get('bbe_snapshot_sha256') or '')
+              assert ev.get('bbe_captured_at') < r['start_time']
               assert int(bb.get('gamePk'))==int(r['gamePk'])
               assert ev.get('per_game_strictly_pregame') is True
             if pf is None and bb is None:
