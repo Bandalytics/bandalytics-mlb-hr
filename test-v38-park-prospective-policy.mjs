@@ -1,0 +1,18 @@
+import assert from'node:assert/strict';
+import{V38_PARK_PROSPECTIVE_POLICY,parkBand,eligibleParkProspectiveDate}from'./v38-park-prospective-policy.mjs';
+assert.equal(V38_PARK_PROSPECTIVE_POLICY.protocol,'V38_PARK_PROSPECTIVE_VALIDATION_V1');
+assert.equal(V38_PARK_PROSPECTIVE_POLICY.first_eligible_slate,'2026-09-03');
+assert.equal(V38_PARK_PROSPECTIVE_POLICY.historical_backfill_allowed,false);
+assert.equal(V38_PARK_PROSPECTIVE_POLICY.sep2_backfill_allowed,false);
+assert.equal(V38_PARK_PROSPECTIVE_POLICY.scoring_enabled,false);
+assert.equal(V38_PARK_PROSPECTIVE_POLICY.scoring_eligible,false);
+assert.equal(V38_PARK_PROSPECTIVE_POLICY.auto_promote,false);
+assert.equal(eligibleParkProspectiveDate('2026-09-02'),false);
+assert.equal(eligibleParkProspectiveDate('2026-09-03'),true);
+assert.equal(eligibleParkProspectiveDate('2026-09-04'),true);
+assert.equal(parkBand(null),'UNAVAILABLE');
+assert.equal(parkBand(104.99),'NEUTRAL');
+assert.equal(parkBand(105),'HITTER_FRIENDLY');
+assert.equal(parkBand(95),'NEUTRAL');
+assert.equal(parkBand(94.99),'SUPPRESSIVE');
+console.log('V38_PARK_PROSPECTIVE_POLICY_PASS');
