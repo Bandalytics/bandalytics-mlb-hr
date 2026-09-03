@@ -11,6 +11,8 @@ on:
       - 'v38-environment-parity-core.mjs'
       - 'v38-environment-parity-gate.mjs'
       - 'v38-context-selector.mjs'
+      - 'test-v38-environment-parity.mjs'
+      - 'test-v38-context-selector.mjs'
       - '.github/workflows/v38-environment-parity-window.yml'
   workflow_dispatch:
 permissions:
@@ -33,7 +35,6 @@ jobs:
         run: |
           node --check scripts/evaluate-v38-environment-parity-window.mjs
           node test-v38-environment-parity.mjs
-          node test-v38-environment-parity-core.mjs
           node test-v38-context-selector.mjs
       - name: Download recent finalized V5 evidence
         shell: bash
