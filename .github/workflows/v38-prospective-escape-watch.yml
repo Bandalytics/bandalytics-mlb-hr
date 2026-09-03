@@ -9,6 +9,8 @@ on:
     paths:
       - 'v38-prospective-escape-watch.mjs'
       - 'test-v38-prospective-escape-watch.mjs'
+      - 'v38-postgame-artifact-validity.mjs'
+      - 'test-v38-postgame-artifact-validity.mjs'
       - 'scripts/evaluate-v38-prospective-escape-watch.mjs'
       - '.github/workflows/v38-prospective-escape-watch.yml'
   workflow_dispatch:
@@ -31,6 +33,7 @@ jobs:
       - name: Contract tests
         run: |
           node test-v38-prospective-escape-watch.mjs
+          node test-v38-postgame-artifact-validity.mjs
           node --check scripts/evaluate-v38-prospective-escape-watch.mjs
       - name: Download finalized postgame artifacts
         shell: bash
@@ -70,6 +73,9 @@ jobs:
             z=json.load(open(f))
             assert z['protocol']=='V38_PROSPECTIVE_ESCAPE_WATCH_EVAL_V1'
             assert z['date']>='2026-09-04'
+            assert z['source_row_identity']=='GAMEPK_PLAYER_ID'
+            assert z['source_doubleheader_safe'] is True
+            assert z['postgame_validity_protocol']=='V38_POSTGAME_ARTIFACT_VALIDITY_V1'
             assert z['backfill_allowed'] is False
             assert z['historical_promotion_evidence_allowed'] is False
             assert z['interpretation']['control_definition_unchanged'] is True
