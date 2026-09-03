@@ -7,6 +7,8 @@ on:
       - 'v38-profile-snapshot-selector.mjs'
       - 'v38-context-selector.mjs'
       - 'v38-park-factor-policy.mjs'
+      - 'v38-pool-shortlist-v3.mjs'
+      - 'test-v38-pool-shortlist-v3.mjs'
       - '.github/workflows/v38-daily-research-board.yml'
   schedule:
     - cron: '45 16,19,21,23 * * *'
@@ -31,6 +33,7 @@ jobs:
           node --check scripts/build-v38-daily-research-board.mjs
           node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
+          node test-v38-pool-shortlist-v3.mjs
       - name: Resolve current ET slate
         id: date
         run: echo "date=$(TZ=America/New_York date +%F)" >> "$GITHUB_OUTPUT"
@@ -65,29 +68,13 @@ jobs:
           set -euo pipefail
           DATE='${{ steps.date.outputs.date }}'
           mapfile -t CTX < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
-          for ID in "${CTX[@]:-}"; do
-            [ -n "$ID" ] || continue
-            mkdir -p "incoming/contexts/$ID"
-            gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true
-          done
+          for ID in "${CTX[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/contexts/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true; done
           mapfile -t PF < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
-          for ID in "${PF[@]:-}"; do
-            [ -n "$ID" ] || continue
-            mkdir -p "incoming/modifiers/pitchfit/$ID"
-            gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true
-          done
+          for ID in "${PF[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/pitchfit/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true; done
           mapfile -t BB < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
-          for ID in "${BB[@]:-}"; do
-            [ -n "$ID" ] || continue
-            mkdir -p "incoming/modifiers/bbe/$ID"
-            gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true
-          done
+          for ID in "${BB[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/bbe/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true; done
           mapfile -t PARK < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
-          for ID in "${PARK[@]:-}"; do
-            [ -n "$ID" ] || continue
-            mkdir -p "incoming/park/$ID"
-            gh run download "$ID" --repo "$GH_REPO" --name "v38-park-factors-${ID}" --dir "incoming/park/$ID" || true
-          done
+          for ID in "${PARK[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/park/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-park-factors-${ID}" --dir "incoming/park/$ID" || true; done
           echo "Contexts: $(find incoming/contexts -type f -name '*.json' | wc -l)"
           echo "Pitchfit: $(find incoming/modifiers/pitchfit -type f -name '*.json' | wc -l)"
           echo "BBE: $(find incoming/modifiers/bbe -type f -name '*.json' | wc -l)"
@@ -108,7 +95,18 @@ jobs:
           assert z['research_only'] is True
           assert z['scoring_enabled'] is False
           assert z['scoring_eligible'] is False
-          assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          assert z['pool_target_role']=='PREFERRED_RANGE_NOT_REQUIRED'
+          assert z['pool_target']==[20,25]
+          assert z['pool_target_forced'] is False
+          pa=z['pool_architecture']
+          assert pa['shortlist_protocol']=='V38_POOL_SHORTLIST_V3'
+          assert pa['first_prospective_date']=='2026-09-04'
+          assert pa['slate_size_source']=='VERIFIED_PROFILE_PREGAME_PLUS_EXCLUDED_STARTED_UNIQUE_GAMEPK'
+          assert pa['no_minimum'] is True
+          assert pa['production_rule_changed'] is False
+          games=pa['original_slate_game_count']; ceiling=pa['dynamic_review_ceiling']
+          assert isinstance(games,int) and games>=1
+          assert ceiling==(20 if games<=8 else 25 if games<=12 else 30)
           assert z['vig_required'] is False
           assert re.fullmatch(r'[a-f0-9]{64}',z.get('source_profile_snapshot_sha256') or '')
           assert isinstance(z['coverage']['park_snapshots_loaded'], int)
@@ -127,7 +125,7 @@ jobs:
               assert pf['scoring_enabled'] is False
               assert pf['standalone_hr_boost'] is False
               assert r['park_factor_captured_at'] < r['start_time']
-          print('V38_DAILY_BOARD='+json.dumps({'date':z['date'],'coverage':z['coverage'],'counts':z['counts']}))
+          print('V38_DAILY_BOARD='+json.dumps({'date':z['date'],'pool_architecture':pa,'coverage':z['coverage'],'counts':z['counts']}))
           PY
       - uses: actions/upload-artifact@v4
         if: steps.profile.outputs.found == 'true'
