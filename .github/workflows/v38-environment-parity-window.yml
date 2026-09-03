@@ -11,6 +11,8 @@ on:
       - 'v38-environment-parity-core.mjs'
       - 'v38-environment-parity-gate.mjs'
       - 'v38-context-selector.mjs'
+      - 'v38-postgame-artifact-validity.mjs'
+      - 'test-v38-postgame-artifact-validity.mjs'
       - 'test-v38-environment-parity.mjs'
       - 'test-v38-context-selector.mjs'
       - '.github/workflows/v38-environment-parity-window.yml'
@@ -34,6 +36,7 @@ jobs:
       - name: Syntax and contract preflight
         run: |
           node --check scripts/evaluate-v38-environment-parity-window.mjs
+          node test-v38-postgame-artifact-validity.mjs
           node test-v38-environment-parity.mjs
           node test-v38-context-selector.mjs
       - name: Download recent finalized V5 evidence
@@ -51,18 +54,12 @@ jobs:
               gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/postgame/${ID}/${A}" || true
             done
           done
-          DATE=$(python3 - <<'PY'
-          import glob,json
-          dates=[]
-          for f in glob.glob('incoming/postgame/**/*-evaluated.json',recursive=True):
-            try:
-              z=json.load(open(f))
-              if z.get('evaluation_protocol')=='V38_PREGAME_OUTCOME_EVAL_V5' and z.get('status')=='FINAL': dates.append(z.get('date',''))
-            except: pass
-          print(max(dates) if dates else '')
-          PY
+          DATE=$(node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';import{validateExactGamePostgameArtifact}from'./v38-postgame-artifact-validity.mjs';
+          const out=[];function walk(p){let es=[];try{es=fs.readdirSync(p,{withFileTypes:true})}catch{return}for(const e of es){const q=path.join(p,e.name);if(e.isDirectory())walk(q);else if(e.isFile()&&e.name.endsWith('-evaluated.json')){try{const z=JSON.parse(fs.readFileSync(q,'utf8'));if(z.evaluation_protocol==='V38_PREGAME_OUTCOME_EVAL_V5'&&z.status==='FINAL'&&validateExactGamePostgameArtifact(z).valid)out.push(String(z.date||''))}catch{}}}}walk('incoming/postgame');console.log(out.sort().at(-1)||'');
+          NODE
           )
-          [ -n "$DATE" ] || { echo 'No finalized V5 date available'; exit 2; }
+          [ -n "$DATE" ] || { echo 'No valid finalized V5 date available'; exit 2; }
           echo "PARITY_DATE=$DATE" >> "$GITHUB_ENV"
           echo "Parity date: $DATE"
       - name: Download point-in-time context snapshots
