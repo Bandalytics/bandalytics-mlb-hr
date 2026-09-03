@@ -18,5 +18,5 @@ export const V38_PARK_PROSPECTIVE_POLICY=Object.freeze({
   threshold_review:false,
   deliberate_approval:false
 });
-export function parkBand(hrFactor){const x=Number(hrFactor);if(!Number.isFinite(x))return'UNAVAILABLE';if(x>=V38_PARK_PROSPECTIVE_POLICY.bands.HITTER_FRIENDLY_MIN)return'HITTER_FRIENDLY';if(x>=V38_PARK_PROSPECTIVE_POLICY.bands.NEUTRAL_MIN)return'NEUTRAL';return'SUPPRESSIVE'}
+export function parkBand(hrFactor){if(hrFactor==null||String(hrFactor).trim()==='')return'UNAVAILABLE';const x=Number(hrFactor);if(!Number.isFinite(x))return'UNAVAILABLE';if(x>=V38_PARK_PROSPECTIVE_POLICY.bands.HITTER_FRIENDLY_MIN)return'HITTER_FRIENDLY';if(x>=V38_PARK_PROSPECTIVE_POLICY.bands.NEUTRAL_MIN)return'NEUTRAL';return'SUPPRESSIVE'}
 export function eligibleParkProspectiveDate(date){return /^2026-\d\d-\d\d$/.test(String(date||''))&&String(date)>=V38_PARK_PROSPECTIVE_POLICY.first_eligible_slate}
