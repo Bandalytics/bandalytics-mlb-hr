@@ -17,6 +17,8 @@ on:
       - 'v38-selected-pool-report.mjs'
       - 'v38-final-pool-promotion-gate.mjs'
       - 'v38-evidence-manifest.mjs'
+      - 'v38-postgame-artifact-validity.mjs'
+      - 'test-v38-postgame-artifact-validity.mjs'
       - '.github/workflows/v38-promotion-readiness.yml'
 permissions:
   contents: read
@@ -38,6 +40,7 @@ jobs:
           node --check scripts/analyze-v38-historical-escape-audit.mjs
           node --check scripts/summarize-v38-historical-promotion-evidence.mjs
           node --check scripts/summarize-v38-promotion-readiness.mjs
+          node test-v38-postgame-artifact-validity.mjs
       - name: Download latest successful preregistered historical convergence run
         shell: bash
         run: |
@@ -116,6 +119,8 @@ jobs:
           assert z['auto_promote'] is False
           assert z['manifest_required'] is True
           assert z['historical_manifest_required'] is True
+          assert z['postgame_validity_protocol']=='V38_POSTGAME_ARTIFACT_VALIDITY_V1'
+          assert z['exact_game_required_from']=='2026-09-03'
           assert z['dedupe_rule']=='valid V38_EVIDENCE_MANIFEST_V1 prospective evidence + one preregistered V38_HISTORICAL_PROMOTION_EVIDENCE_V1 manifest for Aug23-Sep1'
           assert isinstance(z['current_selected_pool_report_implementation_sha256'],str) and len(z['current_selected_pool_report_implementation_sha256'])==64
           assert z['selected_definition']=='quality_plus_pitchfit'
@@ -142,7 +147,10 @@ jobs:
             assert isinstance(s.get('rule_fingerprint'),str) and len(s['rule_fingerprint'])==64
             assert isinstance(s.get('artifact_fingerprint'),str) and len(s['artifact_fingerprint'])==64
             assert s.get('selected_pool_report_implementation_sha256')==z['current_selected_pool_report_implementation_sha256']
-          print('V38_PROMOTION_GATE='+json.dumps({'historical_rejection':z['historical_rejection'],'historical_slates':z['evidence']['historical_slates'],'prospective':z['prospective'],'rejected_artifacts':len(z['rejected_artifacts']),'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
+            if s.get('date','')>='2026-09-03':
+              assert s.get('row_identity')=='GAMEPK_PLAYER_ID'
+              assert s.get('doubleheader_safe') is True
+          print('V38_PROMOTION_GATE='+json.dumps({'historical_rejection':z['historical_rejection'],'historical_slates':z['evidence']['historical_slates'],'postgame_validity_protocol':z['postgame_validity_protocol'],'exact_game_required_from':z['exact_game_required_from'],'prospective':z['prospective'],'rejected_artifacts':len(z['rejected_artifacts']),'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
           PY
       - uses: actions/upload-artifact@v4
         with:
