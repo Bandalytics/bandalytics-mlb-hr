@@ -14,7 +14,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,3 +24,21 @@ jobs:
         run: node test-pwa-home-screen.mjs
       - name: Syntax-check PWA injector
         run: node --check pwa-inject.mjs
+      - name: Build production site with Home Screen packaging
+        run: npm run build
+      - name: Verify built PWA output
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html=fs.readFileSync('dist/index.html','utf8');
+          const manifest=JSON.parse(fs.readFileSync('dist/manifest.webmanifest','utf8'));
+          for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png']){
+            if(!fs.existsSync(p)||fs.statSync(p).size<1000)throw Error(`missing built icon ${p}`);
+          }
+          for(const marker of ['manifest.webmanifest','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','BANDALYTICS']){
+            if(!html.includes(marker))throw Error(`built HTML missing ${marker}`);
+          }
+          if(manifest.name!=='BANDALYTICS'||manifest.short_name!=='BANDALYTICS'||manifest.display!=='standalone')throw Error('bad built manifest identity');
+          if(!Array.isArray(manifest.icons)||!manifest.icons.some(x=>x.sizes==='180x180')||!manifest.icons.some(x=>x.sizes==='192x192'))throw Error('built manifest icon set incomplete');
+          console.log('BANDALYTICS_BUILT_PWA_PASS');
+          NODE
