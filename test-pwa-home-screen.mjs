@@ -7,6 +7,7 @@ function pngSize(path){
 }
 
 const injector=fs.readFileSync('pwa-inject.mjs','utf8');
+const policyUi=fs.readFileSync('v38-site-policy-ui.js','utf8');
 const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
 const i180=pngSize('pwa/bandalytics-icon-180.png');
 const i192=pngSize('pwa/bandalytics-icon-192.png');
@@ -21,8 +22,10 @@ for(const marker of [
   'apple-touch-icon',
   'bandalytics-icon-180.png',
   'bandalytics-icon-192.png',
-  'BANDALYTICS multi-sport research and analytics'
+  'BANDALYTICS multi-sport research and analytics',
+  '/v38-site-policy-ui.js'
 ])if(!injector.includes(marker))throw Error(`PWA contract marker missing: ${marker}`);
+for(const marker of ['V38 RESEARCH POOL','V38_POOL_SHORTLIST_V3','Legacy pool blocked','legacyFinalPoolDisabled:true','productionScoringChanged:false'])if(!policyUi.includes(marker))throw Error(`V38 site policy marker missing: ${marker}`);
 if(i180.width!==180||i180.height!==180)throw Error(`Apple icon dimensions drifted: ${JSON.stringify(i180)}`);
 if(i192.width!==192||i192.height!==192)throw Error(`PWA icon dimensions drifted: ${JSON.stringify(i192)}`);
 console.log('BANDALYTICS_PWA_HOME_SCREEN_CONTRACT_PASS');
