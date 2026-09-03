@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/summarize-v38-promotion-readiness.mjs'
+      - 'scripts/summarize-v38-historical-promotion-evidence.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'v38-selected-pool-report.mjs'
       - 'v38-final-pool-promotion-gate.mjs'
@@ -18,7 +19,7 @@ permissions:
 jobs:
   summarize:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
@@ -28,7 +29,33 @@ jobs:
         with:
           node-version: '24'
       - name: Syntax preflight
-        run: node --check scripts/summarize-v38-promotion-readiness.mjs
+        run: |
+          node --check scripts/summarize-v38-historical-promotion-evidence.mjs
+          node --check scripts/summarize-v38-promotion-readiness.mjs
+      - name: Download latest successful preregistered historical convergence run
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/historical
+          HIST_RUN=$(gh api "repos/${GH_REPO}/actions/workflows/v38-historical-convergence.yml/runs?status=success&per_page=20" --jq '.workflow_runs[0].id // empty' || true)
+          if [ -n "$HIST_RUN" ]; then
+            mapfile -t HARTS < <(gh api "repos/${GH_REPO}/actions/runs/${HIST_RUN}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-historical-convergence-"))) | .name' || true)
+            for A in "${HARTS[@]:-}"; do
+              [ -n "$A" ] || continue
+              mkdir -p "incoming/historical/${HIST_RUN}/${A}"
+              gh run download "$HIST_RUN" --repo "$GH_REPO" --name "$A" --dir "incoming/historical/${HIST_RUN}/${A}" || true
+            done
+          fi
+          echo "Historical JSON files: $(find incoming/historical -type f -name '*.json' | wc -l)"
+      - name: Build historical promotion evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find incoming/historical -type f -name 'v38-historical-convergence-*.json' | grep -q .; then
+            node scripts/summarize-v38-historical-promotion-evidence.mjs incoming/historical
+          else
+            echo 'No successful historical convergence artifact available yet; promotion remains fail-closed.'
+          fi
       - name: Download finalized V5 postgame artifacts
         shell: bash
         run: |
@@ -46,37 +73,52 @@ jobs:
           done
           echo "Final V5 JSON files: $(find incoming/postgame -type f -name '*-evaluated.json' | wc -l)"
       - name: Aggregate promotion readiness
-        run: node scripts/summarize-v38-promotion-readiness.mjs incoming/postgame
+        shell: bash
+        run: |
+          HIST=''
+          [ -f snapshots/v38-historical-promotion-evidence.json ] && HIST='snapshots/v38-historical-promotion-evidence.json'
+          node scripts/summarize-v38-promotion-readiness.mjs incoming/postgame "$HIST"
       - name: Verify fail-closed readiness contract
         shell: bash
         run: |
           python3 - <<'PY'
           import json
           z=json.load(open('snapshots/v38-promotion-readiness.json'))
-          assert z['protocol']=='V38_PROMOTION_READINESS_AGGREGATE_V3'
+          assert z['protocol']=='V38_PROMOTION_READINESS_AGGREGATE_V4'
           assert z['research_only'] is True
           assert z['scoring_enabled'] is False
           assert z['scoring_eligible'] is False
           assert z['auto_promote'] is False
           assert z['manifest_required'] is True
-          assert z['dedupe_rule']=='valid V38_EVIDENCE_MANIFEST_V1 dedupe_key, current selected-pool implementation only, then one immutable evidence set per slate date'
+          assert z['historical_manifest_required'] is True
+          assert z['dedupe_rule']=='valid V38_EVIDENCE_MANIFEST_V1 prospective evidence + one preregistered V38_HISTORICAL_PROMOTION_EVIDENCE_V1 manifest for Aug23-Sep1'
           assert isinstance(z['current_selected_pool_report_implementation_sha256'],str) and len(z['current_selected_pool_report_implementation_sha256'])==64
           assert z['selected_definition']=='quality_plus_pitchfit'
           assert isinstance(z['rejected_artifacts'], list)
           assert z['gate']['auto_promote'] is False
           assert z['gate']['scoring_enabled'] is False
           assert z['evidence']['pool_target_forced'] is False
+          if z['historical_input']:
+            h=z['historical_input']
+            assert z['historical_rejection'] is None
+            assert h['protocol']=='V38_HISTORICAL_PROMOTION_EVIDENCE_V1'
+            assert h['manifest_valid'] is True
+            assert h['historical_slates']==10
+            assert h['selected_definition']=='quality_plus_pitchfit'
+            assert h['selected_rule']=='4of6_iso+pitchfit_top_quartile'
           for s in z.get('slates',[]):
             assert isinstance(s.get('evidence_dedupe_key'),str) and s['evidence_dedupe_key']
             assert isinstance(s.get('manifest_digest'),str) and len(s['manifest_digest'])==64
             assert isinstance(s.get('rule_fingerprint'),str) and len(s['rule_fingerprint'])==64
             assert isinstance(s.get('artifact_fingerprint'),str) and len(s['artifact_fingerprint'])==64
             assert s.get('selected_pool_report_implementation_sha256')==z['current_selected_pool_report_implementation_sha256']
-          print('V38_PROMOTION_GATE='+json.dumps({'prospective':z['prospective'],'rejected_artifacts':len(z['rejected_artifacts']),'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
+          print('V38_PROMOTION_GATE='+json.dumps({'historical_rejection':z['historical_rejection'],'historical_slates':z['evidence']['historical_slates'],'prospective':z['prospective'],'rejected_artifacts':len(z['rejected_artifacts']),'checks':z['gate']['checks'],'eligible_for_promotion':z['gate']['eligible_for_promotion']}))
           PY
       - uses: actions/upload-artifact@v4
         with:
           name: v38-promotion-readiness-${{ github.run_id }}
-          path: snapshots/v38-promotion-readiness.json
-          if-no-files-found: error
+          path: |
+            snapshots/v38-historical-promotion-evidence.json
+            snapshots/v38-promotion-readiness.json
+          if-no-files-found: warn
           retention-days: 90
