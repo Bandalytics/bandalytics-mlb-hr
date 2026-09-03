@@ -91,9 +91,12 @@ jobs:
           assert a['production_rule_changed'] is False
           assert a['final_pool_promoted'] is False
           assert a['review_queue_no_minimum'] is True
+          assert a['slate_size_source']=='VERIFIED_PROFILE_PREGAME_PLUS_EXCLUDED_STARTED_UNIQUE_GAMEPK'
           games=a['slate_game_count']; ceiling=a['dynamic_review_policy']['ceiling']
+          assert isinstance(games,int) and games>=1
           assert ceiling==(20 if games<=8 else 25 if games<=12 else 30)
           assert z['counts']['slate_games']==games
+          assert z['counts']['remaining_pregame_games']<=games
           assert z['counts']['review_queue_ceiling']==ceiling
           assert re.fullmatch(r'[a-f0-9]{64}',z.get('profile_snapshot_sha256') or '')
           assert z['park_factor_policy']['requires_exact_effective_bat_side'] is True
@@ -143,7 +146,7 @@ jobs:
           assert z['counts']['final_review_queue_rows']==len(z['review_queue'])
           assert len(z['review_queue'])<=ceiling or z['counts']['core_rows']>ceiling
           assert z['counts']['review_queue_trimmed_rows']==max(0,retain-len(z['review_queue']))
-          print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
+          print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'pool_architecture':a,'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
         with:
