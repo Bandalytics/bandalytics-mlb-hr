@@ -4,7 +4,7 @@ on:
     - cron: '45 16,17,19,21,23 * * *'
   workflow_dispatch:
   workflow_run:
-    workflows: ['v38 Pitchfit Distribution','v38 Recent BBE Distribution']
+    workflows: ['v38 Pregame Snapshot','v38 Context Snapshot','v38 Park Factor Snapshot','v38 Pitchfit Distribution','v38 Recent BBE Distribution']
     types: [completed]
     branches: [main]
   push:
