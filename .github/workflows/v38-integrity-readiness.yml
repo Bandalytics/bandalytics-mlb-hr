@@ -5,6 +5,7 @@ on:
     paths:
       - 'api-handlers/research-board.js'
       - 'direct-research-ui.js'
+      - 'native-feed-core.mjs'
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-park-factor-policy.mjs'
       - 'v38-evidence-manifest.mjs'
@@ -13,6 +14,7 @@ on:
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gascan-slate.mjs'
+      - 'test-native-feed.mjs'
       - 'test-direct-research-ui.mjs'
       - 'test-v38-research-board.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
@@ -32,6 +34,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Test native feed identity and batter handedness
+        run: node test-native-feed.mjs
       - name: Test locked +700 policy
         run: node test-mlb-hr-locked-policy.mjs
       - name: Test research-board policy contract
