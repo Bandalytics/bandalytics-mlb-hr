@@ -1,0 +1,89 @@
+name: v38 Prospective Escape Watch
+on:
+  workflow_run:
+    workflows: ['v38 Postgame Evaluation']
+    types: [completed]
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'v38-prospective-escape-watch.mjs'
+      - 'test-v38-prospective-escape-watch.mjs'
+      - 'scripts/evaluate-v38-prospective-escape-watch.mjs'
+      - '.github/workflows/v38-prospective-escape-watch.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evaluate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Contract tests
+        run: |
+          node test-v38-prospective-escape-watch.mjs
+          node --check scripts/evaluate-v38-prospective-escape-watch.mjs
+      - name: Download finalized postgame artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/postgame snapshots
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=100" --jq '.workflow_runs[].id' || true)
+          for ID in "${IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-postgame-"))) | .name' || true)
+            for A in "${ARTS[@]:-}"; do
+              [ -n "$A" ] || continue
+              mkdir -p "incoming/postgame/${ID}/${A}"
+              gh run download "$ID" --repo "$GH_REPO" --name "$A" --dir "incoming/postgame/${ID}/${A}" || true
+            done
+          done
+      - name: Evaluate only preregistered future slates
+        shell: bash
+        run: |
+          set -euo pipefail
+          COUNT=0
+          while IFS= read -r F; do
+            D=$(node -e "const z=require('./'+process.argv[1]);console.log(z.date||'')" "$F")
+            if [[ "$D" < '2026-09-04' ]]; then
+              continue
+            fi
+            node scripts/evaluate-v38-prospective-escape-watch.mjs "$F" "snapshots/v38-prospective-escape-watch-${D}.json"
+            COUNT=$((COUNT+1))
+          done < <(find incoming/postgame -type f -name '*-evaluated.json' | sort)
+          echo "Eligible future watch evaluations: $COUNT"
+      - name: Verify no backfill
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob,json
+          for f in glob.glob('snapshots/v38-prospective-escape-watch-*.json'):
+            z=json.load(open(f))
+            assert z['protocol']=='V38_PROSPECTIVE_ESCAPE_WATCH_EVAL_V1'
+            assert z['date']>='2026-09-04'
+            assert z['backfill_allowed'] is False
+            assert z['historical_promotion_evidence_allowed'] is False
+            assert z['interpretation']['control_definition_unchanged'] is True
+            assert z['interpretation']['watch_groups_do_not_join_core'] is True
+            assert z['interpretation']['threshold_changes_from_watch'] is False
+            assert z['scoring_enabled'] is False
+            assert z['scoring_eligible'] is False
+            assert z['auto_promote'] is False
+          print('V38_ESCAPE_WATCH_NO_BACKFILL_OK')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v38-prospective-escape-watch-${{ github.run_id }}
+          path: snapshots/v38-prospective-escape-watch-*.json
+          if-no-files-found: warn
+          retention-days: 90
