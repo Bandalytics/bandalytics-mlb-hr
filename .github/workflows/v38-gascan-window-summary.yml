@@ -1,0 +1,79 @@
+name: v38 Gascan Window Summary
+on:
+  workflow_run:
+    workflows: ['v38 Historical Convergence']
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  summarize:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/summarize-v38-gascan-window.mjs
+      - name: Resolve historical convergence run
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            RUN_ID='${{ github.event.workflow_run.id }}'
+          else
+            RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-historical-convergence.yml/runs?status=success&per_page=20" --jq '.workflow_runs[0].id')
+          fi
+          [ -n "$RUN_ID" ] || { echo 'No successful historical convergence run'; exit 2; }
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Download frozen-window artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID='${{ steps.source.outputs.run_id }}'
+          mkdir -p incoming/gascan
+          mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-historical-convergence-"))) | .name')
+          for A in "${ARTS[@]:-}"; do
+            [ -n "$A" ] || continue
+            mkdir -p "incoming/gascan/$A"
+            gh run download "$RUN_ID" --repo "$GH_REPO" --name "$A" --dir "incoming/gascan/$A"
+          done
+          echo "Gascan files: $(find incoming/gascan -type f -name 'v38-gascan-team-cluster-*.json' | wc -l)"
+      - name: Aggregate all frozen slates
+        run: node scripts/summarize-v38-gascan-window.mjs incoming/gascan snapshots/v38-gascan-window-summary.json
+      - name: Verify frozen-window diagnostic contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          z=json.load(open('snapshots/v38-gascan-window-summary.json'))
+          assert z['protocol']=='V38_GASCAN_WINDOW_SUMMARY_V1'
+          assert z['window']['start']=='2026-08-26'
+          assert z['window']['end']=='2026-09-01'
+          assert z['window']['slates']==7
+          assert z['point_in_time'] is True
+          assert z['as_of_verified'] is True
+          assert z['qualifying_backtest'] is False
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['generic_bullpen_workload_used'] is False
+          assert z['environment_used'] is False
+          assert z['thresholds_status']=='RESEARCH_CANDIDATE_NOT_PRODUCTION_LOCKED'
+          assert z['conclusions']['promotion_status']=='DIAGNOSTIC_ONLY_NO_PRODUCTION_STACK_PROMOTION'
+          print('V38_GASCAN_WINDOW_OK='+json.dumps({'window':z['window'],'quality_gascan':z['groups']['quality_4of6_iso_gascan'],'quality_non_gascan':z['groups']['quality_4of6_iso_non_gascan'],'gascan_context':z['attack_groups']['gascan_context'],'no_gascan_context':z['attack_groups']['no_gascan_context'],'conclusions':z['conclusions']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-gascan-window-summary-${{ github.run_id }}
+          path: snapshots/v38-gascan-window-summary.json
+          if-no-files-found: error
+          retention-days: 90
