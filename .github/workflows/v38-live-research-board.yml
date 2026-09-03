@@ -37,17 +37,18 @@ jobs:
         run: |
           set -euo pipefail
           DATE=$(TZ=America/New_York date +%F)
+          NEXT_UTC_DATE=$(date -u -d "$DATE +1 day" +%F)
           mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe incoming/park
-          PROFILE_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
-          if [ -z "${PROFILE_ID:-}" ]; then echo "No profile snapshot for ${DATE}"; exit 3; fi
-          gh run download "$PROFILE_ID" --repo "$GH_REPO" --name "v38-pregame-${PROFILE_ID}" --dir incoming/profile
-          mapfile -t CTX_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          mapfile -t PROFILE_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=30" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
+          for ID in "${PROFILE_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/profile/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pregame-${ID}" --dir "incoming/profile/$ID" || true; done
+          if [ "$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l)" -eq 0 ]; then echo "No profile snapshot candidates for ${DATE}"; exit 3; fi
+          mapfile -t CTX_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
           for ID in "${CTX_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/contexts/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true; done
-          mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
           for ID in "${PF_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/pitchfit/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true; done
-          mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
           for ID in "${BB_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/bbe/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true; done
-          mapfile -t PARK_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          mapfile -t PARK_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
           for ID in "${PARK_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/park/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-park-factors-${ID}" --dir "incoming/park/$ID" || true; done
           echo "DATE=$DATE" >> "$GITHUB_ENV"
           echo "profile=$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l) context=$(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) pitchfit=$(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l) bbe=$(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l) park=$(find incoming/park -type f -name 'v38-park-factors-*.json' | wc -l)"
@@ -68,6 +69,7 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['pool_target_forced'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          assert z['park_factor_policy']['requires_exact_effective_bat_side'] is True
           assert z['park_factor_policy']['hard_gate'] is False
           assert z['park_factor_policy']['standalone_hr_boost'] is False
           assert z['park_factor_policy']['scoring_eligible'] is False
@@ -77,10 +79,13 @@ jobs:
               assert isinstance(r.get('longshot_policy'),dict)
             pf=r.get('park_factor')
             if pf:
+              assert r.get('context',{}).get('effective_bat_side') in ('L','R')
+              assert pf['bat_side']==r['context']['effective_bat_side']
               assert pf['hard_gate'] is False
               assert pf['standalone_hr_boost'] is False
               assert pf['scoring_eligible'] is False
               assert pf['captured_at'] < r['start_time']
+              assert pf.get('snapshot_sha256')
           print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
