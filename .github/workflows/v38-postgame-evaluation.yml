@@ -12,7 +12,7 @@ on:
       - 'v38-modifier-artifacts.mjs'
       - '.github/workflows/v38-postgame-evaluation.yml'
   schedule:
-    - cron: '0 6,8,10 * * *'
+    - cron: '13 6,8,10 * * *'
   workflow_dispatch:
     inputs:
       evaluation_date:
@@ -34,9 +34,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Selected-pool market regression
-        run: node test-v38-selected-pool-report.mjs
-      - name: Find successful pregame snapshot
+      - name: Prospective evaluator preflight
+        run: |
+          node --check scripts/evaluate-v38-pregame-snapshot.mjs
+          node test-v38-selected-pool-report.mjs
+      - name: Find successful pregame snapshot unless date is already immutable
         id: find
         shell: bash
         run: |
@@ -49,6 +51,22 @@ jobs:
             DATE=$(TZ=America/New_York date -d 'yesterday' +%F)
           fi
           echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+
+          EXISTING=''
+          mapfile -t POST_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=100" --jq '.workflow_runs[].id' || true)
+          for ID in "${POST_IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            A=$(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq ".artifacts[] | select(.expired==false and (.name|startswith(\"v38-postgame-${DATE}-\"))) | .id" | head -1 || true)
+            if [ -n "${A:-}" ]; then EXISTING="${ID}:${A}"; break; fi
+          done
+          if [ -n "$EXISTING" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "immutable_existing=true" >> "$GITHUB_OUTPUT"
+            echo "Immutable finalized postgame evidence already exists for ${DATE} (${EXISTING}); regeneration is prohibited."
+            exit 0
+          fi
+          echo "immutable_existing=false" >> "$GITHUB_OUTPUT"
+
           RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
           if [ -z "${RUN_ID:-}" ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
@@ -125,9 +143,11 @@ jobs:
           set -euo pipefail
           EVAL=$(find incoming/profile -type f -name '*-evaluated.json' | head -1)
           python3 - "$EVAL" <<'PY'
-          import json,sys
+          import json,sys,re
           z=json.load(open(sys.argv[1]))
           assert z['evaluation_protocol']=='V38_PREGAME_OUTCOME_EVAL_V5'
+          assert z['row_identity']=='GAMEPK_PLAYER_ID'
+          assert z['doubleheader_safe'] is True
           assert z['point_in_time'] is True
           assert z['qualifying_backtest'] is True
           assert z['prospective_validation'] is True
@@ -137,7 +157,9 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['model_scoring_changed'] is False
           assert z['final_games']==z['eligible_games']
-          assert z['modifier_selection_rule']=='latest valid artifact strictly before each game start and containing that game'
+          assert z['modifier_selection_rule']=='latest valid artifact strictly before each game start and containing that exact game'
+          assert z['played_profiled_player_games']==z['played_profiled_hitters']==len(z.get('rows',[]))
+          assert z['complete_profiled_player_games']==z['complete_profiled_hitters']
           assert isinstance(z['candidate_rule_results'],list)
           assert isinstance(z['context_convergence_results'],list)
           assert isinstance(z['baseball_convergence_results'],list)
@@ -165,13 +187,26 @@ jobs:
           assert z['context_coverage']['snapshots_loaded'] >= 0
           assert z['modifier_coverage']['pitchfit_artifacts_loaded'] >= 0
           assert z['modifier_coverage']['bbe_artifacts_loaded'] >= 0
+          seen=set()
           for r in z.get('rows',[]):
+            assert r.get('row_identity')=='GAMEPK_PLAYER_ID'
+            assert isinstance(r.get('gamePk'),int) and isinstance(r.get('player_id'),int)
+            key=(r['gamePk'],r['player_id']); assert key not in seen; seen.add(key)
             ev=r.get('modifier_evidence') or {}
-            if ev.get('pitchfit_captured_at'):
+            pf=r.get('pitchfit'); bb=r.get('bbe')
+            if pf is not None:
+              assert ev.get('pitchfit_cryptographically_verified') is True
+              assert re.fullmatch(r'[a-f0-9]{64}',ev.get('pitchfit_snapshot_sha256') or '')
+              assert int(pf.get('gamePk'))==int(r['gamePk'])
               assert ev.get('per_game_strictly_pregame') is True
-            if ev.get('bbe_captured_at'):
+            if bb is not None:
+              assert ev.get('bbe_cryptographically_verified') is True
+              assert re.fullmatch(r'[a-f0-9]{64}',ev.get('bbe_snapshot_sha256') or '')
+              assert int(bb.get('gamePk'))==int(r['gamePk'])
               assert ev.get('per_game_strictly_pregame') is True
-          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results','selected_pool_report','evidence_manifest']}))
+            if pf is None and bb is None:
+              assert ev.get('cryptographically_verified') is False
+          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','row_identity','doubleheader_safe','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results','selected_pool_report','evidence_manifest']}))
           PY
       - uses: actions/upload-artifact@v4
         if: steps.eval.outputs.ready == 'true'
