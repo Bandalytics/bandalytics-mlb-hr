@@ -15,6 +15,8 @@ on:
       - 'v38-research-pool-hierarchy.mjs'
       - 'v38-pool-architecture-v2.mjs'
       - 'test-v38-pool-architecture-v2.mjs'
+      - 'v38-pool-shortlist-v2.mjs'
+      - 'test-v38-pool-shortlist-v2.mjs'
       - 'v38-longshot-quality.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
@@ -43,6 +45,7 @@ jobs:
           node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
           node test-v38-pool-architecture-v2.mjs
+          node test-v38-pool-shortlist-v2.mjs
           node test-v38-park-factor-policy.mjs
       - name: Download latest valid daily research evidence
         shell: bash
@@ -82,6 +85,7 @@ jobs:
           assert z['pool_target_forced'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
           assert z['pool_architecture']['protocol']=='V38_POOL_ARCHITECTURE_V2'
+          assert z['pool_architecture']['shortlist_protocol']=='V38_POOL_SHORTLIST_V2'
           assert z['pool_architecture']['first_prospective_date']=='2026-09-04'
           assert z['pool_architecture']['production_rule_changed'] is False
           assert z['pool_architecture']['final_pool_promoted'] is False
@@ -92,11 +96,16 @@ jobs:
           assert z['park_factor_policy']['scoring_eligible'] is False
           assert isinstance(z['rows'],list)
           layers={'CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH','OUTSIDE_PRIMARY_POOL'}
-          layer_counts={k:0 for k in layers}
+          statuses={'RETAIN_FOR_FINAL_REVIEW','PENDING_EVIDENCE','OUTSIDE_PRIMARY_POOL'}
+          layer_counts={k:0 for k in layers}; retain=0; pending=0
           for r in z['rows']:
             assert r.get('pool_layer') in layers
+            assert r.get('shortlist',{}).get('status') in statuses
             layer_counts[r['pool_layer']]+=1
             assert r.get('structured_pool_candidate')==(r['pool_layer']!='OUTSIDE_PRIMARY_POOL')
+            if r['shortlist']['status']=='RETAIN_FOR_FINAL_REVIEW': retain+=1
+            if r['shortlist']['status']=='PENDING_EVIDENCE': pending+=1
+            if r['pool_layer']=='CORE': assert r['shortlist']['status']=='RETAIN_FOR_FINAL_REVIEW'
             if r['pool_layer']=='ESCAPE_WATCH':
               assert r.get('quality_tier')=='BASE_ELIGIBLE_4OF6'
               assert (r.get('american_odds') or 0)>=700
@@ -120,6 +129,8 @@ jobs:
           assert z['counts']['quality_value_pool_rows']==layer_counts['QUALITY_VALUE_POOL']
           assert z['counts']['escape_watch_rows']==layer_counts['ESCAPE_WATCH']
           assert z['counts']['structured_pool_candidates']==sum(layer_counts[k] for k in ('CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH'))
+          assert z['counts']['shortlist_retain_rows']==retain
+          assert z['counts']['pending_evidence_rows']==pending
           print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
