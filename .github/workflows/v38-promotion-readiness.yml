@@ -50,9 +50,15 @@ jobs:
       - name: Build historical promotion evidence
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          rm -f snapshots/v38-historical-promotion-evidence.json
           if find incoming/historical -type f -name 'v38-historical-convergence-*.json' | grep -q .; then
-            node scripts/summarize-v38-historical-promotion-evidence.mjs incoming/historical
+            if node scripts/summarize-v38-historical-promotion-evidence.mjs incoming/historical; then
+              echo 'Preregistered ten-slate historical manifest accepted.'
+            else
+              rm -f snapshots/v38-historical-promotion-evidence.json
+              echo 'Historical artifacts do not yet satisfy the preregistered ten-slate manifest; promotion remains fail-closed.'
+            fi
           else
             echo 'No successful historical convergence artifact available yet; promotion remains fail-closed.'
           fi
@@ -106,6 +112,9 @@ jobs:
             assert h['historical_slates']==10
             assert h['selected_definition']=='quality_plus_pitchfit'
             assert h['selected_rule']=='4of6_iso+pitchfit_top_quartile'
+          else:
+            assert z['historical_rejection']=='MISSING_HISTORICAL_PROMOTION_MANIFEST'
+            assert z['evidence']['historical_slates']==0
           for s in z.get('slates',[]):
             assert isinstance(s.get('evidence_dedupe_key'),str) and s['evidence_dedupe_key']
             assert isinstance(s.get('manifest_digest'),str) and len(s['manifest_digest'])==64
