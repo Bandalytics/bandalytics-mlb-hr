@@ -15,8 +15,8 @@ on:
       - 'v38-research-pool-hierarchy.mjs'
       - 'v38-pool-architecture-v2.mjs'
       - 'test-v38-pool-architecture-v2.mjs'
-      - 'v38-pool-shortlist-v2.mjs'
-      - 'test-v38-pool-shortlist-v2.mjs'
+      - 'v38-pool-shortlist-v3.mjs'
+      - 'test-v38-pool-shortlist-v3.mjs'
       - 'v38-longshot-quality.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
@@ -45,7 +45,7 @@ jobs:
           node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
           node test-v38-pool-architecture-v2.mjs
-          node test-v38-pool-shortlist-v2.mjs
+          node test-v38-pool-shortlist-v3.mjs
           node test-v38-park-factor-policy.mjs
       - name: Download latest valid daily research evidence
         shell: bash
@@ -84,13 +84,17 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['pool_target_forced'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
-          assert z['pool_architecture']['protocol']=='V38_POOL_ARCHITECTURE_V2'
-          assert z['pool_architecture']['shortlist_protocol']=='V38_POOL_SHORTLIST_V2'
-          assert z['pool_architecture']['first_prospective_date']=='2026-09-04'
-          assert z['pool_architecture']['production_rule_changed'] is False
-          assert z['pool_architecture']['final_pool_promoted'] is False
-          assert z['pool_architecture']['review_queue_max']==25
-          assert z['pool_architecture']['review_queue_no_minimum'] is True
+          a=z['pool_architecture']
+          assert a['protocol']=='V38_POOL_ARCHITECTURE_V2'
+          assert a['shortlist_protocol']=='V38_POOL_SHORTLIST_V3'
+          assert a['first_prospective_date']=='2026-09-04'
+          assert a['production_rule_changed'] is False
+          assert a['final_pool_promoted'] is False
+          assert a['review_queue_no_minimum'] is True
+          games=a['slate_game_count']; ceiling=a['dynamic_review_policy']['ceiling']
+          assert ceiling==(20 if games<=8 else 25 if games<=12 else 30)
+          assert z['counts']['slate_games']==games
+          assert z['counts']['review_queue_ceiling']==ceiling
           assert re.fullmatch(r'[a-f0-9]{64}',z.get('profile_snapshot_sha256') or '')
           assert z['park_factor_policy']['requires_exact_effective_bat_side'] is True
           assert z['park_factor_policy']['hard_gate'] is False
@@ -137,7 +141,7 @@ jobs:
           assert z['counts']['shortlist_retain_rows']==retain
           assert z['counts']['pending_evidence_rows']==pending
           assert z['counts']['final_review_queue_rows']==len(z['review_queue'])
-          assert len(z['review_queue'])<=25 or z['counts']['core_rows']>25
+          assert len(z['review_queue'])<=ceiling or z['counts']['core_rows']>ceiling
           assert z['counts']['review_queue_trimmed_rows']==max(0,retain-len(z['review_queue']))
           print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
           PY
