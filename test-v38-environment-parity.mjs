@@ -1,0 +1,14 @@
+import assert from'node:assert/strict';
+import{parseWind,normalizeCondition,compareEnvironmentParity}from'./v38-environment-parity-core.mjs';
+import{V38_ENVIRONMENT_PARITY_GATE,evaluateEnvironmentParity}from'./v38-environment-parity-gate.mjs';
+assert.deepEqual(parseWind('8 mph, Out To LF'),{mph:8,klass:'OUT'});
+assert.deepEqual(parseWind('10 mph, L To R'),{mph:10,klass:'CROSS'});
+assert.equal(normalizeCondition('Partly Cloudy'),'PARTLY_CLOUDY');
+const pre={date:'2026-09-02',captured_at:'2026-09-02T20:00:00Z',pregame_games:Array.from({length:10},(_,i)=>({gamePk:i+1,venue:`Park ${i}`,weather:{condition:'Partly Cloudy',temp_f:80+i%2,wind:'8 mph, Out To LF'}}))};
+const rec=Array.from({length:10},(_,i)=>({gamePk:i+1,venue:`Park ${i}`,weather:{condition:'Partly Cloudy',temp_f:82+i%2,wind:'10 mph, Out To LF'}}));
+const c=compareEnvironmentParity(pre,rec);
+assert.equal(c.captured_games,10);assert.equal(c.matched_games,10);assert.equal(c.weather_covered_games,10);assert.equal(c.venue_exact_rate_pct,100);assert.equal(c.weather_condition_agreement_pct,100);assert.equal(c.wind_class_agreement_pct,100);assert.equal(c.temperature_mae_f,2);assert.equal(c.wind_mph_mae,2);
+const locked=evaluateEnvironmentParity({...c,threshold_review:false,deliberate_approval:false});assert.equal(locked.pass,false);assert.equal(locked.checks.captured_games,true);assert.equal(locked.checks.weather_covered_games,true);assert.equal(locked.checks.threshold_review,false);assert.equal(locked.checks.deliberate_approval,false);
+const approved=evaluateEnvironmentParity({...c,threshold_review:true,deliberate_approval:true});assert.equal(approved.pass,true);assert.equal(V38_ENVIRONMENT_PARITY_GATE.auto_promote,false);assert.equal(V38_ENVIRONMENT_PARITY_GATE.scoring_enabled,false);
+const sparse=evaluateEnvironmentParity({...c,captured_games:9,threshold_review:true,deliberate_approval:true});assert.equal(sparse.pass,false);assert.equal(sparse.checks.captured_games,false);
+console.log('V38 ENVIRONMENT PARITY PASS');
