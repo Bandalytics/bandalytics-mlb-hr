@@ -1,8 +1,9 @@
 import{evaluateLongshot700}from'./mlb-hr-locked-policy.mjs';
 function americanOddsBand(odds){const n=Number(odds);if(!Number.isFinite(n))return'NO_MARKET';if(n<400)return'LT_400';if(n<500)return'400_499';if(n<700)return'500_699';if(n<1000)return'700_999';return'1000_PLUS'}
-function marketOdds(r){const n=Number(r?.context?.market?.current_odds??r?.context?.market?.american_odds);return Number.isFinite(n)?n:null}
+function oddsNum(v){if(v==null||v==='')return null;const n=Number(v);return Number.isFinite(n)?n:null}
+function marketOdds(r){const m=r?.context?.market;for(const v of[m?.current_odds,m?.best_odds,m?.american_odds]){const n=oddsNum(v);if(n!=null)return n}return null}
 function rate(h,n){return n?+(100*h/n).toFixed(2):null}
-function unitProfit(odds,win){const o=Number(odds);if(!Number.isFinite(o))return null;if(!win)return-1;return o>0?o/100:100/Math.abs(o)}
+function unitProfit(odds,win){const o=oddsNum(odds);if(o==null)return null;if(!win)return-1;return o>0?o/100:100/Math.abs(o)}
 function marketReturn(rows){const priced=rows.map(r=>({r,o:marketOdds(r)})).filter(x=>x.o!=null),profit=priced.reduce((s,x)=>s+unitProfit(x.o,x.r.homer===true),0);return{market_priced_n:priced.length,flat_unit_staked:priced.length,flat_unit_profit:+profit.toFixed(3),flat_unit_roi_pct:priced.length?+(100*profit/priced.length).toFixed(2):null}}
 function summarize(rows,baseRate){const n=rows.length,hr=rows.filter(r=>r.homer).length;return{n,hr,hr_rate:rate(hr,n),hr_capture:null,lift_vs_base:n&&baseRate?+((hr/n)/baseRate).toFixed(3):null,...marketReturn(rows)}}
 function profileQuality(r){return r?.candidate_rules?.PROFILE_4OF6_PLUS_ISO===true||r?.candidate_rules?.PROFILE_5OF6_PLUS===true||r?.candidate_rules?.GATE_4OF6_PLUS_ISO===true||r?.candidate_rules?.GATE_5OF6_PLUS===true||(+r.gate_count>=4&&r?.gate_passes?.iso===true)}
