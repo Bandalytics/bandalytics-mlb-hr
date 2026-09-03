@@ -1,0 +1,66 @@
+name: v38 Specific Bullpen Validation
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/analyze-v38-specific-bullpen-slate.mjs'
+      - '.github/workflows/v38-specific-bullpen-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  bullpen:
+    strategy:
+      fail-fast: false
+      matrix:
+        replay_date: ['2026-08-26','2026-08-27','2026-08-28','2026-08-29','2026-08-30','2026-08-31','2026-09-01']
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/analyze-v38-specific-bullpen-slate.mjs
+      - name: Download frozen source artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-historical-convergence.yml/runs?status=success&per_page=20" --jq '.workflow_runs[0].id')
+          NAME="v38-historical-convergence-${{ matrix.replay_date }}-${RUN_ID}"
+          mkdir -p incoming snapshots
+          gh run download "$RUN_ID" --repo "$GH_REPO" --name "$NAME" --dir incoming
+          test -f "incoming/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
+          test -f "incoming/v38-bullpen-freshness-${{ matrix.replay_date }}.json"
+      - name: Analyze specific arm quality and availability
+        run: node scripts/analyze-v38-specific-bullpen-slate.mjs "${{ matrix.replay_date }}" "incoming/v38-point-in-time-replay-${{ matrix.replay_date }}.json" "incoming/v38-bullpen-freshness-${{ matrix.replay_date }}.json"
+      - name: Verify fail-closed diagnostic contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json,glob
+          p=glob.glob('snapshots/v38-specific-bullpen-*.json')[0]
+          z=json.load(open(p))
+          assert z['protocol']=='V38_SPECIFIC_BULLPEN_CONTEXT_DIAGNOSTIC_V1'
+          assert z['point_in_time'] is True and z['as_of_verified'] is True
+          assert z['qualifying_backtest'] is False
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False and z['scoring_eligible'] is False
+          assert z['generic_team_workload_can_boost'] is False
+          assert z['coverage_scope']=='RECENTLY_OBSERVED_RELIEF_ARMS_ONLY_NOT_FULL_ACTIVE_BULLPEN'
+          assert z['lineup_rows'] > 0
+          assert z['arm_ids'] > 0
+          assert z['joined_rows'] > 0
+          print('V38_SPECIFIC_BULLPEN_OK',{'date':z['date'],'arms':z['arm_ids'],'joined':z['joined_rows'],'groups':z['groups']})
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-specific-bullpen-${{ matrix.replay_date }}-${{ github.run_id }}
+          path: snapshots/v38-specific-bullpen-${{ matrix.replay_date }}.json
+          if-no-files-found: error
+          retention-days: 90
