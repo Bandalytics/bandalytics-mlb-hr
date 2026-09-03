@@ -4,7 +4,10 @@ on:
     branches: [main]
     paths:
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
+      - 'scripts/select-v38-postgame-profile-snapshot.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
+      - 'v38-profile-snapshot-selector.mjs'
+      - 'test-v38-profile-snapshot-selector.mjs'
       - 'v38-selected-pool-report.mjs'
       - 'test-v38-selected-pool-report.mjs'
       - 'v38-evidence-manifest.mjs'
@@ -39,9 +42,11 @@ jobs:
       - name: Prospective evaluator preflight
         run: |
           node --check scripts/evaluate-v38-pregame-snapshot.mjs
+          node --check scripts/select-v38-postgame-profile-snapshot.mjs
+          node test-v38-profile-snapshot-selector.mjs
           node test-v38-postgame-game-identity.mjs
           node test-v38-selected-pool-report.mjs
-      - name: Find successful pregame snapshot unless date is already immutable
+      - name: Resolve canonical pregame snapshot unless date is already immutable
         id: find
         shell: bash
         run: |
@@ -70,18 +75,28 @@ jobs:
           fi
           echo "immutable_existing=false" >> "$GITHUB_OUTPUT"
 
-          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
-          if [ -z "${RUN_ID:-}" ]; then
+          mapfile -t RUN_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          if [ "${#RUN_IDS[@]}" -eq 0 ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No successful v38 pregame snapshot for ${DATE}; nothing to evaluate."
+            echo "No successful v38 pregame snapshot candidates for ${DATE}; nothing to evaluate."
             exit 0
           fi
-          echo "found=true" >> "$GITHUB_OUTPUT"
-          echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
           mkdir -p incoming/profile incoming/contexts incoming/modifiers
-          gh run download "$RUN_ID" --repo "$GH_REPO" --name "v38-pregame-${RUN_ID}" --dir incoming/profile
-          SNAP=$(find incoming/profile -type f -name 'v38-pregame-*.json' | head -1)
-          if [ -z "${SNAP:-}" ]; then echo "Snapshot artifact exists but JSON is missing"; exit 4; fi
+          for ID in "${RUN_IDS[@]}"; do
+            [ -n "$ID" ] || continue
+            mkdir -p "incoming/profile/$ID"
+            gh run download "$ID" --repo "$GH_REPO" --name "v38-pregame-${ID}" --dir "incoming/profile/$ID" || true
+          done
+          if [ "$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l)" -eq 0 ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No downloadable v38 pregame snapshot candidates for ${DATE}; nothing to evaluate."
+            exit 0
+          fi
+          SELECTION=$(node scripts/select-v38-postgame-profile-snapshot.mjs incoming/profile "$DATE")
+          echo "$SELECTION"
+          SNAP=$(printf '%s\n' "$SELECTION" | tail -1)
+          if [ -z "${SNAP:-}" ] || [ ! -f "$SNAP" ]; then echo "Canonical profile selector returned no file"; exit 4; fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
           echo "snapshot=${SNAP}" >> "$GITHUB_OUTPUT"
       - name: Download all same-day context snapshots
         if: steps.find.outputs.found == 'true'
