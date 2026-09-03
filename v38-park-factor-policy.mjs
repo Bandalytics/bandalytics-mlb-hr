@@ -20,6 +20,7 @@ export const V38_PARK_FACTOR_POLICY=Object.freeze({
 const time=x=>Date.parse(x);
 const norm=s=>String(s??'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
 const hand=s=>{const x=String(s??'').trim().toUpperCase();return x==='L'||x==='R'?x:'ALL'};
+export function effectiveParkBatSide(batSide,oppPitcherHand){const b=String(batSide??'').trim().toUpperCase(),p=String(oppPitcherHand??'').trim().toUpperCase();if(b==='L'||b==='R')return b;if(b==='S'&&p==='R')return'L';if(b==='S'&&p==='L')return'R';return null;}
 export function validParkFactorSnapshot(s){
   return !!s&&s.protocol===V38_PARK_FACTOR_POLICY.protocol&&s.point_in_time===true&&s.research_only===true&&s.scoring_enabled===false&&s.scoring_eligible===false&&Number.isFinite(time(s.captured_at))&&Array.isArray(s.factors);
 }
