@@ -123,6 +123,9 @@ const body = {
   protocol:'V38_DAILY_RESEARCH_BOARD_V2', date, generated_at:new Date().toISOString(),
   source_profile_snapshot_sha256:snap.sha256, source_profile_captured_at:snap.captured_at,
   point_in_time:true, research_only:true, scoring_enabled:false, scoring_eligible:false, model_scoring_changed:false,
+  row_scope:'IMMUTABLE_CAPTURED_PREGAME_SLATE',
+  row_scope_as_of:snap.captured_at,
+  current_time_filter_applied:false,
   pool_target_role:'PREFERRED_RANGE_NOT_REQUIRED',
   pool_target:[V38_POOL_SHORTLIST_V3.preferred_review_range.min, V38_POOL_SHORTLIST_V3.preferred_review_range.max],
   pool_target_forced:false,
@@ -181,7 +184,8 @@ const body = {
     'No scoring or production final-pool promotion occurs here.',
     'Core uses the same shared hierarchy as the live board. Protected, Quality/Value, and Escape Watch fail closed before the preregistered 2026-09-04 first prospective date.',
     '20-25 is a preferred review range only and is never forced; V3 uses a slate-sized ceiling of 20, 25, or 30 from unique pregame plus excluded-started games in the verified profile snapshot.',
-    'Candidate rows still exclude games already started; started games only preserve immutable slate-size provenance.',
+    'Rows preserve the immutable captured pregame slate as of the verified profile snapshot; a game may have started by board-generation time, but every attached context/modifier/park artifact remains selected strictly from evidence captured before that game start.',
+    'The live board is the current-time view and excludes games already started; daily and live row counts can therefore diverge later in the day without implying a policy mismatch.',
     'Profile and context provenance are fail-closed: both source snapshot hashes are independently verified before use.',
     'Park factor is support-only, requires exact effective L/R batting side versus the opposing pitcher, and is selected from the latest valid point-in-time snapshot strictly before each game start.',
     'Historical weather parity and final production scoring remain separate blocked gates.'
@@ -190,4 +194,4 @@ const body = {
 await fs.mkdir(path.dirname(outPath), { recursive:true });
 await fs.writeFile(outPath, JSON.stringify(body, null, 2) + '\n');
 console.log(`V38_DAILY_RESEARCH_BOARD_PATH=${outPath}`);
-console.log(`V38_DAILY_RESEARCH_BOARD=${JSON.stringify({date,prospective_architecture_active:prospectiveArchitectureActive,review_policy:reviewPolicy,coverage:body.coverage,counts:body.counts})}`);
+console.log(`V38_DAILY_RESEARCH_BOARD=${JSON.stringify({date,row_scope:body.row_scope,prospective_architecture_active:prospectiveArchitectureActive,review_policy:reviewPolicy,coverage:body.coverage,counts:body.counts})}`);
