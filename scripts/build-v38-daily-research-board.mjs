@@ -1,27 +1,172 @@
-import fs from'node:fs/promises';
-import path from'node:path';
-import{profileComplete}from'../v38-profile-validity.mjs';
-import{selectLatestValidProfileSnapshot}from'../v38-profile-snapshot-selector.mjs';
-import{evaluateV38CandidateRules}from'../v38-gate-rules.mjs';
-import{selectLatestPregameContext,contextForGame,validContextSnapshot}from'../v38-context-selector.mjs';
-import{loadModifierArtifactSets,attachProspectiveModifierBands}from'../v38-modifier-artifacts.mjs';
-import{evaluateLongshot700}from'../mlb-hr-locked-policy.mjs';
-import{validParkFactorSnapshot,selectLatestPregameParkSnapshot,parkFactorForVenue,effectiveParkBatSide}from'../v38-park-factor-policy.mjs';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { profileComplete } from '../v38-profile-validity.mjs';
+import { selectLatestValidProfileSnapshot } from '../v38-profile-snapshot-selector.mjs';
+import { evaluateV38CandidateRules } from '../v38-gate-rules.mjs';
+import { selectLatestPregameContext, contextForGame, validContextSnapshot } from '../v38-context-selector.mjs';
+import { loadModifierArtifactSets, attachProspectiveModifierBands } from '../v38-modifier-artifacts.mjs';
+import { evaluateLongshot700 } from '../mlb-hr-locked-policy.mjs';
+import { validParkFactorSnapshot, selectLatestPregameParkSnapshot, parkFactorForVenue, effectiveParkBatSide } from '../v38-park-factor-policy.mjs';
+import { V38_POOL_SHORTLIST_V3, dynamicReviewPolicy } from '../v38-pool-shortlist-v3.mjs';
 
-async function files(root){const out=[];async function walk(p){let es;try{es=await fs.readdir(p,{withFileTypes:true})}catch{return}for(const e of es){const q=path.join(p,e.name);if(e.isDirectory())await walk(q);else if(e.isFile()&&e.name.endsWith('.json'))out.push(q)}}await walk(root);return out}
-async function loadJsons(root){const out=[];for(const f of await files(root)){try{out.push(JSON.parse(await fs.readFile(f,'utf8')))}catch{}}return out}
-const pct=(n,d)=>d?+(100*n/d).toFixed(2):0;
-function marketOdds(m){const x=Number(m?.best_odds??m?.current_odds??m?.american_odds);return Number.isFinite(x)?x:null}
-function quality(c){if(c?.rules?.['5of6']===true||c?.gate_count>=5)return'PROTECTED_5OF6_PLUS';if(c?.rules?.['4of6_iso']===true||(c?.gate_count>=4&&c?.passes?.iso===true))return'QUALITY_4OF6_PLUS_ISO';if(c?.gate_count>=4)return'GENERIC_4OF6';return'BELOW_QUALITY';}
-function priority(q,p,b){const pt=['TOP_QUARTILE','TOP_DECILE'].includes(p),bt=['TOP_QUARTILE','TOP_DECILE'].includes(b?.hrshape_band);if(q==='PROTECTED_5OF6_PLUS'&&pt&&bt)return'CORE_PROTECTED_PLUS';if(q==='PROTECTED_5OF6_PLUS'&&pt)return'CORE_PROTECTED';if(q==='QUALITY_4OF6_PLUS_ISO'&&pt&&bt)return'CORE_QUALITY_PLUS';if(q==='QUALITY_4OF6_PLUS_ISO'&&pt)return'CORE_QUALITY';if(q==='PROTECTED_5OF6_PLUS')return'STRONG_PROFILE';if(q==='QUALITY_4OF6_PLUS_ISO'&&bt)return'QUALITY_WITH_BBE_SUPPORT';if(q==='QUALITY_4OF6_PLUS_ISO')return'QUALITY_PROFILE';if(q==='GENERIC_4OF6')return'WATCH_4OF6_COMPOSITION';return'EXCLUDE';}
-const rank={CORE_PROTECTED_PLUS:1,CORE_PROTECTED:2,CORE_QUALITY_PLUS:3,CORE_QUALITY:4,STRONG_PROFILE:5,QUALITY_WITH_BBE_SUPPORT:6,QUALITY_PROFILE:7,WATCH_4OF6_COMPOSITION:8,EXCLUDE:99};
+async function files(root) {
+  const out = [];
+  async function walk(p) {
+    let es;
+    try { es = await fs.readdir(p, { withFileTypes: true }); } catch { return; }
+    for (const e of es) {
+      const q = path.join(p, e.name);
+      if (e.isDirectory()) await walk(q);
+      else if (e.isFile() && e.name.endsWith('.json')) out.push(q);
+    }
+  }
+  await walk(root);
+  return out;
+}
+async function loadJsons(root) {
+  const out = [];
+  for (const f of await files(root)) {
+    try { out.push(JSON.parse(await fs.readFile(f, 'utf8'))); } catch {}
+  }
+  return out;
+}
+const pct = (n, d) => d ? +(100 * n / d).toFixed(2) : 0;
+function marketOdds(m) {
+  const x = Number(m?.best_odds ?? m?.current_odds ?? m?.american_odds);
+  return Number.isFinite(x) ? x : null;
+}
+function quality(c) {
+  if (c?.rules?.['5of6'] === true || c?.gate_count >= 5) return 'PROTECTED_5OF6_PLUS';
+  if (c?.rules?.['4of6_iso'] === true || (c?.gate_count >= 4 && c?.passes?.iso === true)) return 'QUALITY_4OF6_PLUS_ISO';
+  if (c?.gate_count >= 4) return 'GENERIC_4OF6';
+  return 'BELOW_QUALITY';
+}
+function priority(q, p, b) {
+  const pt = ['TOP_QUARTILE', 'TOP_DECILE'].includes(p);
+  const bt = ['TOP_QUARTILE', 'TOP_DECILE'].includes(b?.hrshape_band);
+  if (q === 'PROTECTED_5OF6_PLUS' && pt && bt) return 'CORE_PROTECTED_PLUS';
+  if (q === 'PROTECTED_5OF6_PLUS' && pt) return 'CORE_PROTECTED';
+  if (q === 'QUALITY_4OF6_PLUS_ISO' && pt && bt) return 'CORE_QUALITY_PLUS';
+  if (q === 'QUALITY_4OF6_PLUS_ISO' && pt) return 'CORE_QUALITY';
+  if (q === 'PROTECTED_5OF6_PLUS') return 'STRONG_PROFILE';
+  if (q === 'QUALITY_4OF6_PLUS_ISO' && bt) return 'QUALITY_WITH_BBE_SUPPORT';
+  if (q === 'QUALITY_4OF6_PLUS_ISO') return 'QUALITY_PROFILE';
+  if (q === 'GENERIC_4OF6') return 'WATCH_4OF6_COMPOSITION';
+  return 'EXCLUDE';
+}
+const rank = { CORE_PROTECTED_PLUS:1, CORE_PROTECTED:2, CORE_QUALITY_PLUS:3, CORE_QUALITY:4, STRONG_PROFILE:5, QUALITY_WITH_BBE_SUPPORT:6, QUALITY_PROFILE:7, WATCH_4OF6_COMPOSITION:8, EXCLUDE:99 };
 
-const profileDir=process.argv[2]||'incoming/profile',contextDir=process.argv[3]||'incoming/contexts',modifierDir=process.argv[4]||'incoming/modifiers',outPath=process.argv[5]||'snapshots/v38-daily-research-board.json',parkDir=process.argv[6]||'incoming/park';
-const profileCandidates=await loadJsons(profileDir);const snap=selectLatestValidProfileSnapshot(profileCandidates);if(!snap)throw Error('no valid cryptographically verified pregame profile snapshot');const date=snap.date;
-const contexts=(await loadJsons(contextDir)).filter(z=>z.date===date&&validContextSnapshot(z));const parkSnapshots=(await loadJsons(parkDir)).filter(z=>z.date===date&&validParkFactorSnapshot(z));const mods=await loadModifierArtifactSets(modifierDir,date),games=new Map((snap.pregame_games||[]).map(g=>[+g.gamePk,g]));
-const teamGame=new Map();for(const g of games.values()){teamGame.set(+g.away_team_id,+g.gamePk);teamGame.set(+g.home_team_id,+g.gamePk)}
-let rows=[];for(const p of snap.items||[]){if(!profileComplete(p))continue;const gamePk=teamGame.get(+p.team_id);if(!gamePk)continue;const g=games.get(gamePk),ctx=selectLatestPregameContext(contexts,gamePk,g.start_time),gc=ctx?contextForGame(ctx,gamePk):null,market=gc?.market_rows?.find(x=>+x.player_id===+p.player_id)||null,lineup=gc?.lineup_rows?.find(x=>+x.player_id===+p.player_id)||null,c=evaluateV38CandidateRules(p),q=quality(c),matchup=gc?.game?`${gc.game.away} @ ${gc.game.home}`:`${g.away} @ ${g.home}`,parkSnapshot=selectLatestPregameParkSnapshot(parkSnapshots,g.start_time),effectiveBatSide=effectiveParkBatSide(lineup?.bat_side,lineup?.opp_pitcher_hand),park=parkSnapshot&&gc?.game?.venue&&effectiveBatSide?parkFactorForVenue(parkSnapshot,gc.game.venue,effectiveBatSide):null;let r={player_id:+p.player_id,player:p.player||null,team_id:+p.team_id,gamePk,matchup,start_time:g.start_time,profile_gate_count:c.gate_count,profile_passes:c.passes,quality_tier:q,lineup:Number(lineup?.lineup)||null,bat_side:lineup?.bat_side||null,effective_bat_side:effectiveBatSide,opp_pitcher_hand:lineup?.opp_pitcher_hand||null,american_odds:marketOdds(market),best_book:market?.best_book||null,open_odds:Number.isFinite(Number(market?.open_odds))?Number(market.open_odds):null,market_signal:market?.signal||null,market_move_pct:market?.move_pct??null,context_captured_at:ctx?.captured_at||null,context_snapshot_sha256:ctx?.sha256||null,venue:gc?.game?.venue||null,park_factor:park,park_factor_captured_at:park?.captured_at||null,park_factor_role:park?.role||null};r=attachProspectiveModifierBands(r,mods,{date,gamePk,startTime:g.start_time,matchup});r.priority_band=priority(q,r.pitchfit_band,r.bbe_band);const ls=r.american_odds!=null?evaluateLongshot700(p,r.american_odds):null;r.longshot_700_rule=ls?.applicable?{applies:true,eligible:ls.qualifies===true,passed:ls.pass_count,stronger_5of6:ls.stronger_5of6===true,policy_id:ls.policy_id}:{applies:false};rows.push(r)}
-rows.sort((a,b)=>(rank[a.priority_band]??99)-(rank[b.priority_band]??99)||((b.profile_gate_count||0)-(a.profile_gate_count||0))||((a.american_odds??99999)-(b.american_odds??99999)));
-const qualified=rows.filter(r=>r.priority_band!=='EXCLUDE'&&r.priority_band!=='WATCH_4OF6_COMPOSITION'),core=rows.filter(r=>['CORE_PROTECTED_PLUS','CORE_PROTECTED','CORE_QUALITY_PLUS','CORE_QUALITY'].includes(r.priority_band));
-const body={protocol:'V38_DAILY_RESEARCH_BOARD_V2',date,generated_at:new Date().toISOString(),source_profile_snapshot_sha256:snap.sha256,source_profile_captured_at:snap.captured_at,point_in_time:true,research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false,pool_target_role:'TARGET_ONLY_NOT_FORCED',pool_target:[20,25],vig_required:false,automation_role:'FIRST_PARTY_DAILY_RESEARCH_ORCHESTRATION',coverage:{profile_rows:rows.length,rows_with_context:rows.filter(r=>r.context_captured_at).length,rows_with_market:rows.filter(r=>r.american_odds!=null).length,rows_with_pitchfit:rows.filter(r=>r.pitchfit).length,rows_with_full_bbe:rows.filter(r=>+r.bbe?.tracked_bbe>=15).length,rows_with_park_factor:rows.filter(r=>r.park_factor).length,context_pct:pct(rows.filter(r=>r.context_captured_at).length,rows.length),market_pct:pct(rows.filter(r=>r.american_odds!=null).length,rows.length),pitchfit_pct:pct(rows.filter(r=>r.pitchfit).length,rows.length),bbe_full_pct:pct(rows.filter(r=>+r.bbe?.tracked_bbe>=15).length,rows.length),park_factor_pct:pct(rows.filter(r=>r.park_factor).length,rows.length),park_snapshots_loaded:parkSnapshots.length},counts:{all_profile_complete:rows.length,qualified_research_pool:qualified.length,core_research_pool:core.length,longshot_700_rows:rows.filter(r=>r.longshot_700_rule.applies).length,longshot_700_eligible:rows.filter(r=>r.longshot_700_rule.applies&&r.longshot_700_rule.eligible).length},core_pool:core,qualified_pool:qualified,rows,notes:['This board replaces manual cross-site orchestration for the supported data layers; Vig may remain an optional cross-check only.','No scoring or production final-pool promotion occurs here.','20-25 is a target only and is never forced.','Profile and context provenance are fail-closed: both source snapshot hashes are independently verified before use.','Park factor is support-only, requires exact effective L/R batting side versus the opposing pitcher, and is selected from the latest valid point-in-time snapshot strictly before each game start.','Historical weather parity and final production scoring remain separate blocked gates.']};
-await fs.mkdir(path.dirname(outPath),{recursive:true});await fs.writeFile(outPath,JSON.stringify(body,null,2)+'\n');console.log(`V38_DAILY_RESEARCH_BOARD_PATH=${outPath}`);console.log(`V38_DAILY_RESEARCH_BOARD=${JSON.stringify({date,coverage:body.coverage,counts:body.counts})}`);
+const profileDir = process.argv[2] || 'incoming/profile';
+const contextDir = process.argv[3] || 'incoming/contexts';
+const modifierDir = process.argv[4] || 'incoming/modifiers';
+const outPath = process.argv[5] || 'snapshots/v38-daily-research-board.json';
+const parkDir = process.argv[6] || 'incoming/park';
+
+const profileCandidates = await loadJsons(profileDir);
+const snap = selectLatestValidProfileSnapshot(profileCandidates);
+if (!snap) throw Error('no valid cryptographically verified pregame profile snapshot');
+const date = snap.date;
+const originalSlateGames = (snap.pregame_games || []).length;
+const reviewPolicy = dynamicReviewPolicy(originalSlateGames);
+const contexts = (await loadJsons(contextDir)).filter(z => z.date === date && validContextSnapshot(z));
+const parkSnapshots = (await loadJsons(parkDir)).filter(z => z.date === date && validParkFactorSnapshot(z));
+const mods = await loadModifierArtifactSets(modifierDir, date);
+const games = new Map((snap.pregame_games || []).map(g => [+g.gamePk, g]));
+const teamGame = new Map();
+for (const g of games.values()) {
+  teamGame.set(+g.away_team_id, +g.gamePk);
+  teamGame.set(+g.home_team_id, +g.gamePk);
+}
+
+let rows = [];
+for (const p of snap.items || []) {
+  if (!profileComplete(p)) continue;
+  const gamePk = teamGame.get(+p.team_id);
+  if (!gamePk) continue;
+  const g = games.get(gamePk);
+  const ctx = selectLatestPregameContext(contexts, gamePk, g.start_time);
+  const gc = ctx ? contextForGame(ctx, gamePk) : null;
+  const market = gc?.market_rows?.find(x => +x.player_id === +p.player_id) || null;
+  const lineup = gc?.lineup_rows?.find(x => +x.player_id === +p.player_id) || null;
+  const c = evaluateV38CandidateRules(p);
+  const q = quality(c);
+  const matchup = gc?.game ? `${gc.game.away} @ ${gc.game.home}` : `${g.away} @ ${g.home}`;
+  const parkSnapshot = selectLatestPregameParkSnapshot(parkSnapshots, g.start_time);
+  const effectiveBatSide = effectiveParkBatSide(lineup?.bat_side, lineup?.opp_pitcher_hand);
+  const park = parkSnapshot && gc?.game?.venue && effectiveBatSide ? parkFactorForVenue(parkSnapshot, gc.game.venue, effectiveBatSide) : null;
+  let r = {
+    player_id:+p.player_id, player:p.player || null, team_id:+p.team_id, gamePk, matchup, start_time:g.start_time,
+    profile_gate_count:c.gate_count, profile_passes:c.passes, quality_tier:q,
+    lineup:Number(lineup?.lineup) || null, bat_side:lineup?.bat_side || null, effective_bat_side:effectiveBatSide,
+    opp_pitcher_hand:lineup?.opp_pitcher_hand || null, american_odds:marketOdds(market), best_book:market?.best_book || null,
+    open_odds:Number.isFinite(Number(market?.open_odds)) ? Number(market.open_odds) : null, market_signal:market?.signal || null,
+    market_move_pct:market?.move_pct ?? null, context_captured_at:ctx?.captured_at || null, context_snapshot_sha256:ctx?.sha256 || null,
+    venue:gc?.game?.venue || null, park_factor:park, park_factor_captured_at:park?.captured_at || null, park_factor_role:park?.role || null
+  };
+  r = attachProspectiveModifierBands(r, mods, { date, gamePk, startTime:g.start_time, matchup });
+  r.priority_band = priority(q, r.pitchfit_band, r.bbe_band);
+  const ls = r.american_odds != null ? evaluateLongshot700(p, r.american_odds) : null;
+  r.longshot_700_rule = ls?.applicable ? { applies:true, eligible:ls.qualifies === true, passed:ls.pass_count, stronger_5of6:ls.stronger_5of6 === true, policy_id:ls.policy_id } : { applies:false };
+  rows.push(r);
+}
+
+rows.sort((a,b) => (rank[a.priority_band] ?? 99) - (rank[b.priority_band] ?? 99) || ((b.profile_gate_count || 0) - (a.profile_gate_count || 0)) || ((a.american_odds ?? 99999) - (b.american_odds ?? 99999)));
+const qualified = rows.filter(r => r.priority_band !== 'EXCLUDE' && r.priority_band !== 'WATCH_4OF6_COMPOSITION');
+const core = rows.filter(r => ['CORE_PROTECTED_PLUS','CORE_PROTECTED','CORE_QUALITY_PLUS','CORE_QUALITY'].includes(r.priority_band));
+
+const body = {
+  protocol:'V38_DAILY_RESEARCH_BOARD_V2', date, generated_at:new Date().toISOString(),
+  source_profile_snapshot_sha256:snap.sha256, source_profile_captured_at:snap.captured_at,
+  point_in_time:true, research_only:true, scoring_enabled:false, scoring_eligible:false, model_scoring_changed:false,
+  pool_target_role:'PREFERRED_RANGE_NOT_REQUIRED',
+  pool_target:[V38_POOL_SHORTLIST_V3.preferred_review_range.min, V38_POOL_SHORTLIST_V3.preferred_review_range.max],
+  pool_target_forced:false,
+  pool_architecture:{
+    shortlist_protocol:V38_POOL_SHORTLIST_V3.protocol,
+    first_prospective_date:V38_POOL_SHORTLIST_V3.first_prospective_date,
+    original_slate_game_count:originalSlateGames,
+    dynamic_review_ceiling:reviewPolicy.ceiling,
+    dynamic_ceiling_policy:V38_POOL_SHORTLIST_V3.dynamic_ceiling,
+    preferred_review_range:V38_POOL_SHORTLIST_V3.preferred_review_range,
+    no_minimum:true,
+    production_rule_changed:false
+  },
+  vig_required:false,
+  automation_role:'FIRST_PARTY_DAILY_RESEARCH_ORCHESTRATION',
+  coverage:{
+    profile_rows:rows.length,
+    rows_with_context:rows.filter(r=>r.context_captured_at).length,
+    rows_with_market:rows.filter(r=>r.american_odds!=null).length,
+    rows_with_pitchfit:rows.filter(r=>r.pitchfit).length,
+    rows_with_full_bbe:rows.filter(r=>+r.bbe?.tracked_bbe>=15).length,
+    rows_with_park_factor:rows.filter(r=>r.park_factor).length,
+    context_pct:pct(rows.filter(r=>r.context_captured_at).length,rows.length),
+    market_pct:pct(rows.filter(r=>r.american_odds!=null).length,rows.length),
+    pitchfit_pct:pct(rows.filter(r=>r.pitchfit).length,rows.length),
+    bbe_full_pct:pct(rows.filter(r=>+r.bbe?.tracked_bbe>=15).length,rows.length),
+    park_factor_pct:pct(rows.filter(r=>r.park_factor).length,rows.length),
+    park_snapshots_loaded:parkSnapshots.length
+  },
+  counts:{
+    all_profile_complete:rows.length,
+    qualified_research_pool:qualified.length,
+    core_research_pool:core.length,
+    longshot_700_rows:rows.filter(r=>r.longshot_700_rule.applies).length,
+    longshot_700_eligible:rows.filter(r=>r.longshot_700_rule.applies&&r.longshot_700_rule.eligible).length
+  },
+  core_pool:core,
+  qualified_pool:qualified,
+  rows,
+  notes:[
+    'This board replaces manual cross-site orchestration for the supported data layers; Vig may remain an optional cross-check only.',
+    'No scoring or production final-pool promotion occurs here.',
+    '20-25 is a preferred review range only and is never forced; V3 uses a slate-sized ceiling of 20, 25, or 30 based on the original pregame slate.',
+    'Profile and context provenance are fail-closed: both source snapshot hashes are independently verified before use.',
+    'Park factor is support-only, requires exact effective L/R batting side versus the opposing pitcher, and is selected from the latest valid point-in-time snapshot strictly before each game start.',
+    'Historical weather parity and final production scoring remain separate blocked gates.'
+  ]
+};
+await fs.mkdir(path.dirname(outPath), { recursive:true });
+await fs.writeFile(outPath, JSON.stringify(body, null, 2) + '\n');
+console.log(`V38_DAILY_RESEARCH_BOARD_PATH=${outPath}`);
+console.log(`V38_DAILY_RESEARCH_BOARD=${JSON.stringify({date,review_policy:reviewPolicy,coverage:body.coverage,counts:body.counts})}`);
