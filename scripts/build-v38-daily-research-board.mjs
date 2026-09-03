@@ -5,7 +5,9 @@ import { selectLatestValidProfileSnapshot } from '../v38-profile-snapshot-select
 import { evaluateV38CandidateRules } from '../v38-gate-rules.mjs';
 import { selectLatestPregameContext, contextForGame, validContextSnapshot } from '../v38-context-selector.mjs';
 import { loadModifierArtifactSets, attachProspectiveModifierBands } from '../v38-modifier-artifacts.mjs';
-import { evaluateLongshot700 } from '../mlb-hr-locked-policy.mjs';
+import { classifyLongshotQuality } from '../v38-longshot-quality.mjs';
+import { researchPoolHierarchy, V38_RESEARCH_POOL_HIERARCHY } from '../v38-research-pool-hierarchy.mjs';
+import { V38_POOL_ARCHITECTURE_V2, classifyPoolLayer, isStructuredPoolLayer, poolArchitectureProspectiveActive } from '../v38-pool-architecture-v2.mjs';
 import { validParkFactorSnapshot, selectLatestPregameParkSnapshot, parkFactorForVenue, effectiveParkBatSide } from '../v38-park-factor-policy.mjs';
 import { V38_POOL_SHORTLIST_V3, snapshotSlateGameCount, dynamicReviewPolicy } from '../v38-pool-shortlist-v3.mjs';
 
@@ -35,26 +37,13 @@ function marketOdds(m) {
   const x = Number(m?.best_odds ?? m?.current_odds ?? m?.american_odds);
   return Number.isFinite(x) ? x : null;
 }
-function quality(c) {
+function genericQuality(c) {
   if (c?.rules?.['5of6'] === true || c?.gate_count >= 5) return 'PROTECTED_5OF6_PLUS';
   if (c?.rules?.['4of6_iso'] === true || (c?.gate_count >= 4 && c?.passes?.iso === true)) return 'QUALITY_4OF6_PLUS_ISO';
-  if (c?.gate_count >= 4) return 'GENERIC_4OF6';
-  return 'BELOW_QUALITY';
+  if (c?.gate_count >= 4) return 'BASE_PROFILE_4OF6';
+  return 'INELIGIBLE';
 }
-function priority(q, p, b) {
-  const pt = ['TOP_QUARTILE', 'TOP_DECILE'].includes(p);
-  const bt = ['TOP_QUARTILE', 'TOP_DECILE'].includes(b?.hrshape_band);
-  if (q === 'PROTECTED_5OF6_PLUS' && pt && bt) return 'CORE_PROTECTED_PLUS';
-  if (q === 'PROTECTED_5OF6_PLUS' && pt) return 'CORE_PROTECTED';
-  if (q === 'QUALITY_4OF6_PLUS_ISO' && pt && bt) return 'CORE_QUALITY_PLUS';
-  if (q === 'QUALITY_4OF6_PLUS_ISO' && pt) return 'CORE_QUALITY';
-  if (q === 'PROTECTED_5OF6_PLUS') return 'STRONG_PROFILE';
-  if (q === 'QUALITY_4OF6_PLUS_ISO' && bt) return 'QUALITY_WITH_BBE_SUPPORT';
-  if (q === 'QUALITY_4OF6_PLUS_ISO') return 'QUALITY_PROFILE';
-  if (q === 'GENERIC_4OF6') return 'WATCH_4OF6_COMPOSITION';
-  return 'EXCLUDE';
-}
-const rank = { CORE_PROTECTED_PLUS:1, CORE_PROTECTED:2, CORE_QUALITY_PLUS:3, CORE_QUALITY:4, STRONG_PROFILE:5, QUALITY_WITH_BBE_SUPPORT:6, QUALITY_PROFILE:7, WATCH_4OF6_COMPOSITION:8, EXCLUDE:99 };
+const rank = { CORE_PROTECTED_PLUS:1, CORE_PROTECTED:2, CORE_QUALITY_PLUS:3, CORE_QUALITY:4, STRONG_PROFILE:5, QUALITY_WITH_BBE_SUPPORT:6, QUALITY_PROFILE:7, WATCH_BASE_ELIGIBLE:8, EXCLUDE_OR_OTHER_MARKET_RULE:99 };
 
 const profileDir = process.argv[2] || 'incoming/profile';
 const contextDir = process.argv[3] || 'incoming/contexts';
@@ -66,6 +55,7 @@ const profileCandidates = await loadJsons(profileDir);
 const snap = selectLatestValidProfileSnapshot(profileCandidates);
 if (!snap) throw Error('no valid cryptographically verified pregame profile snapshot');
 const date = snap.date;
+const prospectiveArchitectureActive = poolArchitectureProspectiveActive(date);
 const originalSlateGames = snapshotSlateGameCount(snap);
 if (originalSlateGames < (snap.pregame_games || []).length) throw Error('invalid V3 slate game provenance');
 const reviewPolicy = dynamicReviewPolicy(originalSlateGames);
@@ -90,14 +80,13 @@ for (const p of snap.items || []) {
   const market = gc?.market_rows?.find(x => +x.player_id === +p.player_id) || null;
   const lineup = gc?.lineup_rows?.find(x => +x.player_id === +p.player_id) || null;
   const c = evaluateV38CandidateRules(p);
-  const q = quality(c);
   const matchup = gc?.game ? `${gc.game.away} @ ${gc.game.home}` : `${g.away} @ ${g.home}`;
   const parkSnapshot = selectLatestPregameParkSnapshot(parkSnapshots, g.start_time);
   const effectiveBatSide = effectiveParkBatSide(lineup?.bat_side, lineup?.opp_pitcher_hand);
   const park = parkSnapshot && gc?.game?.venue && effectiveBatSide ? parkFactorForVenue(parkSnapshot, gc.game.venue, effectiveBatSide) : null;
   let r = {
     player_id:+p.player_id, player:p.player || null, team_id:+p.team_id, gamePk, matchup, start_time:g.start_time,
-    profile_gate_count:c.gate_count, profile_passes:c.passes, quality_tier:q,
+    profile_gate_count:c.gate_count, profile_passes:c.passes,
     lineup:Number(lineup?.lineup) || null, bat_side:lineup?.bat_side || null, effective_bat_side:effectiveBatSide,
     opp_pitcher_hand:lineup?.opp_pitcher_hand || null, american_odds:marketOdds(market), best_book:market?.best_book || null,
     open_odds:Number.isFinite(Number(market?.open_odds)) ? Number(market.open_odds) : null, market_signal:market?.signal || null,
@@ -105,15 +94,30 @@ for (const p of snap.items || []) {
     venue:gc?.game?.venue || null, park_factor:park, park_factor_captured_at:park?.captured_at || null, park_factor_role:park?.role || null
   };
   r = attachProspectiveModifierBands(r, mods, { date, gamePk, startTime:g.start_time, matchup });
-  r.priority_band = priority(q, r.pitchfit_band, r.bbe_band);
-  const ls = r.american_odds != null ? evaluateLongshot700(p, r.american_odds) : null;
-  r.longshot_700_rule = ls?.applicable ? { applies:true, eligible:ls.qualifies === true, passed:ls.pass_count, stronger_5of6:ls.stronger_5of6 === true, policy_id:ls.policy_id } : { applies:false };
+  const generic = genericQuality(c);
+  const longshot = r.american_odds != null && r.american_odds >= 700 ? classifyLongshotQuality(p, r.american_odds) : null;
+  const qualityTier = longshot ? longshot.quality_tier : generic;
+  const hierarchy = researchPoolHierarchy({quality_tier:qualityTier,pitchfit_band:r.pitchfit_band,bbe_band:r.bbe_band,lineup:r.lineup,american_odds:r.american_odds});
+  const poolLayer = classifyPoolLayer({date,priority_band:hierarchy.priority_band,quality_tier:qualityTier,american_odds:r.american_odds,longshot_policy:longshot});
+  const longshotBlocked = !!longshot && ['INELIGIBLE','NOT_LONGSHOT_WINDOW'].includes(longshot.quality_tier);
+  r.quality_tier = qualityTier;
+  r.priority_band = hierarchy.priority_band;
+  r.hierarchy = hierarchy;
+  r.pool_layer = poolLayer;
+  r.structured_pool_candidate = isStructuredPoolLayer(poolLayer);
+  r.eligible_research_pool = !longshotBlocked && hierarchy.priority_band !== 'EXCLUDE_OR_OTHER_MARKET_RULE';
+  r.longshot_policy = longshot;
+  r.longshot_700_rule = longshot ? { applies:longshot.applicable === true, eligible:longshot.qualifies === true, passed:longshot.pass_count, stronger_5of6:longshot.stronger_5of6 === true, policy_id:longshot.policy_id } : { applies:false };
   rows.push(r);
 }
 
 rows.sort((a,b) => (rank[a.priority_band] ?? 99) - (rank[b.priority_band] ?? 99) || ((b.profile_gate_count || 0) - (a.profile_gate_count || 0)) || ((a.american_odds ?? 99999) - (b.american_odds ?? 99999)));
-const qualified = rows.filter(r => r.priority_band !== 'EXCLUDE' && r.priority_band !== 'WATCH_4OF6_COMPOSITION');
-const core = rows.filter(r => ['CORE_PROTECTED_PLUS','CORE_PROTECTED','CORE_QUALITY_PLUS','CORE_QUALITY'].includes(r.priority_band));
+const qualified = rows.filter(r => r.eligible_research_pool);
+const core = qualified.filter(r => r.pool_layer === 'CORE');
+const protectedPool = qualified.filter(r => r.pool_layer === 'PROTECTED_POOL');
+const qualityPool = qualified.filter(r => r.pool_layer === 'QUALITY_VALUE_POOL');
+const escapeWatch = qualified.filter(r => r.pool_layer === 'ESCAPE_WATCH');
+const structured = qualified.filter(r => r.structured_pool_candidate);
 
 const body = {
   protocol:'V38_DAILY_RESEARCH_BOARD_V2', date, generated_at:new Date().toISOString(),
@@ -123,15 +127,20 @@ const body = {
   pool_target:[V38_POOL_SHORTLIST_V3.preferred_review_range.min, V38_POOL_SHORTLIST_V3.preferred_review_range.max],
   pool_target_forced:false,
   pool_architecture:{
+    protocol:V38_POOL_ARCHITECTURE_V2.protocol,
+    hierarchy_protocol:V38_RESEARCH_POOL_HIERARCHY.protocol,
     shortlist_protocol:V38_POOL_SHORTLIST_V3.protocol,
     first_prospective_date:V38_POOL_SHORTLIST_V3.first_prospective_date,
+    prospective_active:prospectiveArchitectureActive,
+    pre_prospective_noncore_fail_closed:!prospectiveArchitectureActive,
     original_slate_game_count:originalSlateGames,
     slate_size_source:'VERIFIED_PROFILE_PREGAME_PLUS_EXCLUDED_STARTED_UNIQUE_GAMEPK',
     dynamic_review_ceiling:reviewPolicy.ceiling,
     dynamic_ceiling_policy:V38_POOL_SHORTLIST_V3.dynamic_ceiling,
     preferred_review_range:V38_POOL_SHORTLIST_V3.preferred_review_range,
     no_minimum:true,
-    production_rule_changed:false
+    production_rule_changed:false,
+    final_pool_promoted:false
   },
   vig_required:false,
   automation_role:'FIRST_PARTY_DAILY_RESEARCH_ORCHESTRATION',
@@ -152,16 +161,25 @@ const body = {
   counts:{
     all_profile_complete:rows.length,
     qualified_research_pool:qualified.length,
+    structured_pool_candidates:structured.length,
     core_research_pool:core.length,
+    protected_pool_rows:protectedPool.length,
+    quality_value_pool_rows:qualityPool.length,
+    escape_watch_rows:escapeWatch.length,
     longshot_700_rows:rows.filter(r=>r.longshot_700_rule.applies).length,
     longshot_700_eligible:rows.filter(r=>r.longshot_700_rule.applies&&r.longshot_700_rule.eligible).length
   },
   core_pool:core,
+  protected_pool:protectedPool,
+  quality_value_pool:qualityPool,
+  escape_watch:escapeWatch,
+  structured_pool:structured,
   qualified_pool:qualified,
   rows,
   notes:[
     'This board replaces manual cross-site orchestration for the supported data layers; Vig may remain an optional cross-check only.',
     'No scoring or production final-pool promotion occurs here.',
+    'Core uses the same shared hierarchy as the live board. Protected, Quality/Value, and Escape Watch fail closed before the preregistered 2026-09-04 first prospective date.',
     '20-25 is a preferred review range only and is never forced; V3 uses a slate-sized ceiling of 20, 25, or 30 from unique pregame plus excluded-started games in the verified profile snapshot.',
     'Candidate rows still exclude games already started; started games only preserve immutable slate-size provenance.',
     'Profile and context provenance are fail-closed: both source snapshot hashes are independently verified before use.',
@@ -172,4 +190,4 @@ const body = {
 await fs.mkdir(path.dirname(outPath), { recursive:true });
 await fs.writeFile(outPath, JSON.stringify(body, null, 2) + '\n');
 console.log(`V38_DAILY_RESEARCH_BOARD_PATH=${outPath}`);
-console.log(`V38_DAILY_RESEARCH_BOARD=${JSON.stringify({date,review_policy:reviewPolicy,coverage:body.coverage,counts:body.counts})}`);
+console.log(`V38_DAILY_RESEARCH_BOARD=${JSON.stringify({date,prospective_architecture_active:prospectiveArchitectureActive,review_policy:reviewPolicy,coverage:body.coverage,counts:body.counts})}`);
