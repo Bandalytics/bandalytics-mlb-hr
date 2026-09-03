@@ -51,7 +51,7 @@ Important split inside exact 4/6:
 
 Therefore the locked +700 4/6 rule remains longshot eligibility only. Exact 4/6 must not become a universal HR-selection rule.
 
-The API contract is now regression-tested to expose exactly `4` required passes at +700 or longer using the locked `MLB_HR_LONGSHOT_700_4OF6_V1` policy.
+The API contract is regression-tested to expose exactly `4` required passes at +700 or longer using the locked `MLB_HR_LONGSHOT_700_4OF6_V1` policy.
 
 ## Candidate profile score validation
 The reconstructed v38 profile score is NOT the legacy S/A/B/C board score.
@@ -111,18 +111,34 @@ Corrected seven-slate aggregate:
 - 4/6+ISO, normal workload: 18.21% HR
 - 4/6+ISO, top-quartile workload: 16.67% HR
 
+Therefore generic “Tired Pen” workload alone cannot raise a hitter grade or count as a positive stacking family.
+
+### Specific relief-arm quality / availability diagnostic
+The frozen Aug. 26–Sep. 1 diagnostic used only relief arms actually observed in the prior five days, exact opponent and batter-handedness joins, and Baseball Savant arm quality with `game_date_lt` the slate date. It explicitly does **not** claim full active-bullpen coverage.
+
+Seven-slate result:
+- all joined: 1,701 hitters, 173 HR = 10.17%
+- 4/6+ISO quality: 477 hitters, 84 HR = 17.61%
+- quality + candidate hitter-friendly pen: 4 hitters, 0 HR = 0.00%
+- quality without candidate hitter-friendly pen: 473 hitters, 84 HR = 17.76%
+- quality + candidate bullpen wall: 4 hitters, 1 HR = 25.00%
+- quality without wall: 473 hitters, 83 HR = 17.55%
+- quality + taxed suppressor present: 0 hitters
+
 Interpretation:
-- Generic “Tired Pen” workload alone cannot raise a hitter grade.
-- Specific reliever availability, handedness and bullpen quality may still be valid matchup/escape context.
-- Workload may remain visible in game notes, but it cannot count as an independent positive stacking family.
+- The current specific-bullpen candidate thresholds are too sparse to validate.
+- No specific-bullpen positive modifier is promoted.
+- The signal remains `DIAGNOSTIC_ONLY_SPECIFIC_BULLPEN_FAMILY_NOT_PROMOTED`.
+- Do not loosen thresholds on this same outcome window merely to manufacture coverage.
+- A Gas Can × specific-bullpen interaction is deferred until specific bullpen has independently usable coverage and a preregistered interaction protocol.
 
 ## Lineup-position validation
 Lineup position is a small plate-appearance / tie-break modifier only.
 
 Seven-slate 4/6+ISO results:
 - spots 1–4: 18.07% HR
-- spots 5–6: 16.33% HR
-- spots 7–9: 18.75% HR, but only 48 hitters
+- spots 5–6: 16.33%
+- spots 7–9: 18.75%, but only 48 hitters
 
 Interpretation:
 - Batting 7–9 cannot veto an otherwise strong power profile.
@@ -131,7 +147,7 @@ Interpretation:
 ## Environment and park-factor status
 Weather/environment remains fail-closed for production scoring because historical recorded weather has not yet passed a genuine pregame-parity gate. Intraday point-in-time weather capture is active and coverage improves materially later in the day, but this does not justify retroactive use of final/recorded conditions.
 
-Park factor now has its own prospective-only integrity contract:
+Park factor has its own prospective-only integrity contract:
 - official source: MLB Baseball Savant Statcast Park Factors
 - HR-specific
 - rolling three-year context
@@ -153,9 +169,26 @@ Current protected research families:
 4. park/weather context
 5. market context
 
-A stack research candidate requires starter damage plus at least two additional independent families. Generic bullpen workload cannot count. The pool cannot be forced to create a stack.
+A stack research candidate requires starter damage plus at least two additional independent families. Generic bullpen workload cannot count. Gas Can is part of starter damage and cannot be double-counted as a separate family. The pool cannot be forced to create a stack.
 
-The gas-can shortlist is deliberately separate from universal HR qualification. Research-candidate starter thresholds are being tested against the frozen seven-slate point-in-time matrix and same-team multi-HR clustering. These thresholds are not production-locked and cannot change scoring without validation and deliberate approval.
+Final seven-slate Gas Can evidence:
+- Gas Can all profiles: 180 hitters, 24 HR = 13.33%
+- 4/6+ISO quality population: 477 hitters, 84 HR = 17.61%
+- **4/6+ISO + Gas Can: 49 hitters, 17 HR = 34.69%**
+- 4/6+ISO without Gas Can: 428 hitters, 67 HR = 15.65%
+- quality + Gas Can lift vs quality non-Gas Can: **2.217x**
+- positive quality Gas Can lift: 5 of 7 comparable slates = 71.43%
+
+However, the same-team multi-HR evidence is much weaker:
+- Gas Can team-games: 25.00% multi-HR
+- no-Gas-Can team-games: 21.76% multi-HR
+- lift: only 1.149x
+
+Conclusion:
+- Gas Can + strong hitter profile is a serious **research contextual enhancer**.
+- Gas Can alone is not sufficient.
+- Same-team stack promotion remains blocked.
+- Gas Can thresholds remain historical-research-promising, not production-locked.
 
 ## Market sanity check — Sep 2 pregame snapshot
 Using the six profile thresholds diagnostically across all exact market-linked HR rows, not as universal qualification gates:
@@ -165,9 +198,62 @@ Using the six profile thresholds diagnostically across all exact market-linked H
 - +700 to +999: 65 rows; 15 were 4/6+, 5 were 5/6+.
 - +1000 or longer: 58 rows; 2 were 4/6+, 0 were 5/6+.
 
-This is a structural sanity check only, not an outcome backtest. It shows reconstructed profile quality generally moves in the same direction as market HR pricing while leaving potential mispricing opportunities.
+This is a structural sanity check only. Market is a value layer, not a substitute for hitter power qualification.
 
-The prospective selected-pool report now additionally records flat one-unit profit and ROI at the captured current HR price for every market band and key research group. This is an evaluation metric only; it does not create a staking recommendation.
+## Sep. 2 finalized prospective V5 evidence
+A full 15-game Sep. 2 slate finalized under `V38_PREGAME_OUTCOME_EVAL_V5` with strict per-game pre-first-pitch selection for context, PitchFit and Recent BBE.
+
+Slate population:
+- 317 complete profiled hitters
+- 33 HR hitters
+- base HR rate: 10.41%
+- 224 hitters with exact captured HR market prices
+- 299 rows with valid context
+- 96 rows with true PitchFit evidence
+- 91 rows with full Recent BBE evidence
+
+Pre-registered baseball findings:
+- 4/6+ISO: 91 hitters, 10 HR = 10.99%, 1.056x base
+- **4/6+ISO + top-quartile PitchFit: 15 hitters, 4 HR = 26.67%, 2.562x base**
+- 4/6+ISO + top-quartile BBE: 11 hitters, 2 HR = 18.18%, 1.747x base
+- 4/6+ISO + top PitchFit + top BBE: 6 hitters, 2 HR = 33.33%, 3.202x base, but the sample is too small to require both
+- 4/6+ISO + steam: 30 hitters, 6 HR = 20.00%, 1.921x base
+
+This provides the first clean prospective directional confirmation that PitchFit remains the strongest nightly enhancer. It is one slate only and does not satisfy promotion requirements.
+
+### Sep. 2 market-report integrity correction
+The first finalized Sep. 2 artifact had a reporting defect: the selected-pool reporter ignored the actual `best_odds` field and could coerce missing odds through `Number(null)`, incorrectly placing unpriced hitters into `<+400`. The underlying pregame evidence and HR outcomes were not changed, but the defective market report is excluded from market/promotion evidence.
+
+The reporter was corrected to:
+- use `current_odds`, then `best_odds`, then `american_odds`
+- fail closed on null/empty odds
+- classify missing prices as `NO_MARKET`
+- regression-test best-book and missing-market behavior
+- fingerprint the selected-pool report implementation inside the immutable evidence manifest
+
+Corrected immutable Sep. 2 artifact:
+- workflow run: `33722015260`
+- artifact: `9880558185`
+- artifact digest: `sha256:27dfe6110e800fc3bbd9cd1ab82889612f6f49eba4dc34b1474bff886e15eee0`
+- manifest rule fingerprint: `88fa60f2d6b3f65aee0466d24da2309d2179d47782947bc9b955750886abfedd`
+- selected-pool implementation SHA-256: `d86388fead4da362c718ee87aa33069fe2fce79693e1e6657e63a25c062b7a58`
+
+Corrected Sep. 2 market bands:
+- <+400: 17 hitters, 3 HR = 17.65%, flat 1-unit ROI -15.88%
+- +400–499: 30 hitters, 4 HR = 13.33%, ROI -27.50%
+- +500–699: 65 hitters, 9 HR = 13.85%, ROI -6.43%
+- +700–999: 57 hitters, 5 HR = 8.77%, ROI -18.42%
+- +1000+: 55 hitters, 4 HR = 7.27%, ROI -14.18%
+- no valid captured market: 93 hitters, 8 HR = 8.60%
+
+Pre-registered selected research groups:
+- quality profile: 91 hitters, 10 HR = 10.99%; 69 market-priced; ROI -34.00%
+- quality + top PitchFit: 15 hitters, 4 HR = 26.67%; 12 priced; **ROI +73.25%**
+- quality + PitchFit + BBE: 6 hitters, 2 HR = 33.33%; 5 priced; ROI +96.00% (tiny sample)
+- preferred +500–1500 within quality + top PitchFit: 2 hitters, 1 HR = 50.00%; ROI +212.00% (far too small for inference)
+- locked +700 4/6 branch: 17 hitters, 3 HR = 17.65%; ROI +56.47%
+
+ROI is research evaluation at captured prices, not staking guidance. One slate cannot establish durable market profitability. Sep. 2 may count as prospective finalized evidence only via the corrected manifest-governed artifact; the superseded defective report must not count separately.
 
 ## Prospective validation integrity
 Protocol `V38_PREGAME_OUTCOME_EVAL_V5` is fail-closed:
@@ -176,10 +262,11 @@ Protocol `V38_PREGAME_OUTCOME_EVAL_V5` is fail-closed:
 - no partial slate can count as prospective evidence
 - the final V5 row preserves the actual frozen EV, HH, Barrel, ISO, PullAir, Blast and Sweet Spot profile values
 - selected-pool reporting uses the exact locked +700 evaluator rather than a generic gate-count shortcut
-- an immutable `V38_EVIDENCE_MANIFEST_V1` fingerprints the rules, field definitions, PullAir 15.5° threshold, input artifacts and HR outcomes
-- changing a rule or source artifact produces a different reproducibility/dedupe fingerprint
+- an immutable `V38_EVIDENCE_MANIFEST_V1` fingerprints the rules, field definitions, PullAir 15.5° threshold, input artifacts, HR outcomes **and selected-pool report implementation**
+- changing a rule, source artifact, or selected-pool implementation creates a different reproducibility fingerprint
+- market bands must partition all complete profiled hitters; missing prices fail closed to `NO_MARKET`
 
-Postgame evaluation now checks the prior ET slate several times overnight and no-ops until every eligible game is final.
+Postgame evaluation checks the prior ET slate several times overnight and no-ops until every eligible game is final. Code-change reruns also target the prior ET slate so integrity fixes can reproduce the same completed evidence instead of silently no-oping on the new date.
 
 ## Final-pool promotion gate
 General final-pool promotion remains blocked under `V38_FINAL_POOL_PROMOTION_GATE_V1`.
@@ -204,16 +291,16 @@ The 20–25 pool remains a target only, never a forced count. Auto-promotion is 
 Keep the full HR workflow separate from the longshot branch:
 1. Profile qualification establishes durable power quality.
 2. Candidate profile score ranks the broad population, but is not yet a calibrated production tier scale.
-3. Pitch-fit is the primary validated tonight-specific enhancer.
+3. Pitch-fit is the primary validated tonight-specific enhancer and has now received first-slate prospective directional confirmation.
 4. Recent BBE is a smaller supporting modifier.
 5. Starter damage is a validated material context layer; `<1.2 HR/9` remains a caution rather than an automatic cut.
-6. Generic bullpen workload cannot boost; specific bullpen quality/availability remains contextual.
+6. Generic bullpen workload cannot boost; the current specific-bullpen candidate thresholds are diagnostic-only because coverage is too sparse.
 7. Lineup spot is a tie-break/exposure modifier only.
 8. Weather is parity-blocked; park factor is prospective support-only.
-9. Market is a value layer, not a power-profile substitute.
+9. Market is a value layer, not a power-profile substitute; market profitability requires multiple prospective slates.
 10. Longshot +700 4/6 eligibility remains locked and separate.
-11. Same-team stack/gas-can logic remains research-only pending frozen-matrix validation.
+11. Gas Can + strong profile is promising research context, but same-team stacking remains unvalidated.
 12. Mandatory Escape Check remains required before final pool lock.
-13. Final pool and ticket scoring remain blocked pending prospective evidence, threshold review and deliberate approval.
+13. Final pool and ticket scoring remain blocked pending additional historical/prospective evidence, threshold review and deliberate approval.
 
 No production scoring change was made from this validation.
