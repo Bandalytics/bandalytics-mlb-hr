@@ -33,13 +33,16 @@ jobs:
           const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
           if(z.protocol!=='V38_PITCHFIT_DISTRIBUTION_V1')throw Error('protocol');
           if(z.capture_mode!=='AS_OF_RECONSTRUCTABLE'||z.research_only!==true||z.scoring_enabled!==false||z.scoring_eligible!==false||z.model_scoring_changed!==false||z.as_of_verified!==true)throw Error('flags');
+          if(z.row_identity!=='GAMEPK_PLAYER_ID')throw Error('row identity');
           if(!Array.isArray(z.pregame_game_pks)||!Array.isArray(z.rows)||z.fit_rows!==z.rows.length)throw Error('shape');
           if(z.true_rows+z.partial_rows+z.pending_rows+z.error_rows>z.fit_rows)throw Error('counts');
           if(z.prospective_pregame_only&&!z.pregame_game_pks.every(Number.isInteger))throw Error('game pks');
+          const games=new Set(z.pregame_game_pks.map(Number));
+          if(!z.rows.every(r=>Number.isInteger(+r.gamePk)&&Number.isInteger(+r.player_id)&&(!z.prospective_pregame_only||games.has(+r.gamePk))))throw Error('row game identity');
           if(typeof z.sha256!=='string'||!/^[a-f0-9]{64}$/.test(z.sha256))throw Error('sha format');
           const expected=z.sha256,{sha256,...body}=z,calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
           if(calc!==expected)throw Error(`sha mismatch ${calc} != ${expected}`);
-          console.log('V38_PITCHFIT_CONTRACT_OK',JSON.stringify({date:z.date,pregame_games:z.pregame_game_pks.length,fit_rows:z.fit_rows,true_rows:z.true_rows,error_rows:z.error_rows,sha256:expected}));
+          console.log('V38_PITCHFIT_CONTRACT_OK',JSON.stringify({date:z.date,row_identity:z.row_identity,pregame_games:z.pregame_game_pks.length,fit_rows:z.fit_rows,true_rows:z.true_rows,error_rows:z.error_rows,sha256:expected}));
           NODE
       - uses: actions/upload-artifact@v4
         with:
