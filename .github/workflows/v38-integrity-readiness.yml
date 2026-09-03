@@ -9,6 +9,7 @@ on:
       - 'native-feed-core.mjs'
       - 'mlb-hr-locked-policy.mjs'
       - 'v38-park-factor-policy.mjs'
+      - 'v38-park-prospective-policy.mjs'
       - 'v38-evidence-manifest.mjs'
       - 'v38-selected-pool-report.mjs'
       - 'v38-stack-gascan-policy.mjs'
@@ -23,11 +24,13 @@ on:
       - 'scripts/summarize-v38-historical-promotion-evidence.mjs'
       - 'scripts/evaluate-v38-prospective-escape-watch.mjs'
       - 'scripts/evaluate-v38-environment-parity-window.mjs'
+      - 'scripts/evaluate-v38-park-prospective.mjs'
       - 'test-native-feed.mjs'
       - 'test-direct-research-ui.mjs'
       - 'test-v38-research-board.mjs'
       - 'test-mlb-hr-locked-policy.mjs'
       - 'test-v38-park-factor-policy.mjs'
+      - 'test-v38-park-prospective-policy.mjs'
       - 'test-v38-evidence-manifest.mjs'
       - 'test-v38-selected-pool-report.mjs'
       - 'test-v38-stack-gascan-policy.mjs'
@@ -56,6 +59,8 @@ jobs:
         run: node test-direct-research-ui.mjs
       - name: Test point-in-time park-factor policy
         run: node test-v38-park-factor-policy.mjs
+      - name: Test prospective park-factor validation policy
+        run: node test-v38-park-prospective-policy.mjs
       - name: Test immutable evidence manifest
         run: node test-v38-evidence-manifest.mjs
       - name: Test selected-pool HR and market-return reporting
@@ -78,6 +83,8 @@ jobs:
         run: node --check scripts/evaluate-v38-prospective-escape-watch.mjs
       - name: Syntax-check environment parity window evaluator
         run: node --check scripts/evaluate-v38-environment-parity-window.mjs
+      - name: Syntax-check prospective park evaluator
+        run: node --check scripts/evaluate-v38-park-prospective.mjs
       - name: Syntax-check V5 prospective evaluator
         run: node --check scripts/evaluate-v38-pregame-snapshot.mjs
       - name: Syntax-check V5 report + manifest augmentation
