@@ -22,11 +22,11 @@ export function selectLatestValidProfileSnapshot(snapshots,{date=null}={}){
 }
 
 export function selectCanonicalPostgameProfileSnapshot(snapshots,{date=null}={}){
-  return (snapshots||[]).filter(z=>validProfileSnapshot(z,{date})&&z.excluded_started_games.length===0&&z.pregame_games.length>0).sort((a,b)=>{
+  return (snapshots||[]).filter(z=>validProfileSnapshot(z,{date})&&Number.isInteger(+z.games_total)&&+z.games_total>0&&z.excluded_started_games.length===0&&z.pregame_games.length===+z.games_total).sort((a,b)=>{
     const gameDiff=(b.pregame_games?.length||0)-(a.pregame_games?.length||0);if(gameDiff)return gameDiff;
     const completeDiff=(+b.profile_complete||0)-(+a.profile_complete||0);if(completeDiff)return completeDiff;
     return Date.parse(b.captured_at)-Date.parse(a.captured_at);
   })[0]||null;
 }
 
-export const V38_POSTGAME_PROFILE_SELECTION=Object.freeze({protocol:'V38_POSTGAME_PROFILE_SELECTION_V1',selection_rule:'require zero excluded started games; then maximize verified pregame game count; then profile_complete; then latest captured_at',requires_full_slate_pregame:true,research_only:true,scoring_enabled:false,scoring_eligible:false});
+export const V38_POSTGAME_PROFILE_SELECTION=Object.freeze({protocol:'V38_POSTGAME_PROFILE_SELECTION_V1',selection_rule:'require games_total equals verified pregame game count with zero excluded started games; then maximize verified pregame game count; then profile_complete; then latest captured_at',requires_full_slate_pregame:true,research_only:true,scoring_enabled:false,scoring_eligible:false});
