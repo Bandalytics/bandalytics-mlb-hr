@@ -11,6 +11,7 @@ on:
       - 'v38-longshot-quality.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
+      - 'v38-park-factor-policy.mjs'
       - '.github/workflows/v38-live-research-board.yml'
 permissions:
   contents: read
@@ -28,13 +29,15 @@ jobs:
         with:
           node-version: '24'
       - name: Syntax preflight
-        run: node --check scripts/build-v38-live-research-board.mjs
+        run: |
+          node --check scripts/build-v38-live-research-board.mjs
+          node test-v38-park-factor-policy.mjs
       - name: Download latest valid daily research evidence
         shell: bash
         run: |
           set -euo pipefail
           DATE=$(TZ=America/New_York date +%F)
-          mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe
+          mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe incoming/park
           PROFILE_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
           if [ -z "${PROFILE_ID:-}" ]; then echo "No profile snapshot for ${DATE}"; exit 3; fi
           gh run download "$PROFILE_ID" --repo "$GH_REPO" --name "v38-pregame-${PROFILE_ID}" --dir incoming/profile
@@ -44,10 +47,12 @@ jobs:
           for ID in "${PF_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/pitchfit/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true; done
           mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
           for ID in "${BB_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/bbe/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true; done
+          mapfile -t PARK_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=50" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          for ID in "${PARK_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/park/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-park-factors-${ID}" --dir "incoming/park/$ID" || true; done
           echo "DATE=$DATE" >> "$GITHUB_ENV"
-          echo "profile=$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l) context=$(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) pitchfit=$(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l) bbe=$(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l)"
+          echo "profile=$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l) context=$(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) pitchfit=$(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l) bbe=$(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l) park=$(find incoming/park -type f -name 'v38-park-factors-*.json' | wc -l)"
       - name: Build canonical research board
-        run: node scripts/build-v38-live-research-board.mjs incoming/profile incoming/contexts incoming/modifiers "$DATE"
+        run: node scripts/build-v38-live-research-board.mjs incoming/profile incoming/contexts incoming/modifiers "$DATE" incoming/park
       - name: Verify fail-closed board contract
         shell: bash
         run: |
@@ -63,10 +68,19 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['pool_target_forced'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          assert z['park_factor_policy']['hard_gate'] is False
+          assert z['park_factor_policy']['standalone_hr_boost'] is False
+          assert z['park_factor_policy']['scoring_eligible'] is False
           assert isinstance(z['rows'],list)
           for r in z['rows']:
             if r.get('american_odds') is not None and r['american_odds']>=700:
               assert isinstance(r.get('longshot_policy'),dict)
+            pf=r.get('park_factor')
+            if pf:
+              assert pf['hard_gate'] is False
+              assert pf['standalone_hr_boost'] is False
+              assert pf['scoring_eligible'] is False
+              assert pf['captured_at'] < r['start_time']
           print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
