@@ -45,9 +45,10 @@ jobs:
           set -euo pipefail
           RUN_ID='${{ steps.source.outputs.run_id }}'
           mkdir -p incoming/gascan
-          mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-historical-convergence-"))) | .name')
-          for A in "${ARTS[@]:-}"; do
-            [ -n "$A" ] || continue
+          FROZEN_DATES=('2026-08-26' '2026-08-27' '2026-08-28' '2026-08-29' '2026-08-30' '2026-08-31' '2026-09-01')
+          for D in "${FROZEN_DATES[@]}"; do
+            A=$(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/artifacts?per_page=100" --jq ".artifacts[] | select(.expired==false and .name==\"v38-historical-convergence-${D}-${RUN_ID}\") | .name" | head -1)
+            [ -n "$A" ] || { echo "Missing frozen gascan source artifact for $D in run $RUN_ID"; exit 3; }
             mkdir -p "incoming/gascan/$A"
             gh run download "$RUN_ID" --repo "$GH_REPO" --name "$A" --dir "incoming/gascan/$A"
           done
