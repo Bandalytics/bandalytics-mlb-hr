@@ -50,9 +50,14 @@ jobs:
           elif [ -n '${{ github.event.inputs.postgame_run_id || '' }}' ]; then
             RUN_ID='${{ github.event.inputs.postgame_run_id || '' }}'
           else
-            RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=20" --jq '.workflow_runs[0].id // empty')
+            mapfile -t CANDIDATES < <(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=50" --jq '.workflow_runs[].id' || true)
+            for ID in "${CANDIDATES[@]:-}"; do
+              [ -n "$ID" ] || continue
+              COUNT=$(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired==false and (.name|startswith("v38-postgame-")))] | length' || echo 0)
+              if [ "${COUNT:-0}" -gt 0 ]; then RUN_ID="$ID"; break; fi
+            done
           fi
-          if [ -z "$RUN_ID" ]; then echo 'found=false' >> "$GITHUB_OUTPUT"; echo 'No source postgame run.'; exit 0; fi
+          if [ -z "$RUN_ID" ]; then echo 'found=false' >> "$GITHUB_OUTPUT"; echo 'No finalized postgame artifact found.'; exit 0; fi
           mkdir -p incoming/postgame
           mapfile -t NAMES < <(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-postgame-"))) | .name' || true)
           if [ "${#NAMES[@]}" -eq 0 ]; then echo 'found=false' >> "$GITHUB_OUTPUT"; echo "Run ${RUN_ID} has no finalized postgame artifact; nothing to evaluate."; exit 0; fi
