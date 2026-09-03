@@ -1,0 +1,5 @@
+export function teamGamesForProfile(snapshot={},teamId){return(snapshot.pregame_games||[]).filter(g=>+g.away_team_id===+teamId||+g.home_team_id===+teamId)}
+export function hitterMatchupForGame(meta,gctx,teamId){if(!gctx?.game||!meta)return null;return +meta.away_team_id===+teamId?`${gctx.game.away} @ ${gctx.game.home}`:`${gctx.game.home} @ ${gctx.game.away}`}
+export function summarizeFinalGamePlays(plays=[]){const played=new Set(),homers=new Set();for(const p of plays){const bid=+p?.matchup?.batter?.id;if(!Number.isInteger(bid))continue;played.add(bid);if(String(p?.result?.event||'').toLowerCase()==='home run')homers.add(bid)}return{played,homers}}
+export function playedGamesForProfile(profile,snapshot,playedByGame=new Map()){const pid=+profile?.player_id;return teamGamesForProfile(snapshot,+profile?.team_id).filter(g=>playedByGame.get(+g.gamePk)?.has(pid))}
+export const V38_POSTGAME_GAME_IDENTITY=Object.freeze({protocol:'V38_POSTGAME_GAME_IDENTITY_V1',row_identity:'GAMEPK_PLAYER_ID',doubleheader_safe:true,matchup_orientation:'HITTER_TEAM_FIRST',research_only:true,scoring_enabled:false,scoring_eligible:false});
