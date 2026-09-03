@@ -56,15 +56,21 @@ jobs:
           print(sorted(good)[-1][1] if good else '')
           PY
           )
-          if [ -z "$EVAL" ]; then echo 'No eligible FINAL V5 slate on/after 2026-09-03; nothing to validate.'; exit 78; fi
+          if [ -z "$EVAL" ]; then
+            echo 'No eligible FINAL V5 slate on/after 2026-09-03; clean skip.'
+            echo 'SKIP=true' >> "$GITHUB_ENV"
+            exit 0
+          fi
           DATE=$(python3 - "$EVAL" <<'PY'
           import json,sys
           print(json.load(open(sys.argv[1]))['date'])
           PY
           )
+          echo "SKIP=false" >> "$GITHUB_ENV"
           echo "EVAL=$EVAL" >> "$GITHUB_ENV"
           echo "DATE=$DATE" >> "$GITHUB_ENV"
       - name: Download point-in-time context and park snapshots
+        if: env.SKIP != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -83,8 +89,10 @@ jobs:
           done
           echo "context=$(find incoming/context -type f -name 'v38-context-*.json' | wc -l) park=$(find incoming/park -type f -name 'v38-park-factors-*.json' | wc -l)"
       - name: Evaluate exact pregame park support
+        if: env.SKIP != 'true'
         run: node scripts/evaluate-v38-park-prospective.mjs "$EVAL" incoming/context incoming/park "snapshots/v38-park-prospective-${DATE}.json"
       - name: Verify prospective-only fail-closed contract
+        if: env.SKIP != 'true'
         shell: bash
         run: |
           python3 - "snapshots/v38-park-prospective-${DATE}.json" <<'PY'
@@ -112,6 +120,7 @@ jobs:
           print('V38_PARK_PROSPECTIVE_OK',z['coverage'])
           PY
       - uses: actions/upload-artifact@v4
+        if: env.SKIP != 'true'
         with:
           name: v38-park-prospective-${{ github.run_id }}
           path: snapshots/v38-park-prospective-*.json
