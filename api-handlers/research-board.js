@@ -30,7 +30,7 @@ export function buildResearchBoardPlan(feed={}){
   const profile_batches=chunk(ids,40).map(batch=>({ids:batch,url:`/api/profile-v38-candidate?ids=${batch.join(',')}&year=2026`}));
   const pitchfit_requests=hitters.filter(x=>x.opp_pitcher_id).map(x=>({player_id:x.player_id,pitcher_id:x.opp_pitcher_id,url:`/api/pitchfit-native?date=${enc(date)}&hitter_id=${x.player_id}&pitcher_id=${x.opp_pitcher_id}`}));
   const bbe_batches=chunk(ids,300).map(batch=>({ids:batch,url:`/api/player-bbe-native?date=${enc(date)}&ids=${batch.join(',')}`}));
-  const slateGames=Number(feed.games)||Array.isArray(feed.items)?feed.items.length:0;
+  const slateGames=Number(feed.games)||(Array.isArray(feed.items)?feed.items.length:0);
   const reviewPolicy=dynamicReviewPolicy(slateGames);
   return {
     protocol:'V38_RESEARCH_BOARD_PLAN_V2',date,
