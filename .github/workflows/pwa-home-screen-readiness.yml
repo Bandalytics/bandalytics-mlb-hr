@@ -5,6 +5,7 @@ on:
     paths:
       - 'pwa/**'
       - 'pwa-inject.mjs'
+      - 'v38-site-policy-ui.js'
       - 'test-pwa-home-screen.mjs'
       - 'package.json'
       - '.github/workflows/pwa-home-screen-readiness.yml'
@@ -22,23 +23,27 @@ jobs:
           node-version: '24'
       - name: Verify multi-sport Home Screen contract
         run: node test-pwa-home-screen.mjs
-      - name: Syntax-check PWA injector
-        run: node --check pwa-inject.mjs
+      - name: Syntax-check PWA and V38 policy injectors
+        run: |
+          node --check pwa-inject.mjs
+          node --check v38-site-policy-ui.js
       - name: Build production site with Home Screen packaging
         run: npm run build
-      - name: Verify built PWA output
+      - name: Verify built PWA and V38 policy output
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html=fs.readFileSync('dist/index.html','utf8');
           const manifest=JSON.parse(fs.readFileSync('dist/manifest.webmanifest','utf8'));
-          for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png']){
-            if(!fs.existsSync(p)||fs.statSync(p).size<1000)throw Error(`missing built icon ${p}`);
+          for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png','dist/v38-site-policy-ui.js']){
+            if(!fs.existsSync(p)||fs.statSync(p).size<1000)throw Error(`missing built asset ${p}`);
           }
-          for(const marker of ['manifest.webmanifest','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','BANDALYTICS']){
+          for(const marker of ['manifest.webmanifest','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','BANDALYTICS','/v38-site-policy-ui.js']){
             if(!html.includes(marker))throw Error(`built HTML missing ${marker}`);
           }
+          const policy=fs.readFileSync('dist/v38-site-policy-ui.js','utf8');
+          for(const marker of ['V38 RESEARCH POOL','Legacy pool blocked','legacyFinalPoolDisabled:true'])if(!policy.includes(marker))throw Error(`built policy UI missing ${marker}`);
           if(manifest.name!=='BANDALYTICS'||manifest.short_name!=='BANDALYTICS'||manifest.display!=='standalone')throw Error('bad built manifest identity');
           if(!Array.isArray(manifest.icons)||!manifest.icons.some(x=>x.sizes==='180x180')||!manifest.icons.some(x=>x.sizes==='192x192'))throw Error('built manifest icon set incomplete');
-          console.log('BANDALYTICS_BUILT_PWA_PASS');
+          console.log('BANDALYTICS_BUILT_PWA_V38_POLICY_PASS');
           NODE
