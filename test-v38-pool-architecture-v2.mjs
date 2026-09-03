@@ -1,0 +1,16 @@
+import assert from'node:assert/strict';
+import{V38_POOL_ARCHITECTURE_V2,classifyPoolLayer,isStructuredPoolLayer}from'./v38-pool-architecture-v2.mjs';
+
+assert.equal(V38_POOL_ARCHITECTURE_V2.research_only,true);
+assert.equal(V38_POOL_ARCHITECTURE_V2.scoring_enabled,false);
+assert.equal(V38_POOL_ARCHITECTURE_V2.production_rule_changed,false);
+assert.equal(V38_POOL_ARCHITECTURE_V2.first_prospective_date,'2026-09-04');
+assert.equal(classifyPoolLayer({priority_band:'CORE_PROTECTED',quality_tier:'PROTECTED_5OF6_PLUS'}),'CORE');
+assert.equal(classifyPoolLayer({priority_band:'STRONG_PROFILE',quality_tier:'PROTECTED_5OF6_PLUS'}),'PROTECTED_POOL');
+assert.equal(classifyPoolLayer({priority_band:'QUALITY_PROFILE',quality_tier:'QUALITY_4OF6_PLUS_ISO'}),'QUALITY_VALUE_POOL');
+assert.equal(classifyPoolLayer({priority_band:'WATCH_BASE_ELIGIBLE',quality_tier:'BASE_PROFILE_4OF6',american_odds:900}),'OUTSIDE_PRIMARY_POOL');
+assert.equal(classifyPoolLayer({priority_band:'WATCH_BASE_ELIGIBLE',quality_tier:'BASE_ELIGIBLE_4OF6',american_odds:699,longshot_policy:{applicable:false,qualifies:false}}),'OUTSIDE_PRIMARY_POOL');
+assert.equal(classifyPoolLayer({priority_band:'WATCH_BASE_ELIGIBLE',quality_tier:'BASE_ELIGIBLE_4OF6',american_odds:900,longshot_policy:{applicable:true,qualifies:true}}),'ESCAPE_WATCH');
+assert.equal(isStructuredPoolLayer('ESCAPE_WATCH'),true);
+assert.equal(isStructuredPoolLayer('OUTSIDE_PRIMARY_POOL'),false);
+console.log('V38_POOL_ARCHITECTURE_V2_PASS');
