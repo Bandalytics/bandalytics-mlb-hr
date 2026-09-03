@@ -18,6 +18,8 @@ on:
       - 'v38-environment-parity-gate.mjs'
       - 'v38-context-selector.mjs'
       - 'v38-profile-snapshot-selector.mjs'
+      - 'v38-pool-architecture-v2.mjs'
+      - 'v38-pool-shortlist-v2.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gascan-slate.mjs'
@@ -39,6 +41,9 @@ on:
       - 'test-v38-environment-parity.mjs'
       - 'test-v38-context-selector.mjs'
       - 'test-v38-profile-snapshot-selector.mjs'
+      - 'test-v38-pool-architecture-v2.mjs'
+      - 'test-v38-pool-shortlist-v2.mjs'
+      - 'test-v38-pool-queue-caps.mjs'
       - '.github/workflows/v38-integrity-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -77,6 +82,12 @@ jobs:
         run: node test-v38-context-selector.mjs
       - name: Test pregame profile snapshot hash selection
         run: node test-v38-profile-snapshot-selector.mjs
+      - name: Test layered pool architecture
+        run: node test-v38-pool-architecture-v2.mjs
+      - name: Test layered pool evidence readiness
+        run: node test-v38-pool-shortlist-v2.mjs
+      - name: Test layered review queue cumulative caps
+        run: node test-v38-pool-queue-caps.mjs
       - name: Syntax-check gas-can historical analyzer
         run: node --check scripts/analyze-v38-gascan-slate.mjs
       - name: Syntax-check historical escape audit
