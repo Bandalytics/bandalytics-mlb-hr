@@ -28,24 +28,19 @@ jobs:
         run: |
           set -euo pipefail
           FILE=$(find snapshots -type f -name 'v38-recent-bbe-*.json' | sort | tail -1)
-          python3 - "$FILE" <<'PY'
-          import json,sys
-          z=json.load(open(sys.argv[1]))
-          assert z['protocol']=='V38_RECENT_BBE_DISTRIBUTION_V1'
-          assert z['capture_mode']=='AS_OF_RECONSTRUCTABLE'
-          assert z['research_only'] is True
-          assert z['scoring_enabled'] is False
-          assert z['scoring_eligible'] is False
-          assert z['model_scoring_changed'] is False
-          assert z['as_of_verified'] is True
-          assert isinstance(z['pregame_game_pks'],list)
-          assert isinstance(z['rows'],list)
-          assert z['summary_rows']==len(z['rows'])
-          assert z['full_15_bbe_rows'] <= z['usable_rows'] <= z['summary_rows']
-          if z['prospective_pregame_only']:
-            assert all(isinstance(x,int) for x in z['pregame_game_pks'])
-          print('V38_BBE_CONTRACT_OK',{'date':z['date'],'pregame_games':len(z['pregame_game_pks']),'rows':z['summary_rows'],'usable_rows':z['usable_rows'],'full_15_bbe_rows':z['full_15_bbe_rows']})
-          PY
+          node - "$FILE" <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(z.protocol!=='V38_RECENT_BBE_DISTRIBUTION_V1')throw Error('protocol');
+          if(z.capture_mode!=='AS_OF_RECONSTRUCTABLE'||z.research_only!==true||z.scoring_enabled!==false||z.scoring_eligible!==false||z.model_scoring_changed!==false||z.as_of_verified!==true)throw Error('flags');
+          if(!Array.isArray(z.pregame_game_pks)||!Array.isArray(z.rows)||z.summary_rows!==z.rows.length)throw Error('shape');
+          if(!(z.full_15_bbe_rows<=z.usable_rows&&z.usable_rows<=z.summary_rows))throw Error('counts');
+          if(z.prospective_pregame_only&&!z.pregame_game_pks.every(Number.isInteger))throw Error('game pks');
+          if(typeof z.sha256!=='string'||!/^[a-f0-9]{64}$/.test(z.sha256))throw Error('sha format');
+          const expected=z.sha256,{sha256,...body}=z,calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+          if(calc!==expected)throw Error(`sha mismatch ${calc} != ${expected}`);
+          console.log('V38_BBE_CONTRACT_OK',JSON.stringify({date:z.date,pregame_games:z.pregame_game_pks.length,rows:z.summary_rows,usable_rows:z.usable_rows,full_15_bbe_rows:z.full_15_bbe_rows,sha256:expected}));
+          NODE
       - uses: actions/upload-artifact@v4
         with:
           name: v38-recent-bbe-${{ github.run_id }}
