@@ -1,0 +1,81 @@
+name: v38 Specific Bullpen Window Summary
+on:
+  workflow_run:
+    workflows: ['v38 Specific Bullpen Validation']
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/summarize-v38-specific-bullpen-window.mjs'
+      - '.github/workflows/v38-specific-bullpen-window-summary.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  summarize:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/summarize-v38-specific-bullpen-window.mjs
+      - name: Resolve source run
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            RUN_ID='${{ github.event.workflow_run.id }}'
+          else
+            RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-specific-bullpen-validation.yml/runs?status=success&per_page=20" --jq '.workflow_runs[0].id')
+          fi
+          [ -n "$RUN_ID" ] || { echo 'No successful specific-bullpen run'; exit 2; }
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Download all seven artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID='${{ steps.source.outputs.run_id }}'
+          mkdir -p incoming/specific-bullpen
+          mapfile -t ARTS < <(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-specific-bullpen-"))) | .name')
+          for A in "${ARTS[@]:-}"; do
+            [ -n "$A" ] || continue
+            mkdir -p "incoming/specific-bullpen/$A"
+            gh run download "$RUN_ID" --repo "$GH_REPO" --name "$A" --dir "incoming/specific-bullpen/$A"
+          done
+          COUNT=$(find incoming/specific-bullpen -type f -name 'v38-specific-bullpen-*.json' | wc -l)
+          echo "Specific bullpen files: $COUNT"
+          [ "$COUNT" -eq 7 ] || { echo "Expected 7 files, found $COUNT"; exit 3; }
+      - name: Aggregate frozen window
+        run: node scripts/summarize-v38-specific-bullpen-window.mjs incoming/specific-bullpen snapshots/v38-specific-bullpen-window-summary.json
+      - name: Verify diagnostic contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          z=json.load(open('snapshots/v38-specific-bullpen-window-summary.json'))
+          assert z['protocol']=='V38_SPECIFIC_BULLPEN_WINDOW_SUMMARY_V1'
+          assert z['window']=={'start':'2026-08-26','end':'2026-09-01','slates':7}
+          assert z['point_in_time'] is True and z['as_of_verified'] is True
+          assert z['qualifying_backtest'] is False
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False and z['scoring_eligible'] is False
+          assert z['generic_team_workload_can_boost'] is False
+          assert z['coverage_scope']=='RECENTLY_OBSERVED_RELIEF_ARMS_ONLY_NOT_FULL_ACTIVE_BULLPEN'
+          assert z['conclusions']['promotion_status']=='DIAGNOSTIC_ONLY_SPECIFIC_BULLPEN_FAMILY_NOT_PROMOTED'
+          print('V38_SPECIFIC_BULLPEN_WINDOW_OK='+json.dumps({'window':z['window'],'groups':z['groups'],'conclusions':z['conclusions']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-specific-bullpen-window-summary-${{ github.run_id }}
+          path: snapshots/v38-specific-bullpen-window-summary.json
+          if-no-files-found: error
+          retention-days: 90
