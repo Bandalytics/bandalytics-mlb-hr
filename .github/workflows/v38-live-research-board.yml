@@ -89,12 +89,14 @@ jobs:
           assert z['pool_architecture']['first_prospective_date']=='2026-09-04'
           assert z['pool_architecture']['production_rule_changed'] is False
           assert z['pool_architecture']['final_pool_promoted'] is False
+          assert z['pool_architecture']['review_queue_max']==25
+          assert z['pool_architecture']['review_queue_no_minimum'] is True
           assert re.fullmatch(r'[a-f0-9]{64}',z.get('profile_snapshot_sha256') or '')
           assert z['park_factor_policy']['requires_exact_effective_bat_side'] is True
           assert z['park_factor_policy']['hard_gate'] is False
           assert z['park_factor_policy']['standalone_hr_boost'] is False
           assert z['park_factor_policy']['scoring_eligible'] is False
-          assert isinstance(z['rows'],list)
+          assert isinstance(z['rows'],list) and isinstance(z['review_queue'],list)
           layers={'CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH','OUTSIDE_PRIMARY_POOL'}
           statuses={'RETAIN_FOR_FINAL_REVIEW','PENDING_EVIDENCE','OUTSIDE_PRIMARY_POOL'}
           layer_counts={k:0 for k in layers}; retain=0; pending=0
@@ -103,9 +105,12 @@ jobs:
             assert r.get('shortlist',{}).get('status') in statuses
             layer_counts[r['pool_layer']]+=1
             assert r.get('structured_pool_candidate')==(r['pool_layer']!='OUTSIDE_PRIMARY_POOL')
+            assert r.get('final_review_queue')==(any(q['player_id']==r['player_id'] for q in z['review_queue']))
             if r['shortlist']['status']=='RETAIN_FOR_FINAL_REVIEW': retain+=1
             if r['shortlist']['status']=='PENDING_EVIDENCE': pending+=1
-            if r['pool_layer']=='CORE': assert r['shortlist']['status']=='RETAIN_FOR_FINAL_REVIEW'
+            if r['pool_layer']=='CORE':
+              assert r['shortlist']['status']=='RETAIN_FOR_FINAL_REVIEW'
+              assert r['final_review_queue'] is True
             if r['pool_layer']=='ESCAPE_WATCH':
               assert r.get('quality_tier')=='BASE_ELIGIBLE_4OF6'
               assert (r.get('american_odds') or 0)>=700
@@ -131,6 +136,9 @@ jobs:
           assert z['counts']['structured_pool_candidates']==sum(layer_counts[k] for k in ('CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH'))
           assert z['counts']['shortlist_retain_rows']==retain
           assert z['counts']['pending_evidence_rows']==pending
+          assert z['counts']['final_review_queue_rows']==len(z['review_queue'])
+          assert len(z['review_queue'])<=25 or z['counts']['core_rows']>25
+          assert z['counts']['review_queue_trimmed_rows']==max(0,retain-len(z['review_queue']))
           print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
