@@ -18,6 +18,7 @@ on:
       - 'v38-environment-parity-gate.mjs'
       - 'v38-context-selector.mjs'
       - 'v38-profile-snapshot-selector.mjs'
+      - 'v38-modifier-artifacts.mjs'
       - 'v38-pool-architecture-v2.mjs'
       - 'v38-pool-shortlist-v2.mjs'
       - 'v38-pool-shortlist-v3.mjs'
@@ -42,6 +43,7 @@ on:
       - 'test-v38-environment-parity.mjs'
       - 'test-v38-context-selector.mjs'
       - 'test-v38-profile-snapshot-selector.mjs'
+      - 'test-v38-modifier-artifacts.mjs'
       - 'test-v38-pool-architecture-v2.mjs'
       - 'test-v38-pool-shortlist-v2.mjs'
       - 'test-v38-pool-shortlist-v3.mjs'
@@ -84,6 +86,8 @@ jobs:
         run: node test-v38-context-selector.mjs
       - name: Test pregame profile snapshot hash selection
         run: node test-v38-profile-snapshot-selector.mjs
+      - name: Test modifier artifact hash and tamper rejection
+        run: node test-v38-modifier-artifacts.mjs
       - name: Test layered pool architecture
         run: node test-v38-pool-architecture-v2.mjs
       - name: Test layered pool evidence readiness legacy
