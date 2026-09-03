@@ -1,6 +1,6 @@
 import{evaluateLongshot700}from'./mlb-hr-locked-policy.mjs';
-function americanOddsBand(odds){const n=Number(odds);if(!Number.isFinite(n))return'NO_MARKET';if(n<400)return'LT_400';if(n<500)return'400_499';if(n<700)return'500_699';if(n<1000)return'700_999';return'1000_PLUS'}
 function oddsNum(v){if(v==null||v==='')return null;const n=Number(v);return Number.isFinite(n)?n:null}
+function americanOddsBand(odds){const n=oddsNum(odds);if(n==null)return'NO_MARKET';if(n<400)return'LT_400';if(n<500)return'400_499';if(n<700)return'500_699';if(n<1000)return'700_999';return'1000_PLUS'}
 function marketOdds(r){const m=r?.context?.market;for(const v of[m?.current_odds,m?.best_odds,m?.american_odds]){const n=oddsNum(v);if(n!=null)return n}return null}
 function rate(h,n){return n?+(100*h/n).toFixed(2):null}
 function unitProfit(odds,win){const o=oddsNum(odds);if(o==null)return null;if(!win)return-1;return o>0?o/100:100/Math.abs(o)}
