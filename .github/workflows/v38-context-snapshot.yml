@@ -20,8 +20,34 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Syntax preflight
+        run: node --check scripts/capture-v38-context-snapshot.mjs
       - name: Capture immutable pregame context
         run: node scripts/capture-v38-context-snapshot.mjs
+      - name: Verify fail-closed context contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          F=$(find snapshots -type f -name 'v38-context-*.json' | sort | tail -1)
+          node --input-type=module - "$F" <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const file=process.argv[2],z=JSON.parse(fs.readFileSync(file,'utf8'));
+          if(z.context_protocol!=='V38_CONTEXT_SNAPSHOT_V1') throw Error('bad context protocol');
+          if(z.point_in_time!==true||z.research_only!==true||z.scoring_enabled!==false||z.scoring_eligible!==false||z.model_scoring_changed!==false) throw Error('unsafe context flags');
+          if(z.weather_point_in_time!==true||z.weather_scoring_eligible!==false) throw Error('unsafe weather flags');
+          if(!Array.isArray(z.pregame_games)||!Array.isArray(z.lineup_rows)||!Array.isArray(z.market_rows)) throw Error('bad context arrays');
+          if(z.pregame_game_count!==z.pregame_games.length) throw Error('pregame count mismatch');
+          const captured=Date.parse(z.captured_at);
+          if(!Number.isFinite(captured)) throw Error('bad captured_at');
+          for(const g of z.pregame_games){const start=Date.parse(g.start_time);if(!Number.isFinite(start)||start<=captured) throw Error(`non-pregame game ${g.gamePk}`);}
+          if(!Number.isFinite(Number(z.weather_covered_games))||z.weather_covered_games<0||z.weather_covered_games>z.pregame_game_count) throw Error('bad weather coverage count');
+          if(!Number.isFinite(Number(z.weather_coverage_pct))||z.weather_coverage_pct<0||z.weather_coverage_pct>100) throw Error('bad weather coverage pct');
+          if(typeof z.sha256!=='string'||!/^[a-f0-9]{64}$/.test(z.sha256)) throw Error('bad sha256');
+          const {sha256,...body}=z,calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+          if(calc!==sha256) throw Error('context sha256 mismatch');
+          console.log('V38_CONTEXT_CONTRACT_OK='+JSON.stringify({date:z.date,captured_at:z.captured_at,pregame_games:z.pregame_game_count,confirmed_lineups:z.confirmed_lineups,lineup_rows:z.lineup_rows.length,market_ok:z.market_ok,market_rows:z.market_rows.length,weather_coverage_pct:z.weather_coverage_pct}));
+          NODE
       - name: Show context summary
         run: |
           F=$(find snapshots -type f -name 'v38-context-*.json' | sort | tail -1)
