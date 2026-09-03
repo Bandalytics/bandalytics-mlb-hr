@@ -3,13 +3,18 @@ on:
   workflow_run:
     workflows: ['v38 Historical Convergence']
     types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/summarize-v38-gascan-window.mjs'
+      - '.github/workflows/v38-gascan-window-summary.yml'
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 jobs:
   summarize:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -46,7 +51,9 @@ jobs:
             mkdir -p "incoming/gascan/$A"
             gh run download "$RUN_ID" --repo "$GH_REPO" --name "$A" --dir "incoming/gascan/$A"
           done
-          echo "Gascan files: $(find incoming/gascan -type f -name 'v38-gascan-team-cluster-*.json' | wc -l)"
+          COUNT=$(find incoming/gascan -type f -name 'v38-gascan-team-cluster-*.json' | wc -l)
+          echo "Gascan files: $COUNT"
+          [ "$COUNT" -eq 7 ] || { echo "Expected 7 frozen gascan files, found $COUNT"; exit 3; }
       - name: Aggregate all frozen slates
         run: node scripts/summarize-v38-gascan-window.mjs incoming/gascan snapshots/v38-gascan-window-summary.json
       - name: Verify frozen-window diagnostic contract
@@ -69,7 +76,7 @@ jobs:
           assert z['environment_used'] is False
           assert z['thresholds_status']=='RESEARCH_CANDIDATE_NOT_PRODUCTION_LOCKED'
           assert z['conclusions']['promotion_status']=='DIAGNOSTIC_ONLY_NO_PRODUCTION_STACK_PROMOTION'
-          print('V38_GASCAN_WINDOW_OK='+json.dumps({'window':z['window'],'quality_gascan':z['groups']['quality_4of6_iso_gascan'],'quality_non_gascan':z['groups']['quality_4of6_iso_non_gascan'],'gascan_context':z['attack_groups']['gascan_context'],'no_gascan_context':z['attack_groups']['no_gascan_context'],'conclusions':z['conclusions']}))
+          print('V38_GASCAN_WINDOW_OK='+json.dumps({'window':z['window'],'quality_gascan':z['groups']['quality_4of6_iso_gascan'],'quality_non_gascan':z['groups']['quality_4of6_iso_non_gascan'],'gascan_all':z['groups']['gascan_all_profiles'],'gascan_context':z['attack_groups']['gascan_context'],'no_gascan_context':z['attack_groups']['no_gascan_context'],'conclusions':z['conclusions']}))
           PY
       - uses: actions/upload-artifact@v4
         with:
