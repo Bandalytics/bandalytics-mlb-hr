@@ -18,12 +18,21 @@ export const V38_POOL_SHORTLIST_V3=Object.freeze({
     'MISSING_EVIDENCE_IS_PENDING_NOT_AUTOMATIC_NEGATIVE',
     'TWENTY_TO_TWENTY_FIVE_IS_A_PREFERRED_RANGE_NOT_A_REQUIRED_COUNT',
     'SMALL_SLATES_MAX_TWENTY_NORMAL_SLATES_MAX_TWENTY_FIVE_LARGE_SLATES_MAX_THIRTY',
-    'SLATE_SIZE_IS_FIXED_FROM_THE_PREGAME_PROFILE_SNAPSHOT_NOT_REMAINING_GAMES',
+    'SLATE_SIZE_IS_FIXED_FROM_UNIQUE_PREGAME_PLUS_EXCLUDED_STARTED_GAMES_IN_THE_VERIFIED_PROFILE_SNAPSHOT',
     'CORE_IS_NEVER_DROPPED_BY_QUEUE_CAP',
     'CUMULATIVE_LAYER_CAPS_PREVENT_PROTECTED_POOL_FROM_CROWDING_OUT_VALUE_AND_ESCAPE',
     'NO_MINIMUM_AND_NO_FILL_TO_TARGET'
   ])
 });
+
+export function snapshotSlateGameCount(snapshot={}){
+  const ids=new Set();
+  for(const g of [...(snapshot?.pregame_games||[]),...(snapshot?.excluded_started_games||[])]){
+    const id=Number(g?.gamePk);
+    if(Number.isFinite(id)&&id>0)ids.add(id);
+  }
+  return ids.size;
+}
 
 function preferredMarket(o){const n=Number(o);return Number.isFinite(n)&&n>=500&&n<=1500}
 function bbeSupport(b){return['TOP_QUARTILE','TOP_DECILE'].includes(b?.hrshape_band)}
