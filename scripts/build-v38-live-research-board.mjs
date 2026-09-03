@@ -1,6 +1,7 @@
 import fs from'node:fs/promises';
 import path from'node:path';
 import{profileComplete}from'../v38-profile-validity.mjs';
+import{selectLatestValidProfileSnapshot}from'../v38-profile-snapshot-selector.mjs';
 import{evaluateV38CandidateRules}from'../v38-gate-rules.mjs';
 import{classifyLongshotQuality}from'../v38-longshot-quality.mjs';
 import{researchPoolHierarchy,V38_RESEARCH_POOL_HIERARCHY}from'../v38-research-pool-hierarchy.mjs';
@@ -8,10 +9,10 @@ import{validContextSnapshot,selectLatestPregameContext,contextForGame}from'../v3
 import{loadModifierArtifactSets,attachProspectiveModifierBands}from'../v38-modifier-artifacts.mjs';
 import{validParkFactorSnapshot,selectLatestPregameParkSnapshot,parkFactorForVenue,effectiveParkBatSide}from'../v38-park-factor-policy.mjs';
 
-const PROFILE_PROTOCOL='V38_PREGAME_SNAPSHOT_V1',BOARD_PROTOCOL='V38_LIVE_RESEARCH_BOARD_V1';
+const BOARD_PROTOCOL='V38_LIVE_RESEARCH_BOARD_V1';
 async function jsonFiles(root){const out=[];async function walk(p){let es;try{es=await fs.readdir(p,{withFileTypes:true})}catch{return}for(const e of es){const q=path.join(p,e.name);if(e.isDirectory())await walk(q);else if(e.isFile()&&e.name.endsWith('.json'))out.push(q)}}await walk(root);return out}
 async function readJson(f){return JSON.parse(await fs.readFile(f,'utf8'))}
-async function latestProfile(root,date){const files=await jsonFiles(root),a=[];for(const f of files){try{const z=await readJson(f);if(z.snapshot_protocol===PROFILE_PROTOCOL&&z.date===date&&z.point_in_time===true&&z.research_only===true&&z.scoring_enabled===false)a.push(z)}catch{}}return a.sort((x,y)=>Date.parse(y.captured_at)-Date.parse(x.captured_at))[0]||null}
+async function latestProfile(root,date){const files=await jsonFiles(root),a=[];for(const f of files){try{const z=await readJson(f);if(z.date===date)a.push(z)}catch{}}return selectLatestValidProfileSnapshot(a,{date})}
 async function contexts(root,date){const files=await jsonFiles(root),a=[];for(const f of files){try{const z=await readJson(f);if(z.date===date&&validContextSnapshot(z))a.push(z)}catch{}}return a}
 async function parkSnapshots(root,date){const files=await jsonFiles(root),a=[];for(const f of files){try{const z=await readJson(f);if(z.date===date&&validParkFactorSnapshot(z))a.push(z)}catch{}}return a}
 function etDate(d=new Date()){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
@@ -21,7 +22,7 @@ function oddsOf(m){const v=Number(m?.best_odds??m?.current_odds??m?.american_odd
 function rankBand(x){return({CORE_PROTECTED_PLUS:1,CORE_PROTECTED:2,CORE_QUALITY_PLUS:3,CORE_QUALITY:4,STRONG_PROFILE:5,QUALITY_WITH_BBE_SUPPORT:6,QUALITY_PROFILE:7,WATCH_BASE_ELIGIBLE:8,EXCLUDE_OR_OTHER_MARKET_RULE:99})[x]??50}
 
 const profileDir=process.argv[2]||'incoming/profile',contextDir=process.argv[3]||'incoming/contexts',modifierDir=process.argv[4]||'incoming/modifiers',date=process.argv[5]||etDate(),parkDir=process.argv[6]||'incoming/park';
-const[profile,ctxs,mods,parks]=await Promise.all([latestProfile(profileDir,date),contexts(contextDir,date),loadModifierArtifactSets(modifierDir,date),parkSnapshots(parkDir,date)]);if(!profile)throw Error(`No valid ${PROFILE_PROTOCOL} for ${date}`);
+const[profile,ctxs,mods,parks]=await Promise.all([latestProfile(profileDir,date),contexts(contextDir,date),loadModifierArtifactSets(modifierDir,date),parkSnapshots(parkDir,date)]);if(!profile)throw Error(`No valid V38_PREGAME_SNAPSHOT_V1 for ${date}`);
 const now=new Date().toISOString(),rows=[];
 for(const p of profile.items||[]){if(!profileComplete(p))continue;const game=gameForPlayer(profile,p.team_id);if(!game||Date.parse(game.start_time)<=Date.now())continue;const selected=selectLatestPregameContext(ctxs,game.gamePk,game.start_time),gctx=selected?contextForGame(selected,game.gamePk):null,lineup=gctx?.lineup_rows?.find(x=>+x.player_id===+p.player_id)||null,market=gctx?.market_rows?.find(x=>+x.player_id===+p.player_id)||null,odds=oddsOf(market),matchup=gctx?.game?`${gctx.game.away} @ ${gctx.game.home}`:`${game.away} @ ${game.home}`,parkSnapshot=selectLatestPregameParkSnapshot(parks,game.start_time),effectiveBatSide=effectiveParkBatSide(lineup?.bat_side,lineup?.opp_pitcher_hand),park=effectiveBatSide?parkFactorForVenue(parkSnapshot,gctx?.game?.venue||null,effectiveBatSide):null;let r={player_id:+p.player_id,player:p.player||null,team_id:+p.team_id,gamePk:+game.gamePk,matchup,start_time:game.start_time,profile_complete:true,profile:p,context:{captured_at:selected?.captured_at||null,snapshot_sha256:selected?.sha256||null,lineup:Number(lineup?.lineup)||null,confirmed_lineup:!!(lineup&&Number(lineup.lineup)>=1&&Number(lineup.lineup)<=9),bat_side:lineup?.bat_side||null,effective_bat_side:effectiveBatSide,opp_pitcher_hand:lineup?.opp_pitcher_hand||null,venue:gctx?.game?.venue||null,market},american_odds:odds,park_factor:park};r=attachProspectiveModifierBands(r,mods,{date,gamePk:game.gamePk,startTime:game.start_time,matchup});const generic=genericQuality(p),longshot=odds!=null&&odds>=700?classifyLongshotQuality(p,odds):null,quality=longshot?longshot.quality_tier:generic;const hierarchy=researchPoolHierarchy({quality_tier:quality,pitchfit_band:r.pitchfit_band,bbe_band:r.bbe_band,lineup:r.context.lineup,american_odds:odds});const longshotBlocked=!!longshot&&['INELIGIBLE','NOT_LONGSHOT_WINDOW'].includes(longshot.quality_tier);rows.push({...r,gate_count:evaluateV38CandidateRules(p).gate_count,quality_tier:quality,longshot_policy:longshot,hierarchy,eligible_research_pool:!longshotBlocked&&hierarchy.priority_band!=='EXCLUDE_OR_OTHER_MARKET_RULE'})}
 rows.sort((a,b)=>rankBand(a.hierarchy.priority_band)-rankBand(b.hierarchy.priority_band)||(b.gate_count-a.gate_count)||((a.american_odds??99999)-(b.american_odds??99999)));
