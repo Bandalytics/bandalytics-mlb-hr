@@ -1,0 +1,16 @@
+import assert from'node:assert/strict';
+import{V38_PROSPECTIVE_ESCAPE_WATCH,prospectiveEscapeWatchCategory,prospectiveEscapeWatchEligibleDate}from'./v38-prospective-escape-watch.mjs';
+assert.equal(V38_PROSPECTIVE_ESCAPE_WATCH.first_eligible_slate,'2026-09-04');
+assert.equal(V38_PROSPECTIVE_ESCAPE_WATCH.backfill_allowed,false);
+assert.equal(V38_PROSPECTIVE_ESCAPE_WATCH.historical_promotion_evidence_allowed,false);
+assert.equal(V38_PROSPECTIVE_ESCAPE_WATCH.scoring_enabled,false);
+assert.equal(V38_PROSPECTIVE_ESCAPE_WATCH.pool_target_forced,false);
+assert.equal(prospectiveEscapeWatchEligibleDate('2026-09-02'),false);
+assert.equal(prospectiveEscapeWatchEligibleDate('2026-09-03'),false);
+assert.equal(prospectiveEscapeWatchEligibleDate('2026-09-04'),true);
+assert.equal(prospectiveEscapeWatchCategory({candidate_rules:{'4of6_iso':true},pitchfit_band:'TOP_QUARTILE'}),'CORE_CONTROL');
+assert.equal(prospectiveEscapeWatchCategory({candidate_rules:{'4of6_iso':true},pitchfit_band:'TOP_DECILE'}),'CORE_CONTROL');
+assert.equal(prospectiveEscapeWatchCategory({candidate_rules:{'4of6_iso':true},pitchfit_band:'BASE_TRUE'}),'QUALITY_PITCHFIT_BASE_TRUE');
+assert.equal(prospectiveEscapeWatchCategory({candidate_rules:{'4of6_iso':true},pitchfit_band:'INELIGIBLE'}),'QUALITY_PITCHFIT_UNAVAILABLE');
+assert.equal(prospectiveEscapeWatchCategory({candidate_rules:{'4of6_iso':false},pitchfit_band:'TOP_QUARTILE'}),null);
+console.log('V38 PROSPECTIVE ESCAPE WATCH PASS');
