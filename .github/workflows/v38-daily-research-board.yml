@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/build-v38-daily-research-board.mjs'
+      - 'v38-profile-snapshot-selector.mjs'
       - 'v38-context-selector.mjs'
       - 'v38-park-factor-policy.mjs'
       - '.github/workflows/v38-daily-research-board.yml'
@@ -28,6 +29,7 @@ jobs:
       - name: Syntax preflight
         run: |
           node --check scripts/build-v38-daily-research-board.mjs
+          node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
       - name: Resolve current ET slate
         id: date
@@ -39,13 +41,22 @@ jobs:
           set -euo pipefail
           DATE='${{ steps.date.outputs.date }}'
           mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe incoming/park snapshots
-          RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" | head -1 || true)
-          if [ -z "${RUN_ID:-}" ]; then
+          mapfile -t RUN_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
+          if [ "${#RUN_IDS[@]}" -eq 0 ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No valid profile snapshot for ${DATE}; board generation skipped."
+            echo "No successful profile snapshot candidates for ${DATE}; board generation skipped."
             exit 0
           fi
-          gh run download "$RUN_ID" --repo "$GH_REPO" --name "v38-pregame-${RUN_ID}" --dir incoming/profile
+          for ID in "${RUN_IDS[@]}"; do
+            [ -n "$ID" ] || continue
+            mkdir -p "incoming/profile/$ID"
+            gh run download "$ID" --repo "$GH_REPO" --name "v38-pregame-${ID}" --dir "incoming/profile/$ID" || true
+          done
+          if [ "$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l)" -eq 0 ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No downloadable profile snapshot candidates for ${DATE}; board generation skipped."
+            exit 0
+          fi
           echo "found=true" >> "$GITHUB_OUTPUT"
       - name: Download all same-day context, modifier, and park snapshots
         if: steps.profile.outputs.found == 'true'
@@ -99,6 +110,7 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
           assert z['vig_required'] is False
+          assert re.fullmatch(r'[a-f0-9]{64}',z.get('source_profile_snapshot_sha256') or '')
           assert isinstance(z['coverage']['park_snapshots_loaded'], int)
           assert z['coverage']['rows_with_park_factor'] >= 0
           for r in z.get('rows',[]):
@@ -109,6 +121,8 @@ jobs:
               assert r.get('context_snapshot_sha256') is None
             pf=r.get('park_factor')
             if pf:
+              assert r.get('effective_bat_side') in ('L','R')
+              assert pf['bat_side']==r['effective_bat_side']
               assert pf['research_only'] is True
               assert pf['scoring_enabled'] is False
               assert pf['standalone_hr_boost'] is False
