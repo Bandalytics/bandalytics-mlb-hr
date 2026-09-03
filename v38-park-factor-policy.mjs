@@ -19,7 +19,7 @@ export const V38_PARK_FACTOR_POLICY=Object.freeze({
 
 const time=x=>Date.parse(x);
 const norm=s=>String(s??'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ');
-const hand=s=>{const x=String(s??'').trim().toUpperCase();return x==='L'||x==='R'?x:'ALL'};
+const exactHand=s=>{const x=String(s??'').trim().toUpperCase();return x==='L'||x==='R'?x:null};
 export function effectiveParkBatSide(batSide,oppPitcherHand){const b=String(batSide??'').trim().toUpperCase(),p=String(oppPitcherHand??'').trim().toUpperCase();if(b==='L'||b==='R')return b;if(b==='S'&&p==='R')return'L';if(b==='S'&&p==='L')return'R';return null;}
 export function validParkFactorSnapshot(s){
   return !!s&&s.protocol===V38_PARK_FACTOR_POLICY.protocol&&s.point_in_time===true&&s.research_only===true&&s.scoring_enabled===false&&s.scoring_eligible===false&&Number.isFinite(time(s.captured_at))&&Array.isArray(s.factors);
@@ -30,10 +30,11 @@ export function selectLatestPregameParkSnapshot(snapshots,startTime){
 }
 export function parkFactorForVenue(snapshot,venue,batSide){
   if(!validParkFactorSnapshot(snapshot)||!venue)return null;
-  const v=norm(venue),h=hand(batSide),rows=snapshot.factors.filter(x=>norm(x.venue)===v);
+  const h=exactHand(batSide);if(!h)return null;
+  const v=norm(venue),rows=snapshot.factors.filter(x=>norm(x.venue)===v);
   if(!rows.length)return null;
-  const row=rows.find(x=>hand(x.bat_side)===h)||rows.find(x=>hand(x.bat_side)==='ALL')||null;
+  const row=rows.find(x=>exactHand(x.bat_side)===h)||null;
   if(!row)return null;
   const hr=Number(row.hr_factor);if(!Number.isFinite(hr))return null;
-  return {venue:row.venue,bat_side:hand(row.bat_side),hr_factor:hr,captured_at:snapshot.captured_at,source:snapshot.source||V38_PARK_FACTOR_POLICY.source,role:V38_PARK_FACTOR_POLICY.role,hard_gate:false,standalone_hr_boost:false,research_only:true,scoring_enabled:false,scoring_eligible:false};
+  return {venue:row.venue,bat_side:h,hr_factor:hr,captured_at:snapshot.captured_at,snapshot_sha256:snapshot.sha256||null,source:snapshot.source||V38_PARK_FACTOR_POLICY.source,role:V38_PARK_FACTOR_POLICY.role,hard_gate:false,standalone_hr_boost:false,research_only:true,scoring_enabled:false,scoring_eligible:false};
 }
