@@ -18,16 +18,26 @@ export const V38_POOL_ARCHITECTURE_V2=Object.freeze({
     'GENERIC_4OF6_WITHOUT_ISO_NOT_PRIMARY_POOL',
     'LOCKED_700_4OF6_MAY_ENTER_ESCAPE_WATCH_ONLY',
     'NEVER_WEAKEN_GATE_TO_FILL_TARGET',
-    'NO_RETROSPECTIVE_RECLASSIFICATION'
+    'NO_RETROSPECTIVE_RECLASSIFICATION',
+    'NONCORE_ARCHITECTURE_FAILS_CLOSED_BEFORE_FIRST_PROSPECTIVE_DATE'
   ]),
   deliberate_review_required:true
 });
 
 const CORE=new Set(['CORE_PROTECTED_PLUS','CORE_PROTECTED','CORE_QUALITY_PLUS','CORE_QUALITY']);
 const QUALITY=new Set(['QUALITY_WITH_BBE_SUPPORT','QUALITY_PROFILE']);
+const ISO_DATE=/^\d{4}-\d{2}-\d{2}$/;
 
-export function classifyPoolLayer({priority_band,quality_tier,american_odds,longshot_policy}={}){
+export function poolArchitectureProspectiveActive(date){
+  return typeof date==='string'&&ISO_DATE.test(date)&&date>=V38_POOL_ARCHITECTURE_V2.first_prospective_date;
+}
+
+export function classifyPoolLayer({priority_band,quality_tier,american_odds,longshot_policy,date}={}){
+  // CORE is the unchanged legacy strict gate and may remain visible before the new
+  // architecture begins. Every widened non-core layer is fail-closed until the
+  // preregistered first prospective date, including when date provenance is missing.
   if(CORE.has(priority_band))return'CORE';
+  if(!poolArchitectureProspectiveActive(date))return'OUTSIDE_PRIMARY_POOL';
   if(priority_band==='STRONG_PROFILE'&&quality_tier==='PROTECTED_5OF6_PLUS')return'PROTECTED_POOL';
   if(QUALITY.has(priority_band)&&quality_tier==='QUALITY_4OF6_PLUS_ISO')return'QUALITY_VALUE_POOL';
   const odds=Number(american_odds);
