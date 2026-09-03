@@ -7,7 +7,7 @@ on:
       - 'scripts/capture-v38-context-snapshot.mjs'
       - '.github/workflows/v38-context-snapshot.yml'
   schedule:
-    - cron: '7 14,17,19,21,23 * * *'
+    - cron: '7 14,17,19,20,21,23 * * *'
   workflow_dispatch:
 permissions:
   contents: read
