@@ -94,6 +94,9 @@ jobs:
           assert a['final_pool_promoted'] is False
           assert a['review_queue_no_minimum'] is True
           assert a['slate_size_source']=='VERIFIED_PROFILE_PREGAME_PLUS_EXCLUDED_STARTED_UNIQUE_GAMEPK'
+          prospective=z['date']>=a['first_prospective_date']
+          assert a['prospective_active'] is prospective
+          assert a['pre_prospective_noncore_fail_closed'] is (not prospective)
           games=a['slate_game_count']; ceiling=a['dynamic_review_policy']['ceiling']
           assert isinstance(games,int) and games>=1
           assert ceiling==(20 if games<=8 else 25 if games<=12 else 30)
@@ -121,9 +124,12 @@ jobs:
               assert r['shortlist']['status']=='RETAIN_FOR_FINAL_REVIEW'
               assert r['final_review_queue'] is True
             if r['pool_layer']=='ESCAPE_WATCH':
+              assert prospective is True
               assert r.get('quality_tier')=='BASE_ELIGIBLE_4OF6'
               assert (r.get('american_odds') or 0)>=700
               assert r.get('longshot_policy',{}).get('qualifies') is True
+            if not prospective:
+              assert r['pool_layer'] not in {'PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH'}
             if r.get('american_odds') is not None and r['american_odds']>=700:
               assert isinstance(r.get('longshot_policy'),dict)
             if r.get('context',{}).get('captured_at'):
@@ -155,13 +161,18 @@ jobs:
           assert z['counts']['protected_pool_rows']==layer_counts['PROTECTED_POOL']
           assert z['counts']['quality_value_pool_rows']==layer_counts['QUALITY_VALUE_POOL']
           assert z['counts']['escape_watch_rows']==layer_counts['ESCAPE_WATCH']
+          if not prospective:
+            assert z['counts']['protected_pool_rows']==0
+            assert z['counts']['quality_value_pool_rows']==0
+            assert z['counts']['escape_watch_rows']==0
+            assert z['counts']['structured_pool_candidates']==z['counts']['core_rows']
           assert z['counts']['structured_pool_candidates']==sum(layer_counts[k] for k in ('CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH'))
           assert z['counts']['shortlist_retain_rows']==retain
           assert z['counts']['pending_evidence_rows']==pending
           assert z['counts']['final_review_queue_rows']==len(z['review_queue'])
           assert len(z['review_queue'])<=ceiling or z['counts']['core_rows']>ceiling
           assert z['counts']['review_queue_trimmed_rows']==max(0,retain-len(z['review_queue']))
-          print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'pool_architecture':a,'counts':z['counts'],'coverage':z['coverage']}))
+          print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'prospective':prospective,'pool_architecture':a,'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
         with:
