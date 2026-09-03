@@ -6,6 +6,9 @@ on:
       - 'scripts/build-v38-daily-research-board.mjs'
       - 'v38-profile-snapshot-selector.mjs'
       - 'v38-context-selector.mjs'
+      - 'v38-modifier-artifacts.mjs'
+      - 'v38-prospective-modifier-selector.mjs'
+      - 'test-v38-modifier-artifacts.mjs'
       - 'v38-park-factor-policy.mjs'
       - 'v38-pool-shortlist-v3.mjs'
       - 'test-v38-pool-shortlist-v3.mjs'
@@ -33,6 +36,7 @@ jobs:
           node --check scripts/build-v38-daily-research-board.mjs
           node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
+          node test-v38-modifier-artifacts.mjs
           node test-v38-pool-shortlist-v3.mjs
       - name: Resolve current ET slate
         id: date
@@ -117,6 +121,19 @@ jobs:
               assert r['context_captured_at'] < r['start_time']
             else:
               assert r.get('context_snapshot_sha256') is None
+            me=r.get('modifier_evidence') or {}
+            if r.get('pitchfit') is not None:
+              assert me.get('pitchfit_cryptographically_verified') is True
+              assert re.fullmatch(r'[a-f0-9]{64}',me.get('pitchfit_snapshot_sha256') or '')
+              assert me.get('pitchfit_captured_at') < r['start_time']
+              assert int(r['pitchfit'].get('gamePk'))==int(r['gamePk'])
+            if r.get('bbe') is not None:
+              assert me.get('bbe_cryptographically_verified') is True
+              assert re.fullmatch(r'[a-f0-9]{64}',me.get('bbe_snapshot_sha256') or '')
+              assert me.get('bbe_captured_at') < r['start_time']
+              assert int(r['bbe'].get('gamePk'))==int(r['gamePk'])
+            if r.get('pitchfit') is None and r.get('bbe') is None:
+              assert me.get('cryptographically_verified') is False
             pf=r.get('park_factor')
             if pf:
               assert r.get('effective_bat_side') in ('L','R')
