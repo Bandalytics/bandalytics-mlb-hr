@@ -3,6 +3,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'native-feed-core.mjs'
       - 'scripts/capture-v38-context-snapshot.mjs'
       - '.github/workflows/v38-context-snapshot.yml'
   schedule:
