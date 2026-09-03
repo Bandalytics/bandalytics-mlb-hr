@@ -1,0 +1,14 @@
+import assert from'node:assert/strict';
+import{V38_POOL_SHORTLIST_V2,poolShortlistReadiness}from'./v38-pool-shortlist-v2.mjs';
+assert.equal(V38_POOL_SHORTLIST_V2.first_prospective_date,'2026-09-04');
+assert.equal(V38_POOL_SHORTLIST_V2.scoring_enabled,false);
+assert.equal(poolShortlistReadiness({pool_layer:'CORE'}).status,'RETAIN_FOR_FINAL_REVIEW');
+assert.equal(poolShortlistReadiness({pool_layer:'PROTECTED_POOL',gate_count:6}).status,'RETAIN_FOR_FINAL_REVIEW');
+assert.equal(poolShortlistReadiness({pool_layer:'PROTECTED_POOL',gate_count:5,american_odds:700,context:{confirmed_lineup:true}}).status,'RETAIN_FOR_FINAL_REVIEW');
+assert.equal(poolShortlistReadiness({pool_layer:'PROTECTED_POOL',gate_count:5}).status,'PENDING_EVIDENCE');
+assert.equal(poolShortlistReadiness({pool_layer:'QUALITY_VALUE_POOL',american_odds:800,context:{confirmed_lineup:true}}).status,'RETAIN_FOR_FINAL_REVIEW');
+assert.equal(poolShortlistReadiness({pool_layer:'QUALITY_VALUE_POOL',context:{confirmed_lineup:true},park_factor:{hr_factor:110}}).status,'PENDING_EVIDENCE');
+assert.equal(poolShortlistReadiness({pool_layer:'ESCAPE_WATCH',american_odds:900,context:{confirmed_lineup:true},park_factor:{hr_factor:105}}).status,'RETAIN_FOR_FINAL_REVIEW');
+assert.equal(poolShortlistReadiness({pool_layer:'ESCAPE_WATCH',american_odds:900,context:{confirmed_lineup:true}}).status,'PENDING_EVIDENCE');
+assert.equal(poolShortlistReadiness({pool_layer:'OUTSIDE_PRIMARY_POOL'}).status,'OUTSIDE_PRIMARY_POOL');
+console.log('V38_POOL_SHORTLIST_V2_PASS');
