@@ -20,6 +20,7 @@ on:
       - 'v38-profile-snapshot-selector.mjs'
       - 'v38-modifier-artifacts.mjs'
       - 'v38-postgame-game-identity.mjs'
+      - 'v38-postgame-artifact-validity.mjs'
       - 'v38-pool-architecture-v2.mjs'
       - 'v38-pool-shortlist-v2.mjs'
       - 'v38-pool-shortlist-v3.mjs'
@@ -28,6 +29,7 @@ on:
       - 'scripts/analyze-v38-gascan-slate.mjs'
       - 'scripts/analyze-v38-historical-escape-audit.mjs'
       - 'scripts/summarize-v38-historical-promotion-evidence.mjs'
+      - 'scripts/summarize-v38-promotion-readiness.mjs'
       - 'scripts/evaluate-v38-prospective-escape-watch.mjs'
       - 'scripts/evaluate-v38-environment-parity-window.mjs'
       - 'scripts/evaluate-v38-park-prospective.mjs'
@@ -46,6 +48,7 @@ on:
       - 'test-v38-profile-snapshot-selector.mjs'
       - 'test-v38-modifier-artifacts.mjs'
       - 'test-v38-postgame-game-identity.mjs'
+      - 'test-v38-postgame-artifact-validity.mjs'
       - 'test-v38-pool-architecture-v2.mjs'
       - 'test-v38-pool-shortlist-v2.mjs'
       - 'test-v38-pool-shortlist-v3.mjs'
@@ -92,6 +95,8 @@ jobs:
         run: node test-v38-modifier-artifacts.mjs
       - name: Test postgame doubleheader-safe game identity
         run: node test-v38-postgame-game-identity.mjs
+      - name: Test shared exact-game postgame artifact validity
+        run: node test-v38-postgame-artifact-validity.mjs
       - name: Test layered pool architecture
         run: node test-v38-pool-architecture-v2.mjs
       - name: Test layered pool evidence readiness legacy
@@ -106,6 +111,8 @@ jobs:
         run: node --check scripts/analyze-v38-historical-escape-audit.mjs
       - name: Syntax-check historical promotion evidence
         run: node --check scripts/summarize-v38-historical-promotion-evidence.mjs
+      - name: Syntax-check promotion readiness aggregate
+        run: node --check scripts/summarize-v38-promotion-readiness.mjs
       - name: Syntax-check future escape-watch evaluator
         run: node --check scripts/evaluate-v38-prospective-escape-watch.mjs
       - name: Syntax-check environment parity window evaluator
