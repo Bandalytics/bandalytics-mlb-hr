@@ -1,5 +1,7 @@
 import {buildNativeFeed} from '../native-feed-core.mjs';
 import {V38_RESEARCH_POOL_HIERARCHY} from '../v38-research-pool-hierarchy.mjs';
+import {V38_POOL_ARCHITECTURE_V2} from '../v38-pool-architecture-v2.mjs';
+import {V38_POOL_SHORTLIST_V3,dynamicReviewPolicy} from '../v38-pool-shortlist-v3.mjs';
 import {LONGSHOT_700_POLICY} from '../mlb-hr-locked-policy.mjs';
 
 const chunk=(a,n)=>Array.from({length:Math.ceil(a.length/n)},(_,i)=>a.slice(i*n,(i+1)*n));
@@ -28,6 +30,8 @@ export function buildResearchBoardPlan(feed={}){
   const profile_batches=chunk(ids,40).map(batch=>({ids:batch,url:`/api/profile-v38-candidate?ids=${batch.join(',')}&year=2026`}));
   const pitchfit_requests=hitters.filter(x=>x.opp_pitcher_id).map(x=>({player_id:x.player_id,pitcher_id:x.opp_pitcher_id,url:`/api/pitchfit-native?date=${enc(date)}&hitter_id=${x.player_id}&pitcher_id=${x.opp_pitcher_id}`}));
   const bbe_batches=chunk(ids,300).map(batch=>({ids:batch,url:`/api/player-bbe-native?date=${enc(date)}&ids=${batch.join(',')}`}));
+  const slateGames=Number(feed.games)||Array.isArray(feed.items)?feed.items.length:0;
+  const reviewPolicy=dynamicReviewPolicy(slateGames);
   return {
     protocol:'V38_RESEARCH_BOARD_PLAN_V2',date,
     games:feed.items||[],hitters,
@@ -49,9 +53,18 @@ export function buildResearchBoardPlan(feed={}){
     policy:{
       hierarchy_protocol:V38_RESEARCH_POOL_HIERARCHY.protocol,
       hierarchy_rules:V38_RESEARCH_POOL_HIERARCHY.rules,
+      pool_architecture_protocol:V38_POOL_ARCHITECTURE_V2.protocol,
+      shortlist_protocol:V38_POOL_SHORTLIST_V3.protocol,
+      first_prospective_date:V38_POOL_SHORTLIST_V3.first_prospective_date,
       pool_target_role:V38_RESEARCH_POOL_HIERARCHY.pool_target_role,
-      target_range:V38_RESEARCH_POOL_HIERARCHY.target_range,
+      legacy_target_range:V38_RESEARCH_POOL_HIERARCHY.target_range,
+      preferred_review_range:V38_POOL_SHORTLIST_V3.preferred_review_range,
+      dynamic_review_policy:reviewPolicy,
+      review_queue_no_minimum:true,
+      no_fill_to_target:true,
       pool_target_forced:false,
+      final_pool_promoted:false,
+      production_rule_changed:false,
       longshot_700_policy_id:LONGSHOT_700_POLICY.id,
       longshot_700_min_odds:LONGSHOT_700_POLICY.american_odds_min,
       longshot_700_required_passes:LONGSHOT_700_POLICY.qualification_required,
@@ -59,7 +72,7 @@ export function buildResearchBoardPlan(feed={}){
       general_core_scope:'PROFILE_QUALITY_THEN_PITCHFIT_PRIMARY_THEN_BBE_SUPPORT'
     },
     counts:{games:+feed.games||0,hitters:hitters.length,confirmed_lineups:+feed.lineups||0,starter_slots:+feed.starters||0,profile_batches:profile_batches.length,pitchfit_requests:pitchfit_requests.length,bbe_batches:bbe_batches.length},
-    flow:['IDENTITY_LINEUP_STARTER','PROFILE_V38','PITCHFIT','RECENT_BBE','MARKET','RESEARCH_POOL_HIERARCHY','IMMUTABLE_INTRADAY_BOARD'],
+    flow:['IDENTITY_LINEUP_STARTER','PROFILE_V38','PITCHFIT','RECENT_BBE','MARKET','RESEARCH_POOL_HIERARCHY','POOL_ARCHITECTURE_V2','POOL_SHORTLIST_V3','IMMUTABLE_INTRADAY_BOARD'],
     pool_target_role:'TARGET_ONLY_NOT_FORCED',research_only:true,scoring_enabled:false,scoring_eligible:false,model_scoring_changed:false
   };
 }
