@@ -1,0 +1,128 @@
+name: v38 Pool Architecture Prospective Evaluation
+on:
+  workflow_run:
+    workflows: ['v38 Postgame Evaluation']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      postgame_run_id:
+        description: 'Optional successful v38 Postgame Evaluation run ID'
+        required: false
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - 'v38-pool-architecture-prospective-eval.mjs'
+      - 'test-v38-pool-architecture-prospective-eval.mjs'
+      - 'scripts/evaluate-v38-pool-architecture-prospective.mjs'
+      - '.github/workflows/v38-pool-architecture-prospective-eval.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  evaluate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Prospective architecture preflight
+        run: |
+          node --check v38-pool-architecture-prospective-eval.mjs
+          node --check scripts/evaluate-v38-pool-architecture-prospective.mjs
+          node test-v38-pool-architecture-v2.mjs
+          node test-v38-pool-architecture-prospective-eval.mjs
+      - name: Resolve finalized postgame run
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=''
+          if [ '${{ github.event_name }}' = 'workflow_run' ]; then
+            RUN_ID='${{ github.event.workflow_run.id }}'
+          elif [ -n '${{ github.event.inputs.postgame_run_id || '' }}' ]; then
+            RUN_ID='${{ github.event.inputs.postgame_run_id || '' }}'
+          else
+            RUN_ID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=20" --jq '.workflow_runs[0].id // empty')
+          fi
+          if [ -z "$RUN_ID" ]; then echo 'found=false' >> "$GITHUB_OUTPUT"; echo 'No source postgame run.'; exit 0; fi
+          mkdir -p incoming/postgame
+          mapfile -t NAMES < <(gh api "repos/${GH_REPO}/actions/runs/${RUN_ID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-postgame-"))) | .name' || true)
+          if [ "${#NAMES[@]}" -eq 0 ]; then echo 'found=false' >> "$GITHUB_OUTPUT"; echo "Run ${RUN_ID} has no finalized postgame artifact; nothing to evaluate."; exit 0; fi
+          for NAME in "${NAMES[@]}"; do gh run download "$RUN_ID" --repo "$GH_REPO" --name "$NAME" --dir incoming/postgame; done
+          EVAL=$(find incoming/postgame -type f -name '*-evaluated.json' | head -1)
+          if [ -z "${EVAL:-}" ]; then echo 'found=false' >> "$GITHUB_OUTPUT"; echo 'No V5 evaluated JSON found.'; exit 0; fi
+          DATE=$(python3 - "$EVAL" <<'PY'
+          import json,sys
+          print(json.load(open(sys.argv[1]))['date'])
+          PY
+          )
+          echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "eval=${EVAL}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          if [[ "$DATE" < '2026-09-04' ]]; then
+            echo 'eligible=false' >> "$GITHUB_OUTPUT"
+            echo "${DATE} predates the preregistered 2026-09-04 first eligible date; no backfill."
+          else
+            echo 'eligible=true' >> "$GITHUB_OUTPUT"
+          fi
+          echo 'found=true' >> "$GITHUB_OUTPUT"
+      - name: Evaluate future layered pool capture
+        if: steps.source.outputs.found == 'true' && steps.source.outputs.eligible == 'true'
+        run: node scripts/evaluate-v38-pool-architecture-prospective.mjs '${{ steps.source.outputs.eval }}'
+      - name: Verify observational contract
+        if: steps.source.outputs.found == 'true' && steps.source.outputs.eligible == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=$(find incoming/postgame -type f -name '*-pool-architecture-prospective-*.json' | head -1)
+          test -n "$OUT"
+          python3 - "$OUT" <<'PY'
+          import json,sys,re
+          z=json.load(open(sys.argv[1]))
+          assert z['protocol']=='V38_POOL_ARCHITECTURE_PROSPECTIVE_EVAL_V1'
+          assert z['date']>='2026-09-04'
+          assert z['eligible'] is True
+          assert z['minimum_final_slates_before_interpretation']==3
+          assert z['interpretation_ready'] is False
+          assert z['research_only'] is True
+          assert z['scoring_enabled'] is False
+          assert z['scoring_eligible'] is False
+          assert z['production_rule_changed'] is False
+          assert z['auto_promote'] is False
+          assert z['threshold_review'] is False
+          assert z['deliberate_approval'] is False
+          assert z['promotion_effect']=='NONE'
+          assert z['production_effect']=='NONE'
+          assert z['source_evaluation_protocol']=='V38_PREGAME_OUTCOME_EVAL_V5'
+          assert z['source_status']=='FINAL'
+          assert z['source_point_in_time'] is True
+          assert z['source_prospective_validation'] is True
+          assert z['source_research_only'] is True
+          assert z['source_scoring_enabled'] is False
+          assert re.fullmatch(r'[a-f0-9]{64}',z['source_profile_snapshot_sha256'])
+          layers=['CORE','PROTECTED_POOL','QUALITY_VALUE_POOL','ESCAPE_WATCH']
+          assert set(z['by_layer'])==set(layers)
+          for r in z['rows']: assert r['pool_layer'] in layers
+          assert z['structured_pool_rows']==sum(z['by_layer'][x]['n'] for x in layers)
+          assert z['structured_pool_hr']==sum(z['by_layer'][x]['hr'] for x in layers)
+          core=z['cumulative']['CORE']
+          full=z['cumulative']['CORE+PROTECTED_POOL+QUALITY_VALUE_POOL+ESCAPE_WATCH']
+          assert full['n']==z['structured_pool_rows'] and full['hr']==z['structured_pool_hr']
+          assert full['n']>=core['n'] and full['hr']>=core['hr']
+          print('V38_POOL_ARCHITECTURE_PROSPECTIVE_CONTRACT='+json.dumps({'date':z['date'],'population':z['full_complete_population'],'hr':z['full_population_hr'],'by_layer':z['by_layer'],'cumulative':z['cumulative'],'outside_hr':z['outside_primary_pool_hr']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: steps.source.outputs.found == 'true' && steps.source.outputs.eligible == 'true'
+        with:
+          name: v38-pool-architecture-prospective-${{ steps.source.outputs.date }}-${{ github.run_id }}
+          path: incoming/postgame/*-pool-architecture-prospective-*.json
+          if-no-files-found: error
+          retention-days: 90
