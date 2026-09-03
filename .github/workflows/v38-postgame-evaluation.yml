@@ -15,6 +15,8 @@ on:
       - 'v38-modifier-artifacts.mjs'
       - 'v38-postgame-game-identity.mjs'
       - 'test-v38-postgame-game-identity.mjs'
+      - 'v38-postgame-artifact-validity.mjs'
+      - 'test-v38-postgame-artifact-validity.mjs'
       - '.github/workflows/v38-postgame-evaluation.yml'
   schedule:
     - cron: '13 6,8,10 * * *'
@@ -45,6 +47,7 @@ jobs:
           node --check scripts/select-v38-postgame-profile-snapshot.mjs
           node test-v38-profile-snapshot-selector.mjs
           node test-v38-postgame-game-identity.mjs
+          node test-v38-postgame-artifact-validity.mjs
           node test-v38-selected-pool-report.mjs
       - name: Resolve canonical pregame snapshot unless date is already immutable
         id: find
@@ -105,11 +108,7 @@ jobs:
           set -euo pipefail
           DATE="${{ steps.find.outputs.date }}"
           mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
-          for ID in "${IDS[@]:-}"; do
-            [ -n "$ID" ] || continue
-            mkdir -p "incoming/contexts/$ID"
-            gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true
-          done
+          for ID in "${IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/contexts/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true; done
           echo "Downloaded $(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) context snapshots for ${DATE}."
       - name: Download all same-day pitchfit and Recent BBE snapshots
         if: steps.find.outputs.found == 'true'
@@ -119,16 +118,8 @@ jobs:
           DATE="${{ steps.find.outputs.date }}"
           mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
           mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.created_at | startswith(\"${DATE}\")) | .id" || true)
-          for ID in "${PF_IDS[@]:-}"; do
-            [ -n "$ID" ] || continue
-            mkdir -p "incoming/modifiers/pitchfit/$ID"
-            gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true
-          done
-          for ID in "${BB_IDS[@]:-}"; do
-            [ -n "$ID" ] || continue
-            mkdir -p "incoming/modifiers/bbe/$ID"
-            gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true
-          done
+          for ID in "${PF_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/pitchfit/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true; done
+          for ID in "${BB_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/bbe/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true; done
           echo "Pitchfit snapshots: $(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l)"
           echo "Recent BBE snapshots: $(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l)"
       - name: Evaluate only after every eligible game is final
@@ -140,11 +131,7 @@ jobs:
           node scripts/evaluate-v38-pregame-snapshot.mjs "${{ steps.find.outputs.snapshot }}" incoming/contexts incoming/modifiers
           RC=$?
           set -e
-          if [ "$RC" -eq 2 ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Eligible slate is not fully final yet; prospective evaluation deferred."
-            exit 0
-          fi
+          if [ "$RC" -eq 2 ]; then echo "ready=false" >> "$GITHUB_OUTPUT"; echo "Eligible slate is not fully final yet; prospective evaluation deferred."; exit 0; fi
           if [ "$RC" -ne 0 ]; then exit "$RC"; fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
       - name: Add selected-pool report and immutable evidence manifest
@@ -164,72 +151,40 @@ jobs:
           import json,sys,re
           z=json.load(open(sys.argv[1]))
           assert z['evaluation_protocol']=='V38_PREGAME_OUTCOME_EVAL_V5'
+          assert z['profile_selection_protocol']=='V38_POSTGAME_PROFILE_SELECTION_V1'
+          assert z['source_full_slate_pregame'] is True
+          assert isinstance(z['source_games_total'],int) and z['source_games_total']>=1
+          assert z['source_pregame_games']==z['source_games_total']
+          assert z['source_excluded_started_games']==0
+          assert z['source_profile_snapshot_captured_at']==z['captured_at']
+          assert z['eligible_games']==z['source_games_total']
+          assert z['final_games']==z['source_games_total']
+          assert re.fullmatch(r'[a-f0-9]{64}',z.get('snapshot_sha256') or '')
           assert z['row_identity']=='GAMEPK_PLAYER_ID'
           assert z['doubleheader_safe'] is True
-          assert z['point_in_time'] is True
-          assert z['qualifying_backtest'] is True
-          assert z['prospective_validation'] is True
-          assert z['status']=='FINAL'
-          assert z['research_only'] is True
-          assert z['scoring_enabled'] is False
-          assert z['scoring_eligible'] is False
-          assert z['model_scoring_changed'] is False
-          assert z['final_games']==z['eligible_games']
+          assert z['point_in_time'] is True and z['qualifying_backtest'] is True and z['prospective_validation'] is True and z['status']=='FINAL'
+          assert z['research_only'] is True and z['scoring_enabled'] is False and z['scoring_eligible'] is False and z['model_scoring_changed'] is False
           assert z['modifier_selection_rule']=='latest valid artifact strictly before each game start and containing that exact game'
           assert z['played_profiled_player_games']==z['played_profiled_hitters']==len(z.get('rows',[]))
           assert z['complete_profiled_player_games']==z['complete_profiled_hitters']
-          assert isinstance(z['candidate_rule_results'],list)
-          assert isinstance(z['context_convergence_results'],list)
-          assert isinstance(z['baseball_convergence_results'],list)
-          assert isinstance(z['modifier_coverage'],dict)
-          assert isinstance(z['selected_pool_report'],dict)
-          report=z['selected_pool_report']
-          assert report['protocol']=='V38_SELECTED_POOL_REPORT_V1'
-          assert report['scoring_enabled'] is False
-          assert report['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
-          bands=report['market_bands']
-          assert sum(v['n'] for v in bands.values())==z['complete_profiled_hitters']
+          report=z['selected_pool_report']; assert report['protocol']=='V38_SELECTED_POOL_REPORT_V1'; assert report['scoring_enabled'] is False; assert report['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          bands=report['market_bands']; assert sum(v['n'] for v in bands.values())==z['complete_profiled_hitters']
           priced=sum(v['market_priced_n'] for k,v in bands.items() if k!='NO_MARKET')
-          if z['context_coverage']['rows_with_market']>0:
-            assert priced>0
-          m=z['evidence_manifest']
-          assert m['protocol']=='V38_EVIDENCE_MANIFEST_V1'
-          assert m['immutable'] is True and m['point_in_time'] is True
-          assert m['research_only'] is True and m['scoring_enabled'] is False and m['scoring_eligible'] is False
-          assert m['pullair_threshold_deg']==15.5
-          assert isinstance(m['rule_fingerprint'],str) and len(m['rule_fingerprint'])==64
-          assert isinstance(m['artifact_fingerprint'],str) and len(m['artifact_fingerprint'])==64
-          assert isinstance(m['manifest_digest'],str) and len(m['manifest_digest'])==64
+          if z['context_coverage']['rows_with_market']>0: assert priced>0
+          m=z['evidence_manifest']; assert m['protocol']=='V38_EVIDENCE_MANIFEST_V1'; assert m['immutable'] is True and m['point_in_time'] is True; assert m['research_only'] is True and m['scoring_enabled'] is False and m['scoring_eligible'] is False; assert m['pullair_threshold_deg']==15.5
+          assert isinstance(m['rule_fingerprint'],str) and len(m['rule_fingerprint'])==64; assert isinstance(m['artifact_fingerprint'],str) and len(m['artifact_fingerprint'])==64; assert isinstance(m['manifest_digest'],str) and len(m['manifest_digest'])==64
           assert isinstance(m['metadata'].get('selected_pool_report_implementation_sha256'),str) and len(m['metadata']['selected_pool_report_implementation_sha256'])==64
           assert len(m['artifacts'])>=1
-          assert z['context_coverage']['snapshots_loaded'] >= 0
-          assert z['modifier_coverage']['pitchfit_artifacts_loaded'] >= 0
-          assert z['modifier_coverage']['bbe_artifacts_loaded'] >= 0
           seen=set()
           for r in z.get('rows',[]):
-            assert r.get('row_identity')=='GAMEPK_PLAYER_ID'
-            assert isinstance(r.get('gamePk'),int) and isinstance(r.get('player_id'),int)
-            assert isinstance(r.get('start_time'),str)
+            assert r.get('row_identity')=='GAMEPK_PLAYER_ID'; assert isinstance(r.get('gamePk'),int) and isinstance(r.get('player_id'),int); assert isinstance(r.get('start_time'),str); assert z['source_profile_snapshot_captured_at'] < r['start_time']
             key=(r['gamePk'],r['player_id']); assert key not in seen; seen.add(key)
-            if r.get('context'):
-              assert r['context'].get('captured_at') < r['start_time']
-            ev=r.get('modifier_evidence') or {}
-            pf=r.get('pitchfit'); bb=r.get('bbe')
-            if pf is not None:
-              assert ev.get('pitchfit_cryptographically_verified') is True
-              assert re.fullmatch(r'[a-f0-9]{64}',ev.get('pitchfit_snapshot_sha256') or '')
-              assert ev.get('pitchfit_captured_at') < r['start_time']
-              assert int(pf.get('gamePk'))==int(r['gamePk'])
-              assert ev.get('per_game_strictly_pregame') is True
-            if bb is not None:
-              assert ev.get('bbe_cryptographically_verified') is True
-              assert re.fullmatch(r'[a-f0-9]{64}',ev.get('bbe_snapshot_sha256') or '')
-              assert ev.get('bbe_captured_at') < r['start_time']
-              assert int(bb.get('gamePk'))==int(r['gamePk'])
-              assert ev.get('per_game_strictly_pregame') is True
-            if pf is None and bb is None:
-              assert ev.get('cryptographically_verified') is False
-          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','row_identity','doubleheader_safe','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','candidate_rule_results','context_convergence_results','baseball_convergence_results','selected_pool_report','evidence_manifest']}))
+            if r.get('context'): assert r['context'].get('captured_at') < r['start_time']
+            ev=r.get('modifier_evidence') or {}; pf=r.get('pitchfit'); bb=r.get('bbe')
+            if pf is not None: assert ev.get('pitchfit_cryptographically_verified') is True; assert re.fullmatch(r'[a-f0-9]{64}',ev.get('pitchfit_snapshot_sha256') or ''); assert ev.get('pitchfit_captured_at') < r['start_time']; assert int(pf.get('gamePk'))==int(r['gamePk']); assert ev.get('per_game_strictly_pregame') is True
+            if bb is not None: assert ev.get('bbe_cryptographically_verified') is True; assert re.fullmatch(r'[a-f0-9]{64}',ev.get('bbe_snapshot_sha256') or ''); assert ev.get('bbe_captured_at') < r['start_time']; assert int(bb.get('gamePk'))==int(r['gamePk']); assert ev.get('per_game_strictly_pregame') is True
+            if pf is None and bb is None: assert ev.get('cryptographically_verified') is False
+          print('V38_PROSPECTIVE_FINAL='+json.dumps({k:z[k] for k in ['evaluation_protocol','date','profile_selection_protocol','source_full_slate_pregame','source_games_total','row_identity','doubleheader_safe','eligible_games','played_profiled_hitters','unique_hr_hitters','base_hr_rate','context_coverage','modifier_coverage','selected_pool_report','evidence_manifest']}))
           PY
       - uses: actions/upload-artifact@v4
         if: steps.eval.outputs.ready == 'true'
