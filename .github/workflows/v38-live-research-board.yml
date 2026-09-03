@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/build-v38-live-research-board.mjs'
+      - 'v38-profile-snapshot-selector.mjs'
       - 'v38-research-pool-hierarchy.mjs'
       - 'v38-longshot-quality.mjs'
       - 'v38-prospective-modifier-selector.mjs'
@@ -37,6 +38,7 @@ jobs:
       - name: Syntax preflight
         run: |
           node --check scripts/build-v38-live-research-board.mjs
+          node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
           node test-v38-park-factor-policy.mjs
       - name: Download latest valid daily research evidence
@@ -67,7 +69,7 @@ jobs:
           set -euo pipefail
           BOARD=$(find snapshots -type f -name 'v38-live-research-board-*.json' | sort | tail -1)
           python3 - "$BOARD" <<'PY'
-          import json,sys
+          import json,sys,re
           z=json.load(open(sys.argv[1]))
           assert z['protocol']=='V38_LIVE_RESEARCH_BOARD_V1'
           assert z['point_in_time'] is True
@@ -76,6 +78,7 @@ jobs:
           assert z['scoring_eligible'] is False
           assert z['pool_target_forced'] is False
           assert z['pool_target_role']=='TARGET_ONLY_NOT_FORCED'
+          assert re.fullmatch(r'[a-f0-9]{64}',z.get('profile_snapshot_sha256') or '')
           assert z['park_factor_policy']['requires_exact_effective_bat_side'] is True
           assert z['park_factor_policy']['hard_gate'] is False
           assert z['park_factor_policy']['standalone_hr_boost'] is False
@@ -85,7 +88,7 @@ jobs:
             if r.get('american_odds') is not None and r['american_odds']>=700:
               assert isinstance(r.get('longshot_policy'),dict)
             if r.get('context',{}).get('captured_at'):
-              assert r.get('context',{}).get('snapshot_sha256')
+              assert re.fullmatch(r'[a-f0-9]{64}',r.get('context',{}).get('snapshot_sha256') or '')
               assert r['context']['captured_at'] < r['start_time']
             pf=r.get('park_factor')
             if pf:
