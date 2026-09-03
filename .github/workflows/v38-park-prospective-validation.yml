@@ -4,6 +4,15 @@ on:
     workflows: ['v38 Postgame Evaluation']
     types: [completed]
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'v38-park-factor-policy.mjs'
+      - 'v38-park-prospective-policy.mjs'
+      - 'v38-postgame-artifact-validity.mjs'
+      - 'test-v38-postgame-artifact-validity.mjs'
+      - 'scripts/evaluate-v38-park-prospective.mjs'
+      - '.github/workflows/v38-park-prospective-validation.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,6 +34,7 @@ jobs:
         run: |
           node test-v38-park-factor-policy.mjs
           node test-v38-park-prospective-policy.mjs
+          node test-v38-postgame-artifact-validity.mjs
           node --check scripts/evaluate-v38-park-prospective.mjs
       - name: Download latest finalized V5 postgame evidence
         shell: bash
@@ -100,6 +110,9 @@ jobs:
           z=json.load(open(sys.argv[1]))
           assert z['protocol']=='V38_PARK_PROSPECTIVE_VALIDATION_V1'
           assert z['date']>='2026-09-03'
+          assert z['source_row_identity']=='GAMEPK_PLAYER_ID'
+          assert z['source_doubleheader_safe'] is True
+          assert z['postgame_validity_protocol']=='V38_POSTGAME_ARTIFACT_VALIDITY_V1'
           assert z['point_in_time_inputs'] is True
           assert z['prospective_only'] is True
           assert z['historical_backfill_allowed'] is False
