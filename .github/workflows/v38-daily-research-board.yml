@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/build-v38-daily-research-board.mjs'
+      - 'v38-context-selector.mjs'
       - 'v38-park-factor-policy.mjs'
       - '.github/workflows/v38-daily-research-board.yml'
   schedule:
@@ -25,7 +26,9 @@ jobs:
         with:
           node-version: '24'
       - name: Syntax preflight
-        run: node --check scripts/build-v38-daily-research-board.mjs
+        run: |
+          node --check scripts/build-v38-daily-research-board.mjs
+          node --check v38-context-selector.mjs
       - name: Resolve current ET slate
         id: date
         run: echo "date=$(TZ=America/New_York date +%F)" >> "$GITHUB_OUTPUT"
@@ -86,7 +89,7 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import glob,json
+          import glob,json,re
           p=glob.glob('snapshots/v38-daily-research-board-*.json')[0]
           z=json.load(open(p))
           assert z['protocol']=='V38_DAILY_RESEARCH_BOARD_V2'
@@ -99,6 +102,11 @@ jobs:
           assert isinstance(z['coverage']['park_snapshots_loaded'], int)
           assert z['coverage']['rows_with_park_factor'] >= 0
           for r in z.get('rows',[]):
+            if r.get('context_captured_at'):
+              assert re.fullmatch(r'[a-f0-9]{64}',r.get('context_snapshot_sha256') or '')
+              assert r['context_captured_at'] < r['start_time']
+            else:
+              assert r.get('context_snapshot_sha256') is None
             pf=r.get('park_factor')
             if pf:
               assert pf['research_only'] is True
