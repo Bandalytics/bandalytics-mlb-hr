@@ -83,6 +83,24 @@ Guardrails:
 
 The purpose is to measure the capture cost of nightly PitchFit gating without using already-seen historical outcomes to rewrite the rule.
 
+## Environment parity — per-game latest pre-first-pitch evaluation
+
+`V38_ENVIRONMENT_PARITY_WINDOW_V1` now reconstructs the environment input using the **latest valid immutable context snapshot strictly before each individual game start**, then compares those frozen pregame values with MLB's recorded game weather only for parity validation.
+
+Sep. 2 result from workflow run `33774992553`, artifact `9901200476`, digest `sha256:bf0e8f95f1f4e740f283ac59442cd022f200b93439de1257a7d0f5c5c1398327`:
+- valid context snapshots loaded: 6
+- games selected with point-in-time context: 14
+- weather-covered games: 14
+- venue exact agreement: 100%
+- condition agreement: 85.71%
+- wind-class agreement: **78.57%**
+- temperature MAE: 2.0°F
+- wind-speed MAE: 1.5 mph
+
+All numeric gates passed except the locked 80% wind-class agreement threshold. Three genuine direction changes drove the miss: two pregame OUT winds were recorded as CROSS, and one pregame CROSS wind was recorded as OUT. This is not being repaired by lowering the threshold. `threshold_review:false`, `deliberate_approval:false`, and environment promotion remains blocked.
+
+During validation, MLB shorthand strings such as `L To R` / `R To L` were found to be unrecognized by the original crosswind parser. The parser was fixed and regression-tested before the parity result above was accepted. The parity-window protocol overwrite bug was also corrected so the output retains `V38_ENVIRONMENT_PARITY_WINDOW_V1` rather than inheriting the lower-level comparison protocol.
+
 ## Other research families
 
 Gas Can remains pinned to its frozen Aug. 26–Sep. 1 seven-slate diagnostic. The expanded 10-slate historical workflow does not silently change that frozen window. Gas Can + strong profile remains promising context, but same-team stacking remains blocked.
@@ -91,4 +109,4 @@ Generic bullpen workload remains non-boosting. The current specific-bullpen thre
 
 ## Production state
 
-Production remains research-only with one consolidated Node lambda. The live research status exposes the current ten-slate historical gate state, completed Escape Audit, and future-only Sep. 4 escape-watch preregistration. `scoring_enabled:false`, `model_scoring_changed:false`, and pool-before-tickets remain enforced.
+GitHub `main` remains the engineering source of truth and is research-only with one consolidated Node-lambda architecture. The source research-status handler now includes the ten-slate historical gate state, completed Escape Audit, and future-only Sep. 4 escape-watch preregistration, but the canonical Vercel deployment is temporarily behind those source commits because the project exceeded its 24-hour build limit. No manual deployment spam is being used; one consolidated production deployment should be performed after the quota resets. `scoring_enabled:false`, `model_scoring_changed:false`, and pool-before-tickets remain enforced.
