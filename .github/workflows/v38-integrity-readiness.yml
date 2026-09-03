@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'api-handlers/research-board.js'
+      - 'api-handlers/research-status.js'
       - 'direct-research-ui.js'
       - 'native-feed-core.mjs'
       - 'mlb-hr-locked-policy.mjs'
@@ -11,9 +12,13 @@ on:
       - 'v38-evidence-manifest.mjs'
       - 'v38-selected-pool-report.mjs'
       - 'v38-stack-gascan-policy.mjs'
+      - 'v38-prospective-escape-watch.mjs'
       - 'scripts/augment-v38-selected-pool-report.mjs'
       - 'scripts/evaluate-v38-pregame-snapshot.mjs'
       - 'scripts/analyze-v38-gascan-slate.mjs'
+      - 'scripts/analyze-v38-historical-escape-audit.mjs'
+      - 'scripts/summarize-v38-historical-promotion-evidence.mjs'
+      - 'scripts/evaluate-v38-prospective-escape-watch.mjs'
       - 'test-native-feed.mjs'
       - 'test-direct-research-ui.mjs'
       - 'test-v38-research-board.mjs'
@@ -22,6 +27,7 @@ on:
       - 'test-v38-evidence-manifest.mjs'
       - 'test-v38-selected-pool-report.mjs'
       - 'test-v38-stack-gascan-policy.mjs'
+      - 'test-v38-prospective-escape-watch.mjs'
       - '.github/workflows/v38-integrity-readiness.yml'
   workflow_dispatch:
 permissions:
@@ -50,8 +56,16 @@ jobs:
         run: node test-v38-selected-pool-report.mjs
       - name: Test stack and gas-can research guardrails
         run: node test-v38-stack-gascan-policy.mjs
+      - name: Test future-only escape-watch contract
+        run: node test-v38-prospective-escape-watch.mjs
       - name: Syntax-check gas-can historical analyzer
         run: node --check scripts/analyze-v38-gascan-slate.mjs
+      - name: Syntax-check historical escape audit
+        run: node --check scripts/analyze-v38-historical-escape-audit.mjs
+      - name: Syntax-check historical promotion evidence
+        run: node --check scripts/summarize-v38-historical-promotion-evidence.mjs
+      - name: Syntax-check future escape-watch evaluator
+        run: node --check scripts/evaluate-v38-prospective-escape-watch.mjs
       - name: Syntax-check V5 prospective evaluator
         run: node --check scripts/evaluate-v38-pregame-snapshot.mjs
       - name: Syntax-check V5 report + manifest augmentation
