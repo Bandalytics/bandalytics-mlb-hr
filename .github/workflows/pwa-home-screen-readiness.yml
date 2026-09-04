@@ -54,7 +54,7 @@ jobs:
             '/bandalytics-dashboard-shell.js',
             '/bandalytics-polish.css'
           ])if(!injector.includes(marker))throw Error(`production injector contract marker missing: ${marker}`);
-          const version=injector.match(/const CLEAN_UI_VERSION='(v\\d+)'/)?.[1];
+          const version=injector.match(/const CLEAN_UI_VERSION='(v\d+)'/)?.[1];
           if(!version)throw Error('CLEAN_UI_VERSION missing or malformed');
           const n=version.slice(1);
           for(const marker of [`/bandalytics-polish.css?v=${n}`,`/v38-site-policy-ui.js?v=${n}`,`/v38-clean-research-ui.js?${version}`,`/bandalytics-dashboard-shell.js?v=${n}`]){
@@ -80,7 +80,7 @@ jobs:
           const html=fs.readFileSync('dist/index.html','utf8');
           const injector=fs.readFileSync('pwa-inject.mjs','utf8');
           const manifest=JSON.parse(fs.readFileSync('dist/manifest.webmanifest','utf8'));
-          const version=injector.match(/const CLEAN_UI_VERSION='(v\\d+)'/)?.[1];
+          const version=injector.match(/const CLEAN_UI_VERSION='(v\d+)'/)?.[1];
           if(!version)throw Error('CLEAN_UI_VERSION missing or malformed');
           const n=version.slice(1);
           for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png','dist/v38-site-policy-ui.js','dist/v38-clean-research-ui.js','dist/bandalytics-dashboard-shell.js','dist/bandalytics-polish.css']){
