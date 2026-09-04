@@ -10,7 +10,7 @@ const POLICY_UI_DST='dist/v38-site-policy-ui.js';
 const CLEAN_UI_SRC='v38-clean-research-ui.js';
 const CLEAN_UI_DST='dist/v38-clean-research-ui.js';
 const MANIFEST='dist/manifest.webmanifest';
-const CLEAN_UI_VERSION='v16';
+const CLEAN_UI_VERSION='v17';
 
 await fs.mkdir('dist/pwa',{recursive:true});
 await Promise.all([
@@ -53,7 +53,7 @@ const compatMsg='<div id="msg" class="msg" data-legacy-import-compat hidden aria
 html=html.replace(/<div class="upload"><input id="file"[^>]*><\/div>/,compatUpload);
 html=html.replace(/<div id="msg" class="msg">Waiting for ZIP\.<\/div>/,compatMsg);
 
-const criticalUi='<style id="bandalytics-public-critical">[data-legacy-import-compat]{display:none!important}#v38ResearchPolicy{display:none!important}#tabs button[data-m="direct"],#tabs button[data-m="identity"],#tabs button[data-m="raw"],#tabs button[data-m="coverage"],#tabs button[data-m="calibration"],#tabs button[data-m="snapshot"],#tabs button[data-m="final"],#tabs button[data-m="daily"]{display:none!important}</style>';
+const criticalUi='<style id="bandalytics-public-critical">[data-legacy-import-compat],#v38ResearchPolicy,#bSourceRail,#bDirectBtn,#bDirectShade,#bDirectPanel{display:none!important}#tabs button[data-m="direct"],#tabs button[data-m="identity"],#tabs button[data-m="raw"],#tabs button[data-m="coverage"],#tabs button[data-m="calibration"],#tabs button[data-m="snapshot"],#tabs button[data-m="final"],#tabs button[data-m="daily"]{display:none!important}</style>';
 if(!html.includes('bandalytics-public-critical'))html=html.replace('</head>',criticalUi+'</head>');
 
 const tags=[
@@ -68,12 +68,12 @@ const tags=[
   '<meta name="theme-color" content="#05070a">'
 ].join('');
 if(!html.includes('apple-mobile-web-app-capable'))html=html.replace('</head>',tags+'</head>');
-if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js?v=16"></script></body>');
+if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js?v=17"></script></body>');
 if(!html.includes('/v38-clean-research-ui.js'))html=html.replace('</body>',`<script src="/v38-clean-research-ui.js?${CLEAN_UI_VERSION}"></script></body>`);
 await fs.writeFile(INDEX,html);
 
 const verify=await fs.readFile(INDEX,'utf8');
-for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js?v=16','/v38-clean-research-ui.js?v16','bandalytics-public-critical','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
+for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js?v=17','/v38-clean-research-ui.js?v17','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
   if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 }
 for(const forbidden of ['Waiting for ZIP.','Tonight HR Score v37']){
