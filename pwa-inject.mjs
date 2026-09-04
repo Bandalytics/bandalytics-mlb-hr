@@ -7,13 +7,16 @@ const ICON_192_SRC='pwa/bandalytics-icon-192.png';
 const ICON_192_DST='dist/pwa/bandalytics-icon-192.png';
 const POLICY_UI_SRC='v38-site-policy-ui.js';
 const POLICY_UI_DST='dist/v38-site-policy-ui.js';
+const CLEAN_UI_SRC='v38-clean-research-ui.js';
+const CLEAN_UI_DST='dist/v38-clean-research-ui.js';
 const MANIFEST='dist/manifest.webmanifest';
 
 await fs.mkdir('dist/pwa',{recursive:true});
 await Promise.all([
   fs.copyFile(ICON_180_SRC,ICON_180_DST),
   fs.copyFile(ICON_192_SRC,ICON_192_DST),
-  fs.copyFile(POLICY_UI_SRC,POLICY_UI_DST)
+  fs.copyFile(POLICY_UI_SRC,POLICY_UI_DST),
+  fs.copyFile(CLEAN_UI_SRC,CLEAN_UI_DST)
 ]);
 
 const manifest={
@@ -48,10 +51,11 @@ const tags=[
 ].join('');
 if(!html.includes('apple-mobile-web-app-capable'))html=html.replace('</head>',tags+'</head>');
 if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js"></script></body>');
+if(!html.includes('/v38-clean-research-ui.js'))html=html.replace('</body>','<script src="/v38-clean-research-ui.js"></script></body>');
 await fs.writeFile(INDEX,html);
 
 const verify=await fs.readFile(INDEX,'utf8');
-for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js']){
+for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js','/v38-clean-research-ui.js']){
   if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 }
-console.log('BANDALYTICS MULTI-SPORT PWA + V38 POLICY UI PASS');
+console.log('BANDALYTICS MULTI-SPORT PWA + V38 CLEAN RESEARCH UI PASS');
