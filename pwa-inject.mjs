@@ -10,7 +10,7 @@ const POLICY_UI_DST='dist/v38-site-policy-ui.js';
 const CLEAN_UI_SRC='v38-clean-research-ui.js';
 const CLEAN_UI_DST='dist/v38-clean-research-ui.js';
 const MANIFEST='dist/manifest.webmanifest';
-const CLEAN_UI_VERSION='v17';
+const CLEAN_UI_VERSION='v18';
 
 await fs.mkdir('dist/pwa',{recursive:true});
 await Promise.all([
@@ -68,12 +68,12 @@ const tags=[
   '<meta name="theme-color" content="#05070a">'
 ].join('');
 if(!html.includes('apple-mobile-web-app-capable'))html=html.replace('</head>',tags+'</head>');
-if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js?v=17"></script></body>');
+if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js?v=18"></script></body>');
 if(!html.includes('/v38-clean-research-ui.js'))html=html.replace('</body>',`<script src="/v38-clean-research-ui.js?${CLEAN_UI_VERSION}"></script></body>`);
 await fs.writeFile(INDEX,html);
 
 const verify=await fs.readFile(INDEX,'utf8');
-for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js?v=17','/v38-clean-research-ui.js?v17','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
+for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js?v=18','/v38-clean-research-ui.js?v18','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
   if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 }
 for(const forbidden of ['Waiting for ZIP.','Tonight HR Score v37']){
