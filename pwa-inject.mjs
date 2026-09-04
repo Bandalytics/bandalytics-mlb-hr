@@ -13,6 +13,8 @@ const DASHBOARD_SRC='bandalytics-dashboard-shell.js';
 const DASHBOARD_DST='dist/bandalytics-dashboard-shell.js';
 const POLISH_CSS_SRC='bandalytics-polish.css';
 const POLISH_CSS_DST='dist/bandalytics-polish.css';
+const HISTORY_RECOVERY_SRC='bandalytics-history-recovery.js';
+const HISTORY_RECOVERY_DST='dist/bandalytics-history-recovery.js';
 const MANIFEST='dist/manifest.webmanifest';
 const CLEAN_UI_VERSION='v25';
 
@@ -23,7 +25,8 @@ await Promise.all([
   fs.copyFile(POLICY_UI_SRC,POLICY_UI_DST),
   fs.copyFile(CLEAN_UI_SRC,CLEAN_UI_DST),
   fs.copyFile(DASHBOARD_SRC,DASHBOARD_DST),
-  fs.copyFile(POLISH_CSS_SRC,POLISH_CSS_DST)
+  fs.copyFile(POLISH_CSS_SRC,POLISH_CSS_DST),
+  fs.copyFile(HISTORY_RECOVERY_SRC,HISTORY_RECOVERY_DST)
 ]);
 
 const manifest={
@@ -72,14 +75,15 @@ if(!html.includes('apple-mobile-web-app-capable'))html=html.replace('</head>',ta
 if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js?v=25"></script></body>');
 if(!html.includes('/v38-clean-research-ui.js'))html=html.replace('</body>',`<script src="/v38-clean-research-ui.js?${CLEAN_UI_VERSION}"></script></body>`);
 if(!html.includes('/bandalytics-dashboard-shell.js'))html=html.replace('</body>','<script src="/bandalytics-dashboard-shell.js?v=25"></script></body>');
+if(!html.includes('/bandalytics-history-recovery.js'))html=html.replace('</body>','<script src="/bandalytics-history-recovery.js?v=1"></script></body>');
 await fs.writeFile(INDEX,html);
 
 const verify=await fs.readFile(INDEX,'utf8');
-for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/bandalytics-polish.css?v=25','/v38-site-policy-ui.js?v=25','/v38-clean-research-ui.js?v25','/bandalytics-dashboard-shell.js?v=25','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
+for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/bandalytics-polish.css?v=25','/v38-site-policy-ui.js?v=25','/v38-clean-research-ui.js?v25','/bandalytics-dashboard-shell.js?v=25','/bandalytics-history-recovery.js?v=1','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
   if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 }
 for(const forbidden of ['Waiting for ZIP.','Tonight HR Score v37']){
   if(verify.includes(forbidden))throw new Error('Public UI copy leaked into production shell: '+forbidden);
 }
 if(/MODEL\s+v37\s*•\s*LOCKED/i.test(verify))throw new Error('Public UI copy leaked into production shell: MODEL v37 • LOCKED');
-console.log('BANDALYTICS MULTI-SPORT PWA + STARTER DAMAGE + LINEUP AUDIT PASS');
+console.log('BANDALYTICS MULTI-SPORT PWA + STARTER DAMAGE + LINEUP AUDIT + HISTORY RECOVERY PASS');
