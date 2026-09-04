@@ -1,0 +1,59 @@
+/* Presentation-only polish for the public BANDALYTICS research UI.
+   Do not place model/scoring/evidence logic in this file. */
+:root{--b-red:#ff3b4f;--b-bg:#070a0f;--b-panel:#0d1219;--b-panel2:#111720;--b-line:rgba(255,255,255,.075);--b-muted:#9aa4b2;--b-text:#f4f7fb}
+html,body{background:var(--b-bg)!important}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif!important;color:var(--b-text)!important}
+.app{max-width:1180px!important;margin:0 auto!important;padding-left:14px!important;padding-right:14px!important}
+.topbar,.header,.site-header{backdrop-filter:saturate(140%) blur(14px);-webkit-backdrop-filter:saturate(140%) blur(14px)}
+.hero{padding:22px!important;border-radius:18px!important;background:linear-gradient(180deg,rgba(17,23,32,.96),rgba(10,14,20,.96))!important;border:1px solid var(--b-line)!important;box-shadow:none!important}
+.hero .eyebrow{font-size:11px!important;letter-spacing:.18em!important}
+.hero-title{font-size:clamp(28px,5.4vw,48px)!important;line-height:.98!important;letter-spacing:-.035em!important;margin-top:9px!important}
+.hero-copy{font-size:15px!important;line-height:1.48!important;max-width:760px!important;color:#b2bac6!important;margin-top:12px!important}
+.panel,.card,.box,.section{border-radius:16px!important;border-color:var(--b-line)!important;box-shadow:none!important;background:linear-gradient(180deg,rgba(15,20,28,.98),rgba(10,14,20,.98))!important}
+.panel{padding:16px!important;margin-top:12px!important}
+.statusgrid{gap:8px!important;margin-top:10px!important}
+.statusgrid>*,.statusgrid .card{min-height:78px!important;padding:12px!important;border-radius:14px!important}
+.statusgrid .label,.statusgrid small{font-size:10px!important;letter-spacing:.11em!important;color:var(--b-muted)!important}
+.statusgrid .value,.statusgrid strong{font-size:18px!important;line-height:1.1!important}
+#tabs{display:flex!important;gap:7px!important;overflow-x:auto!important;padding:8px 2px 10px!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;position:sticky!important;top:0!important;z-index:30!important;background:linear-gradient(180deg,rgba(7,10,15,.98),rgba(7,10,15,.92))!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important}
+#tabs::-webkit-scrollbar{display:none!important}
+#tabs button{flex:0 0 auto!important;border-radius:999px!important;padding:9px 12px!important;font-size:11px!important;font-weight:800!important;letter-spacing:.01em!important;border:1px solid var(--b-line)!important;background:#0d1219!important;box-shadow:none!important}
+#tabs button.a,#tabs button.active{background:rgba(255,59,79,.12)!important;border-color:rgba(255,59,79,.42)!important;color:#fff!important}
+#liveFeed{padding:14px 16px!important}
+#v38ProjectedResearch{padding:14px!important;border-radius:16px!important}
+#v38ProjectedResearch .pre-head{gap:8px!important}
+#v38ProjectedResearch .pre-title{font-size:20px!important;letter-spacing:-.02em!important}
+#v38ProjectedResearch .pre-copy{font-size:13px!important;line-height:1.45!important}
+#v38ProjectedResearch .pre-stats{gap:5px!important;margin-top:9px!important}
+#v38ProjectedResearch .chip{padding:5px 7px!important;font-size:9px!important;border-radius:999px!important}
+#v38ProjectedResearch .top-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;margin:10px 0!important}
+#v38ProjectedResearch .top-look{padding:9px!important;border-radius:12px!important;background:rgba(255,255,255,.022)!important}
+#v38ProjectedResearch .game-stack{gap:8px!important}
+#v38ProjectedResearch .game-card{border-radius:14px!important;background:rgba(255,255,255,.02)!important}
+#v38ProjectedResearch .game-card[open]{background:rgba(255,255,255,.03)!important}
+#v38ProjectedResearch .game-card summary{padding:11px 12px!important}
+#v38ProjectedResearch .matchup{font-size:14px!important;letter-spacing:-.01em!important}
+#v38ProjectedResearch .starter-line{font-size:10px!important;color:#8f99a7!important}
+#v38ProjectedResearch .game-count{font-size:9px!important;line-height:1.35!important}
+#v38ProjectedResearch .game-body{padding:9px!important}
+#v38ProjectedResearch .team-box{padding:8px!important;border-radius:11px!important;background:rgba(0,0,0,.11)!important}
+#v38ProjectedResearch .lineup-row{padding:3px 0!important;font-size:10.5px!important}
+#v38ProjectedResearch .look-row{padding:5px 0!important;font-size:10.5px!important}
+#v38ProjectedResearch .research-note{font-size:9.5px!important;color:#7f8996!important}
+button,input,select{font:inherit}
+@media(max-width:620px){
+  .app{padding-left:10px!important;padding-right:10px!important}
+  .hero{padding:17px!important;border-radius:16px!important}
+  .hero-title{font-size:30px!important}
+  .hero-copy{font-size:13px!important;line-height:1.42!important}
+  .panel{padding:12px!important;border-radius:14px!important}
+  .statusgrid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .statusgrid>*,.statusgrid .card{min-height:70px!important;padding:10px!important}
+  #tabs{margin-left:-10px!important;margin-right:-10px!important;padding-left:10px!important;padding-right:10px!important}
+  #v38ProjectedResearch{padding:11px!important}
+  #v38ProjectedResearch .top-strip{display:flex!important;overflow-x:auto!important;gap:7px!important;padding-bottom:2px!important;scrollbar-width:none!important}
+  #v38ProjectedResearch .top-strip::-webkit-scrollbar{display:none!important}
+  #v38ProjectedResearch .top-look{min-width:155px!important;flex:0 0 155px!important}
+  #v38ProjectedResearch .game-summary{grid-template-columns:minmax(0,1fr) auto!important}
+  #v38ProjectedResearch .teams{grid-template-columns:1fr!important}
+}
