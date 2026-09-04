@@ -17,24 +17,25 @@ import h15 from "../api-handlers/research-board.js";
 import h16 from "../api-handlers/research-status.js";
 import h17 from "../api-handlers/results-identity.js";
 import h18 from "../api-handlers/starter-damage-native.js";
-import h19 from "../api-handlers/sim-calibrate-range.js";
-import h20 from "../api-handlers/sim-calibrate.js";
-import h21 from "../api-handlers/sim-exact-parlay.js";
-import h22 from "../api-handlers/sim-joint-calibration-batch.js";
-import h23 from "../api-handlers/sim-joint-calibration.js";
-import h24 from "../api-handlers/sim-joint-game-player.js";
-import h25 from "../api-handlers/sim-joint-holdout.js";
-import h26 from "../api-handlers/sim-joint-offer-eval.js";
-import h27 from "../api-handlers/sim-joint-player.js";
-import h28 from "../api-handlers/sim-joint-replay.js";
-import h29 from "../api-handlers/sim-joint-walkforward.js";
-import h30 from "../api-handlers/sim-market.js";
-import h31 from "../api-handlers/sim-players.js";
-import h32 from "../api-handlers/sim-research-readiness.js";
-import h33 from "../api-handlers/sim-settle-joint.js";
-import h34 from "../api-handlers/sim-slate-standalone.js";
-import h35 from "../api-handlers/sim-slate.js";
-import h36 from "../api-handlers/sim.js";
+import h19 from "../api-handlers/environment-native.js";
+import h20 from "../api-handlers/sim-calibrate-range.js";
+import h21 from "../api-handlers/sim-calibrate.js";
+import h22 from "../api-handlers/sim-exact-parlay.js";
+import h23 from "../api-handlers/sim-joint-calibration-batch.js";
+import h24 from "../api-handlers/sim-joint-calibration.js";
+import h25 from "../api-handlers/sim-joint-game-player.js";
+import h26 from "../api-handlers/sim-joint-holdout.js";
+import h27 from "../api-handlers/sim-joint-offer-eval.js";
+import h28 from "../api-handlers/sim-joint-player.js";
+import h29 from "../api-handlers/sim-joint-replay.js";
+import h30 from "../api-handlers/sim-joint-walkforward.js";
+import h31 from "../api-handlers/sim-market.js";
+import h32 from "../api-handlers/sim-players.js";
+import h33 from "../api-handlers/sim-research-readiness.js";
+import h34 from "../api-handlers/sim-settle-joint.js";
+import h35 from "../api-handlers/sim-slate-standalone.js";
+import h36 from "../api-handlers/sim-slate.js";
+import h37 from "../api-handlers/sim.js";
 
 const handlers = {
   "direct-preview": h0,
@@ -56,24 +57,25 @@ const handlers = {
   "research-status": h16,
   "results-identity": h17,
   "starter-damage-native": h18,
-  "sim-calibrate-range": h19,
-  "sim-calibrate": h20,
-  "sim-exact-parlay": h21,
-  "sim-joint-calibration-batch": h22,
-  "sim-joint-calibration": h23,
-  "sim-joint-game-player": h24,
-  "sim-joint-holdout": h25,
-  "sim-joint-offer-eval": h26,
-  "sim-joint-player": h27,
-  "sim-joint-replay": h28,
-  "sim-joint-walkforward": h29,
-  "sim-market": h30,
-  "sim-players": h31,
-  "sim-research-readiness": h32,
-  "sim-settle-joint": h33,
-  "sim-slate-standalone": h34,
-  "sim-slate": h35,
-  "sim": h36
+  "environment-native": h19,
+  "sim-calibrate-range": h20,
+  "sim-calibrate": h21,
+  "sim-exact-parlay": h22,
+  "sim-joint-calibration-batch": h23,
+  "sim-joint-calibration": h24,
+  "sim-joint-game-player": h25,
+  "sim-joint-holdout": h26,
+  "sim-joint-offer-eval": h27,
+  "sim-joint-player": h28,
+  "sim-joint-replay": h29,
+  "sim-joint-walkforward": h30,
+  "sim-market": h31,
+  "sim-players": h32,
+  "sim-research-readiness": h33,
+  "sim-settle-joint": h34,
+  "sim-slate-standalone": h35,
+  "sim-slate": h36,
+  "sim": h37
 };
 
 export default async function router(req, res) {
