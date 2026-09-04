@@ -60,9 +60,9 @@ jobs:
           for ID in "${PROFILE_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/profile/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pregame-${ID}" --dir "incoming/profile/$ID" || true; done
           if [ "$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l)" -eq 0 ]; then
             echo "No profile snapshot candidates for ${DATE}"
-            if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ] || [ "${GITHUB_EVENT_NAME}" = "push" ]; then
               echo "PROFILE_READY=false" >> "$GITHUB_ENV"
-              echo "Workflow-run refresh skipped fail-closed until the daily immutable profile snapshot exists."
+              echo "Early refresh skipped fail-closed until the daily immutable profile snapshot exists."
               exit 0
             fi
             exit 3
