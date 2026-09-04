@@ -5,6 +5,7 @@ const DAY=86400000;
 const enc=x=>encodeURIComponent(String(x));
 const ymd=d=>new Date(d).toISOString().slice(0,10);
 const shift=(date,days)=>ymd(Date.parse(date+'T12:00:00Z')+days*DAY);
+const slotKey=(gamePk,team)=>`${+gamePk}:${teamAlias(team)}`;
 
 async function getJSON(fetcher,url,timeoutMs=12000){
   const c=new AbortController(),t=setTimeout(()=>c.abort(),timeoutMs);
@@ -52,39 +53,46 @@ function previousLineup(gameFeed={},teamId){
 }
 
 function targetTeamContexts(feed={}){
-  const m=new Map();
+  const out=[];
   for(const g of feed.items||[]){
-    m.set(+g.awayTeamId,{team:teamAlias(g.away),team_id:+g.awayTeamId,gamePk:+g.gamePk,matchup:`${teamAlias(g.away)} @ ${teamAlias(g.home)}`,opp_pitcher:g.homeStarter||null,opp_pitcher_id:g.homeStarterId||null,opp_pitcher_hand:g.homeStarterHand||null,official:g.awayLineup>=9});
-    m.set(+g.homeTeamId,{team:teamAlias(g.home),team_id:+g.homeTeamId,gamePk:+g.gamePk,matchup:`${teamAlias(g.home)} @ ${teamAlias(g.away)}`,opp_pitcher:g.awayStarter||null,opp_pitcher_id:g.awayStarterId||null,opp_pitcher_hand:g.awayStarterHand||null,official:g.homeLineup>=9});
+    out.push({slot_key:slotKey(g.gamePk,g.away),side:'away',team:teamAlias(g.away),team_id:+g.awayTeamId,gamePk:+g.gamePk,matchup:`${teamAlias(g.away)} @ ${teamAlias(g.home)}`,opp_pitcher:g.homeStarter||null,opp_pitcher_id:g.homeStarterId||null,opp_pitcher_hand:g.homeStarterHand||null,official:g.awayLineup>=9});
+    out.push({slot_key:slotKey(g.gamePk,g.home),side:'home',team:teamAlias(g.home),team_id:+g.homeTeamId,gamePk:+g.gamePk,matchup:`${teamAlias(g.home)} vs ${teamAlias(g.away)}`,opp_pitcher:g.awayStarter||null,opp_pitcher_id:g.awayStarterId||null,opp_pitcher_hand:g.awayStarterHand||null,official:g.homeLineup>=9});
   }
-  return m;
+  return out;
 }
 
 export async function buildProjectedLineups({date,fetcher=fetch,timeoutMs=12000,lookbackDays=7}={}){
   if(!/^20\d\d-\d\d-\d\d$/.test(String(date||'')))throw Error('date required');
   const feed=await buildNativeFeed({date,fetcher,timeoutMs}),contexts=targetTeamContexts(feed);
-  const officialByTeam=new Map();
+  const officialBySlot=new Map();
   for(const x of feed.lineup_players||[]){
-    const k=teamAlias(x.team),a=officialByTeam.get(k)||[];a.push({...x,lineup_type:'CONFIRMED',projection_source:null,evidence_eligible:true});officialByTeam.set(k,a);
+    const k=slotKey(x.gamePk,x.team),a=officialBySlot.get(k)||[];
+    a.push({...x,lineup_type:'CONFIRMED',projection_source:null,evidence_eligible:true,scoring_eligible:false});
+    officialBySlot.set(k,a);
   }
-  const missing=[...contexts.values()].filter(x=>!x.official).map(x=>x.team_id).filter(Boolean);
+  const missingTeamIds=[...new Set(contexts.filter(x=>!x.official).map(x=>x.team_id).filter(Boolean))];
   let recent=new Map(),previousFeeds=new Map();
-  if(missing.length){
+  if(missingTeamIds.length){
     const start=shift(date,-Math.max(1,lookbackDays)),end=shift(date,-1);
     const schedule=await getJSON(fetcher,`https://statsapi.mlb.com/api/v1/schedule?sportId=1&startDate=${enc(start)}&endDate=${enc(end)}&hydrate=team`,timeoutMs);
-    recent=recentGameMap(schedule,missing);
+    recent=recentGameMap(schedule,missingTeamIds);
     const gamePks=[...new Set([...recent.values()].map(x=>x.gamePk).filter(Boolean))];
     await Promise.all(gamePks.map(async gamePk=>{try{previousFeeds.set(gamePk,await getJSON(fetcher,`https://statsapi.mlb.com/api/v1.1/game/${gamePk}/feed/live`,timeoutMs))}catch{}}));
   }
   const items=[];
-  for(const ctx of contexts.values()){
-    const confirmed=officialByTeam.get(ctx.team)||[];
-    if(ctx.official&&confirmed.length){items.push(...confirmed.map(x=>({...x,team_id:ctx.team_id,evidence_eligible:true,scoring_eligible:false})));continue;}
+  for(const ctx of contexts){
+    const confirmed=officialBySlot.get(ctx.slot_key)||[];
+    if(ctx.official&&confirmed.length){
+      items.push(...confirmed.map(x=>({...x,team_id:ctx.team_id,slot_key:ctx.slot_key,evidence_eligible:true,scoring_eligible:false})));
+      continue;
+    }
     const src=recent.get(ctx.team_id),prev=src?previousFeeds.get(src.gamePk):null,lineup=prev?previousLineup(prev,ctx.team_id):[];
-    for(const x of lineup)items.push({...x,team:ctx.team,team_id:ctx.team_id,gamePk:ctx.gamePk,matchup:ctx.matchup,opp_pitcher:ctx.opp_pitcher,opp_pitcher_id:ctx.opp_pitcher_id,opp_pitcher_hand:ctx.opp_pitcher_hand,lineup_type:'PROJECTED',projection_source:'MOST_RECENT_COMPLETED_STARTING_LINEUP',projection_source_game_pk:src?.gamePk||null,projection_source_date:src?.date||null,evidence_eligible:false,scoring_eligible:false});
+    for(const x of lineup)items.push({...x,team:ctx.team,team_id:ctx.team_id,gamePk:ctx.gamePk,slot_key:ctx.slot_key,matchup:ctx.matchup,opp_pitcher:ctx.opp_pitcher,opp_pitcher_id:ctx.opp_pitcher_id,opp_pitcher_hand:ctx.opp_pitcher_hand,lineup_type:'PROJECTED',projection_source:'MOST_RECENT_COMPLETED_STARTING_LINEUP',projection_source_game_pk:src?.gamePk||null,projection_source_date:src?.date||null,evidence_eligible:false,scoring_eligible:false});
   }
-  const confirmedTeams=[...contexts.values()].filter(x=>x.official).length,projectedTeams=[...new Set(items.filter(x=>x.lineup_type==='PROJECTED').map(x=>x.team))].length;
-  return {ok:true,protocol:PROJECTED_LINEUP_PROTOCOL,date,games:feed.games,items,counts:{teams:contexts.size,confirmed_teams:confirmedTeams,projected_teams:projectedTeams,confirmed_hitters:items.filter(x=>x.lineup_type==='CONFIRMED').length,projected_hitters:items.filter(x=>x.lineup_type==='PROJECTED').length,total_research_hitters:items.length},research_only:true,projection_is_evidence:false,projected_rows_scoring_eligible:false,confirmed_rows_scoring_eligible:false,model_scoring_changed:false,source:'MLB_STATSAPI_CURRENT_PLUS_MOST_RECENT_COMPLETED_LINEUP'};
+  const confirmedSlots=contexts.filter(x=>x.official).length;
+  const projectedSlots=contexts.filter(ctx=>!ctx.official&&items.some(x=>x.slot_key===ctx.slot_key&&x.lineup_type==='PROJECTED')).length;
+  const counts={lineup_slots:contexts.length,confirmed_lineup_slots:confirmedSlots,projected_lineup_slots:projectedSlots,confirmed_hitters:items.filter(x=>x.lineup_type==='CONFIRMED').length,projected_hitters:items.filter(x=>x.lineup_type==='PROJECTED').length,total_research_hitters:items.length};
+  return {ok:true,protocol:PROJECTED_LINEUP_PROTOCOL,date,games:feed.games,items,counts,research_only:true,projection_is_evidence:false,projected_rows_scoring_eligible:false,confirmed_rows_scoring_eligible:false,model_scoring_changed:false,exact_game_identity:true,source:'MLB_STATSAPI_CURRENT_PLUS_MOST_RECENT_COMPLETED_LINEUP'};
 }
 
 export default async function handler(req,res){
