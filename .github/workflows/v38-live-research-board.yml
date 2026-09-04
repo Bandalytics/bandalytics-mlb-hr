@@ -58,7 +58,16 @@ jobs:
           mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe incoming/park
           mapfile -t PROFILE_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=30" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
           for ID in "${PROFILE_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/profile/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pregame-${ID}" --dir "incoming/profile/$ID" || true; done
-          if [ "$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l)" -eq 0 ]; then echo "No profile snapshot candidates for ${DATE}"; exit 3; fi
+          if [ "$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l)" -eq 0 ]; then
+            echo "No profile snapshot candidates for ${DATE}"
+            if [ "${GITHUB_EVENT_NAME}" = "workflow_run" ]; then
+              echo "PROFILE_READY=false" >> "$GITHUB_ENV"
+              echo "Workflow-run refresh skipped fail-closed until the daily immutable profile snapshot exists."
+              exit 0
+            fi
+            exit 3
+          fi
+          echo "PROFILE_READY=true" >> "$GITHUB_ENV"
           mapfile -t CTX_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
           for ID in "${CTX_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/contexts/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true; done
           mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select((.created_at|startswith(\"${DATE}\")) or (.created_at|startswith(\"${NEXT_UTC_DATE}\"))) | .id" || true)
@@ -70,8 +79,10 @@ jobs:
           echo "DATE=$DATE" >> "$GITHUB_ENV"
           echo "profile=$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l) context=$(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) pitchfit=$(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l) bbe=$(find incoming/modifiers -type f -name 'v38-recent-bbe-*.json' | wc -l) park=$(find incoming/park -type f -name 'v38-park-factors-*.json' | wc -l)"
       - name: Build canonical research board
+        if: env.PROFILE_READY != 'false'
         run: node scripts/build-v38-live-research-board.mjs incoming/profile incoming/contexts incoming/modifiers "$DATE" incoming/park
       - name: Verify fail-closed board contract
+        if: env.PROFILE_READY != 'false'
         shell: bash
         run: |
           set -euo pipefail
@@ -175,6 +186,7 @@ jobs:
           print('V38_LIVE_BOARD_CONTRACT='+json.dumps({'date':z['date'],'prospective':prospective,'pool_architecture':a,'counts':z['counts'],'coverage':z['coverage']}))
           PY
       - uses: actions/upload-artifact@v4
+        if: env.PROFILE_READY != 'false'
         with:
           name: v38-live-research-board-${{ github.run_id }}
           path: snapshots/v38-live-research-board-*.json
