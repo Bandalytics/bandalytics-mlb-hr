@@ -3,15 +3,24 @@
   const KEY='bandalytics_history_v1';
   const PARAM='recover';
   const enabled=new URLSearchParams(location.search).get(PARAM)==='1';
-  window.__BANDALYTICS_HISTORY_RECOVERY={version:'V1',storageKey:KEY,localOnly:true,sameOriginOnly:true,enabled};
+  window.__BANDALYTICS_HISTORY_RECOVERY={version:'V2',storageKey:KEY,localOnly:true,sameOriginOnly:true,enabled,scansBandalyticsKeys:true};
   if(!enabled)return;
 
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const parseRows=raw=>{if(!raw)return null;try{const p=JSON.parse(raw);return Array.isArray(p)?p:null}catch{return null}};
   const read=()=>{
-    let raw=null,error=null,rows=null;
-    try{raw=localStorage.getItem(KEY);}catch(e){error=String(e?.message||e)}
-    if(raw){try{const parsed=JSON.parse(raw);rows=Array.isArray(parsed)?parsed:null;if(!rows)error='Stored value exists but is not a player-slate array.'}catch(e){error='Stored value exists but JSON parsing failed.'}}
-    return{raw,rows,error};
+    let raw=null,error=null,rows=null,keys=[],candidates=[];
+    try{
+      raw=localStorage.getItem(KEY);rows=parseRows(raw);
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);if(!k||!/^bandalytics/i.test(k))continue;
+        const v=localStorage.getItem(k);keys.push(k);
+        const a=parseRows(v);
+        if(a)candidates.push({key:k,rows:a.length,raw:v});
+      }
+    }catch(e){error=String(e?.message||e)}
+    if(raw&&!rows&&!error)error='Stored history key exists but is not a player-slate array.';
+    return{raw,rows,error,keys,candidates};
   };
   const summarize=rows=>{
     if(!Array.isArray(rows))return{rows:0,dates:0,players:0,hr:0,near:0};
@@ -19,12 +28,12 @@
     for(const r of rows){if(r?.date)dates.add(String(r.date));if(r?.player)players.add(String(r.player));const o=String(r?.outcome||'').toUpperCase();if(o==='HR')hr++;if(o==='NEAR_HR')near++;}
     return{rows:rows.length,dates:dates.size,players:players.size,hr,near};
   };
-  const download=(text,name,type='application/json')=>{
-    const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
-  };
+  const download=(text,name,type='application/json')=>{const blob=new Blob([text],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)};
   const mount=()=>{
     if(document.getElementById('bandalytics-history-recovery'))return;
     const state=read(),sum=summarize(state.rows);
+    const allDump={origin:location.origin,captured_at:new Date().toISOString(),primary_key:KEY,bandalytics_keys:{}};
+    try{for(const k of state.keys)allDump.bandalytics_keys[k]=localStorage.getItem(k)}catch{}
     const wrap=document.createElement('div');wrap.id='bandalytics-history-recovery';wrap.innerHTML=`
       <style>
         #bandalytics-history-recovery{position:fixed;inset:0;z-index:2147483647;background:#05070af2;color:#f7f9fc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:auto;padding:22px;box-sizing:border-box}
@@ -40,8 +49,8 @@
       </style>
       <div class="hr-card">
         <h1>BANDALYTICS Legacy History Recovery</h1>
-        <p>This tool reads <code>${KEY}</code> from this exact website origin only. Nothing is uploaded or changed.</p>
-        ${state.error?`<p class="bad"><b>Storage read:</b> ${esc(state.error)}</p>`:state.rows?`<p class="ok"><b>Found recoverable history.</b></p>`:`<p class="warn"><b>No history found under this origin.</b></p>`}
+        <p>This tool reads <code>${KEY}</code> and scans other <code>bandalytics*</code> local-storage keys on this exact website origin. Nothing is uploaded or changed.</p>
+        ${state.error?`<p class="bad"><b>Storage read:</b> ${esc(state.error)}</p>`:state.rows?`<p class="ok"><b>Found recoverable history.</b></p>`:`<p class="warn"><b>No primary history found under this origin.</b></p>`}
         <div class="hr-grid">
           <div class="hr-stat"><b>${sum.rows}</b><span>PLAYER-SLATE ROWS</span></div>
           <div class="hr-stat"><b>${sum.dates}</b><span>SLATE DATES</span></div>
@@ -49,20 +58,23 @@
           <div class="hr-stat"><b>${sum.hr}</b><span>HR OUTCOMES</span></div>
           <div class="hr-stat"><b>${sum.near}</b><span>NEAR-HR</span></div>
         </div>
+        <p><b>${state.keys.length}</b> BANDALYTICS storage key${state.keys.length===1?'':'s'} found. ${state.candidates.length?`Array candidates: ${state.candidates.map(x=>`${esc(x.key)} (${x.rows} rows)`).join(', ')}`:'No additional array-style history candidates detected.'}</p>
         <div class="hr-actions">
-          <button class="primary" id="bhrExport" ${state.raw?'':'disabled'}>Export JSON</button>
-          <button id="bhrCopy" ${state.raw?'':'disabled'}>Copy JSON</button>
+          <button class="primary" id="bhrExport" ${state.raw?'':'disabled'}>Export Primary JSON</button>
+          <button id="bhrExportAll" ${state.keys.length?'':'disabled'}>Export All BANDALYTICS Storage</button>
+          <button id="bhrCopy" ${state.raw?'':'disabled'}>Copy Primary JSON</button>
           <button id="bhrInspect" ${state.raw?'':'disabled'}>Show preview</button>
           <a class="hr-close" href="/">Back to BANDALYTICS</a>
         </div>
         <div id="bhrStatus" style="margin-top:12px;color:#aab5c2;font-size:13px"></div>
         <pre id="bhrPreview" hidden></pre>
-        <p style="font-size:12px">If this shows zero rows, it only proves this current site origin does not contain the old key. History from a different domain, a local <code>file://</code> copy, or cleared Safari website data cannot be read from here.</p>
+        <p style="font-size:12px">Zero rows only proves this current site origin does not contain the old primary key. History from another domain, a local <code>file://</code> copy, or cleared Safari website data cannot be read from here.</p>
       </div>`;
     document.body.appendChild(wrap);
     const status=wrap.querySelector('#bhrStatus'),preview=wrap.querySelector('#bhrPreview');
-    wrap.querySelector('#bhrExport')?.addEventListener('click',()=>{download(state.raw,`bandalytics_history_recovered_${new Date().toISOString().slice(0,10)}.json`);status.textContent='Export created locally.'});
-    wrap.querySelector('#bhrCopy')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(state.raw);status.textContent='History JSON copied.'}catch{status.textContent='Clipboard access was blocked. Use Export JSON instead.'}});
+    wrap.querySelector('#bhrExport')?.addEventListener('click',()=>{download(state.raw,`bandalytics_history_recovered_${new Date().toISOString().slice(0,10)}.json`);status.textContent='Primary history export created locally.'});
+    wrap.querySelector('#bhrExportAll')?.addEventListener('click',()=>{download(JSON.stringify(allDump,null,2),`bandalytics_storage_recovery_${new Date().toISOString().slice(0,10)}.json`);status.textContent='All BANDALYTICS local-storage keys exported locally.'});
+    wrap.querySelector('#bhrCopy')?.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(state.raw);status.textContent='Primary history JSON copied.'}catch{status.textContent='Clipboard access was blocked. Use Export instead.'}});
     wrap.querySelector('#bhrInspect')?.addEventListener('click',()=>{preview.hidden=!preview.hidden;if(!preview.hidden)preview.textContent=JSON.stringify((state.rows||[]).slice(0,5),null,2)});
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
