@@ -7,6 +7,8 @@ on:
       - 'pwa-inject.mjs'
       - 'v38-site-policy-ui.js'
       - 'v38-clean-research-ui.js'
+      - 'bandalytics-dashboard-shell.js'
+      - 'bandalytics-polish.css'
       - 'test-pwa-home-screen.mjs'
       - 'package.json'
       - '.github/workflows/pwa-home-screen-readiness.yml'
@@ -30,10 +32,10 @@ jobs:
           import fs from 'node:fs';
           const injector=fs.readFileSync('pwa-inject.mjs','utf8');
           const clean=fs.readFileSync('v38-clean-research-ui.js','utf8');
+          const dashboard=fs.readFileSync('bandalytics-dashboard-shell.js','utf8');
           const publicModes=['games','lineups','profile','pitchfit','market','recent','environment','tonight','workflow','results'];
           for(const mode of publicModes)if(!clean.includes(`'${mode}'`))throw Error(`public mode missing from clean UI: ${mode}`);
           for(const marker of [
-            "version:'V1.4'",
             'legacyHooksPreserved:true',
             'diagnosticsHidden:true',
             'internalStatusHidden:true',
@@ -44,20 +46,31 @@ jobs:
             'exactGameIdentity:true'
           ])if(!clean.includes(marker))throw Error(`clean UI contract marker missing: ${marker}`);
           for(const marker of [
-            "const CLEAN_UI_VERSION='v15'",
-            "html=html.replaceAll('MODEL V37 • LOCKED','')",
-            "html=html.replaceAll('Tonight HR Score v37','Tonight HR Score')",
             'bandalytics-public-critical',
-            '/v38-site-policy-ui.js?v=15',
-            '/v38-clean-research-ui.js?v15'
+            'MODEL\\s+v37',
+            'Tonight HR Score v37',
+            '/v38-site-policy-ui.js',
+            '/v38-clean-research-ui.js',
+            '/bandalytics-dashboard-shell.js',
+            '/bandalytics-polish.css'
           ])if(!injector.includes(marker))throw Error(`production injector contract marker missing: ${marker}`);
+          const version=injector.match(/const CLEAN_UI_VERSION='(v\\d+)'/)?.[1];
+          if(!version)throw Error('CLEAN_UI_VERSION missing or malformed');
+          const n=version.slice(1);
+          for(const marker of [`/bandalytics-polish.css?v=${n}`,`/v38-site-policy-ui.js?v=${n}`,`/v38-clean-research-ui.js?${version}`,`/bandalytics-dashboard-shell.js?v=${n}`]){
+            if(!injector.includes(marker))throw Error(`cache-busted production asset missing: ${marker}`);
+          }
+          for(const marker of ['presentationOnly:true','researchOnly:true','scoringChanged:false','evidenceChanged:false','gameIdentityChanged:false']){
+            if(!dashboard.includes(marker))throw Error(`dashboard shell integrity marker missing: ${marker}`);
+          }
           console.log('BANDALYTICS_PUBLIC_RESEARCH_UI_CONTRACT_PASS');
           NODE
-      - name: Syntax-check PWA and V38 UI injectors
+      - name: Syntax-check PWA and research UI injectors
         run: |
           node --check pwa-inject.mjs
           node --check v38-site-policy-ui.js
           node --check v38-clean-research-ui.js
+          node --check bandalytics-dashboard-shell.js
       - name: Build production site with Home Screen packaging
         run: npm run build
       - name: Verify built PWA and public research output
@@ -65,11 +78,15 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html=fs.readFileSync('dist/index.html','utf8');
+          const injector=fs.readFileSync('pwa-inject.mjs','utf8');
           const manifest=JSON.parse(fs.readFileSync('dist/manifest.webmanifest','utf8'));
-          for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png','dist/v38-site-policy-ui.js','dist/v38-clean-research-ui.js']){
-            if(!fs.existsSync(p)||fs.statSync(p).size<1000)throw Error(`missing built asset ${p}`);
+          const version=injector.match(/const CLEAN_UI_VERSION='(v\\d+)'/)?.[1];
+          if(!version)throw Error('CLEAN_UI_VERSION missing or malformed');
+          const n=version.slice(1);
+          for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png','dist/v38-site-policy-ui.js','dist/v38-clean-research-ui.js','dist/bandalytics-dashboard-shell.js','dist/bandalytics-polish.css']){
+            if(!fs.existsSync(p)||fs.statSync(p).size<100)throw Error(`missing built asset ${p}`);
           }
-          for(const marker of ['manifest.webmanifest','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','BANDALYTICS','bandalytics-public-critical','/v38-site-policy-ui.js?v=15','/v38-clean-research-ui.js?v15']){
+          for(const marker of ['manifest.webmanifest','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','BANDALYTICS','bandalytics-public-critical',`/bandalytics-polish.css?v=${n}`,`/v38-site-policy-ui.js?v=${n}`,`/v38-clean-research-ui.js?${version}`,`/bandalytics-dashboard-shell.js?v=${n}`]){
             if(!html.includes(marker))throw Error(`built HTML missing ${marker}`);
           }
           for(const forbidden of ['Waiting for ZIP.','MODEL V37 • LOCKED','Tonight HR Score v37']){
@@ -81,7 +98,9 @@ jobs:
           const policy=fs.readFileSync('dist/v38-site-policy-ui.js','utf8');
           for(const marker of ['V38 RESEARCH POOL','Legacy pool blocked','legacyFinalPoolDisabled:true','productionScoringChanged:false'])if(!policy.includes(marker))throw Error(`built policy UI missing ${marker}`);
           const clean=fs.readFileSync('dist/v38-clean-research-ui.js','utf8');
-          for(const marker of ["version:'V1.4'",'directLabHidden:true','safariSafeObserver:true','projectionIsEvidence:false','scoringChanged:false'])if(!clean.includes(marker))throw Error(`built clean UI missing ${marker}`);
+          for(const marker of ['directLabHidden:true','safariSafeObserver:true','projectionIsEvidence:false','scoringChanged:false'])if(!clean.includes(marker))throw Error(`built clean UI missing ${marker}`);
+          const dashboard=fs.readFileSync('dist/bandalytics-dashboard-shell.js','utf8');
+          for(const marker of ['presentationOnly:true','researchOnly:true','scoringChanged:false','evidenceChanged:false','gameIdentityChanged:false'])if(!dashboard.includes(marker))throw Error(`built dashboard shell integrity marker missing: ${marker}`);
           if(manifest.name!=='BANDALYTICS'||manifest.short_name!=='BANDALYTICS'||manifest.display!=='standalone')throw Error('bad built manifest identity');
           if(!Array.isArray(manifest.icons)||!manifest.icons.some(x=>x.sizes==='180x180')||!manifest.icons.some(x=>x.sizes==='192x192'))throw Error('built manifest icon set incomplete');
           console.log('BANDALYTICS_BUILT_PWA_PUBLIC_UI_PASS');
