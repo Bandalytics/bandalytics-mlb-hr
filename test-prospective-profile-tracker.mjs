@@ -4,11 +4,15 @@ const fail=m=>{throw new Error('PROSPECTIVE PROFILE TRACKER: '+m)};
 for(const marker of [
   "bandalytics:prospective-profile-ledger:v1",
   "BANDALYTICS_PROSPECTIVE_PROFILE_LEDGER_V1",
+  "BANDALYTICS_RESULTS_SETTLEMENT_V1",
   "immutable_profile_snapshot:true",
+  "immutable_snapshot_untouched:true",
   "prospective:true",
   "research_only:true",
   "scoring_eligible:false",
   "projection_is_evidence:false",
+  "VOID_NOT_APPEARED",
+  "NO_HR",
   "FOUNDATION",
   "LONGSHOT",
   "PULL POWER",
@@ -21,7 +25,10 @@ for(const marker of [
   "FORMAL_ARCHETYPE_OVERLAP_3PLUS",
   "profileGateChanged:false",
   "longshotRuleChanged:false",
-  "scoringChanged:false"
+  "scoringChanged:false",
+  "separateOutcomeRecords:true",
+  "settleFinalGamesOnly:true",
+  "voidNonParticipants:true"
 ]) if(!src.includes(marker))fail('missing marker '+marker);
 for(const forbidden of [
   'scoring_eligible:true',
@@ -33,7 +40,10 @@ for(const forbidden of [
   'fill to target'
 ]) if(src.includes(forbidden))fail('forbidden behavior '+forbidden);
 if(!src.includes('if(ledger.snapshots[k])continue'))fail('snapshot immutability guard missing');
-if(!src.includes('Number(p.barrel)>8')&&!src.includes('gt(m.barrel,8)'))fail('barrel threshold missing');
+if(!src.includes('if(s.date!==date||ledger.outcomes[s.snapshot_id])continue'))fail('outcome immutability guard missing');
+if(!src.includes("if(!g?.final||g.participation_complete!==true)continue"))fail('final-game settlement guard missing');
+if(!src.includes("status='VOID_NOT_APPEARED'"))fail('nonparticipant void guard missing');
+if(!src.includes('gt(m.barrel,8)'))fail('barrel threshold missing');
 if(!src.includes('gt(m.hh,35)'))fail('hard-hit threshold missing');
 if(!src.includes('gt(m.blast,8)'))fail('blast threshold missing');
 if(!src.includes('gt(m.pullair,18)'))fail('pull-air threshold missing');
