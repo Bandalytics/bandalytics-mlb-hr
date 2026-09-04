@@ -24,6 +24,7 @@
     {"source":"/api/research-board","destination":"/api/router?route=research-board"},
     {"source":"/api/research-status","destination":"/api/router?route=research-status"},
     {"source":"/api/results-identity","destination":"/api/router?route=results-identity"},
+    {"source":"/api/starter-damage-native","destination":"/api/router?route=starter-damage-native"},
     {"source":"/api/sim-calibrate-range","destination":"/api/router?route=sim-calibrate-range"},
     {"source":"/api/sim-calibrate","destination":"/api/router?route=sim-calibrate"},
     {"source":"/api/sim-exact-parlay","destination":"/api/router?route=sim-exact-parlay"},
