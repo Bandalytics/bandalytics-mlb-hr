@@ -6,6 +6,7 @@ on:
       - 'pwa/**'
       - 'pwa-inject.mjs'
       - 'v38-site-policy-ui.js'
+      - 'v38-clean-research-ui.js'
       - 'test-pwa-home-screen.mjs'
       - 'package.json'
       - '.github/workflows/pwa-home-screen-readiness.yml'
@@ -23,27 +24,65 @@ jobs:
           node-version: '24'
       - name: Verify multi-sport Home Screen contract
         run: node test-pwa-home-screen.mjs
-      - name: Syntax-check PWA and V38 policy injectors
+      - name: Verify public research UI contract
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const injector=fs.readFileSync('pwa-inject.mjs','utf8');
+          const clean=fs.readFileSync('v38-clean-research-ui.js','utf8');
+          const publicModes=['games','lineups','profile','pitchfit','market','recent','environment','tonight','workflow','results'];
+          for(const mode of publicModes)if(!clean.includes(`'${mode}'`))throw Error(`public mode missing from clean UI: ${mode}`);
+          for(const marker of [
+            "version:'V1.4'",
+            'legacyHooksPreserved:true',
+            'diagnosticsHidden:true',
+            'internalStatusHidden:true',
+            'directLabHidden:true',
+            'safariSafeObserver:true',
+            'projectionIsEvidence:false',
+            'scoringChanged:false',
+            'exactGameIdentity:true'
+          ])if(!clean.includes(marker))throw Error(`clean UI contract marker missing: ${marker}`);
+          for(const marker of [
+            "const CLEAN_UI_VERSION='v15'",
+            "html=html.replaceAll('MODEL V37 • LOCKED','')",
+            "html=html.replaceAll('Tonight HR Score v37','Tonight HR Score')",
+            'bandalytics-public-critical',
+            '/v38-site-policy-ui.js?v=15',
+            '/v38-clean-research-ui.js?v15'
+          ])if(!injector.includes(marker))throw Error(`production injector contract marker missing: ${marker}`);
+          console.log('BANDALYTICS_PUBLIC_RESEARCH_UI_CONTRACT_PASS');
+          NODE
+      - name: Syntax-check PWA and V38 UI injectors
         run: |
           node --check pwa-inject.mjs
           node --check v38-site-policy-ui.js
+          node --check v38-clean-research-ui.js
       - name: Build production site with Home Screen packaging
         run: npm run build
-      - name: Verify built PWA and V38 policy output
+      - name: Verify built PWA and public research output
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html=fs.readFileSync('dist/index.html','utf8');
           const manifest=JSON.parse(fs.readFileSync('dist/manifest.webmanifest','utf8'));
-          for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png','dist/v38-site-policy-ui.js']){
+          for(const p of ['dist/pwa/bandalytics-icon-180.png','dist/pwa/bandalytics-icon-192.png','dist/v38-site-policy-ui.js','dist/v38-clean-research-ui.js']){
             if(!fs.existsSync(p)||fs.statSync(p).size<1000)throw Error(`missing built asset ${p}`);
           }
-          for(const marker of ['manifest.webmanifest','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','BANDALYTICS','/v38-site-policy-ui.js']){
+          for(const marker of ['manifest.webmanifest','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','BANDALYTICS','bandalytics-public-critical','/v38-site-policy-ui.js?v=15','/v38-clean-research-ui.js?v15']){
             if(!html.includes(marker))throw Error(`built HTML missing ${marker}`);
           }
+          for(const forbidden of ['Waiting for ZIP.','MODEL V37 • LOCKED','Tonight HR Score v37']){
+            if(html.includes(forbidden))throw Error(`forbidden public UI copy leaked into built HTML: ${forbidden}`);
+          }
+          if(!html.includes('Tonight HR Score'))throw Error('public Tonight HR label missing from built HTML');
+          if(!html.includes('#tabs button[data-m="direct"]')||!html.includes('display:none!important'))throw Error('Direct Lab is not hidden before paint in built HTML');
+          if(!html.includes('data-legacy-import-compat')||!html.includes('id="file"')||!html.includes('id="msg"'))throw Error('hidden legacy compatibility hooks missing from built HTML');
           const policy=fs.readFileSync('dist/v38-site-policy-ui.js','utf8');
-          for(const marker of ['V38 RESEARCH POOL','Legacy pool blocked','legacyFinalPoolDisabled:true'])if(!policy.includes(marker))throw Error(`built policy UI missing ${marker}`);
+          for(const marker of ['V38 RESEARCH POOL','Legacy pool blocked','legacyFinalPoolDisabled:true','productionScoringChanged:false'])if(!policy.includes(marker))throw Error(`built policy UI missing ${marker}`);
+          const clean=fs.readFileSync('dist/v38-clean-research-ui.js','utf8');
+          for(const marker of ["version:'V1.4'",'directLabHidden:true','safariSafeObserver:true','projectionIsEvidence:false','scoringChanged:false'])if(!clean.includes(marker))throw Error(`built clean UI missing ${marker}`);
           if(manifest.name!=='BANDALYTICS'||manifest.short_name!=='BANDALYTICS'||manifest.display!=='standalone')throw Error('bad built manifest identity');
           if(!Array.isArray(manifest.icons)||!manifest.icons.some(x=>x.sizes==='180x180')||!manifest.icons.some(x=>x.sizes==='192x192'))throw Error('built manifest icon set incomplete');
-          console.log('BANDALYTICS_BUILT_PWA_V38_POLICY_PASS');
+          console.log('BANDALYTICS_BUILT_PWA_PUBLIC_UI_PASS');
           NODE
