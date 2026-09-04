@@ -39,11 +39,13 @@ let html=await fs.readFile(INDEX,'utf8');
 if(!html.includes('</head>')||!html.includes('</body>'))throw new Error('PWA injection failed: document markers not found');
 html=html.replace(/<title>[^<]*<\/title>/,'<title>BANDALYTICS</title>');
 
-// The automated V38 app must never render the legacy manual-import prompt in the public shell.
-// Keep the importer code available behind the scenes for historical/admin tooling, but remove
-// the visible hero upload control and its "Waiting for ZIP" message before HTML ships.
-html=html.replace(/<div class="upload"><input id="file"[^>]*><\/div>/,'');
-html=html.replace(/<div id="msg" class="msg">Waiting for ZIP\.<\/div>/,'');
+// Keep the old shell's #file/#msg hooks alive so its bootstrap cannot throw, but make them
+// permanently invisible in the automated V38 interface. Historical/admin importer code stays
+// available behind the scenes without exposing a manual ZIP requirement to normal users.
+const compatUpload='<div class="upload" data-legacy-import-compat hidden aria-hidden="true" style="display:none!important"><input id="file" type="file" accept=".zip,.csv" tabindex="-1"></div>';
+const compatMsg='<div id="msg" class="msg" data-legacy-import-compat hidden aria-hidden="true" style="display:none!important"></div>';
+html=html.replace(/<div class="upload"><input id="file"[^>]*><\/div>/,compatUpload);
+html=html.replace(/<div id="msg" class="msg">Waiting for ZIP\.<\/div>/,compatMsg);
 
 const tags=[
   '<link rel="manifest" href="/manifest.webmanifest">',
@@ -62,10 +64,8 @@ if(!html.includes('/v38-clean-research-ui.js'))html=html.replace('</body>','<scr
 await fs.writeFile(INDEX,html);
 
 const verify=await fs.readFile(INDEX,'utf8');
-for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js','/v38-clean-research-ui.js']){
+for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js','/v38-clean-research-ui.js','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
   if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 }
-for(const legacy of ['Waiting for ZIP.','id="file" type="file" accept=".zip,.csv"']){
-  if(verify.includes(legacy))throw new Error('Legacy manual-import UI leaked into production shell: '+legacy);
-}
+if(verify.includes('Waiting for ZIP.'))throw new Error('Legacy ZIP prompt leaked into production shell');
 console.log('BANDALYTICS MULTI-SPORT PWA + V38 CLEAN RESEARCH UI PASS');
