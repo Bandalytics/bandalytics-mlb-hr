@@ -60,7 +60,7 @@ jobs:
           for(const marker of [`/bandalytics-polish.css?v=${n}`,`/v38-site-policy-ui.js?v=${n}`,`/v38-clean-research-ui.js?${version}`,`/bandalytics-dashboard-shell.js?v=${n}`]){
             if(!injector.includes(marker))throw Error(`cache-busted production asset missing: ${marker}`);
           }
-          for(const marker of ['presentationOnly:true','researchOnly:true','scoringChanged:false','evidenceChanged:false','gameIdentityChanged:false']){
+          for(const marker of ['presentationOnly:false','researchOnly:true','contextHydration:true','gameClassificationWithheldUntilContext:true','profileGateChanged:false','longshotRuleChanged:false','scoringChanged:false','evidenceChanged:false','gameIdentityChanged:false']){
             if(!dashboard.includes(marker))throw Error(`dashboard shell integrity marker missing: ${marker}`);
           }
           console.log('BANDALYTICS_PUBLIC_RESEARCH_UI_CONTRACT_PASS');
@@ -100,7 +100,7 @@ jobs:
           const clean=fs.readFileSync('dist/v38-clean-research-ui.js','utf8');
           for(const marker of ['directLabHidden:true','safariSafeObserver:true','projectionIsEvidence:false','scoringChanged:false'])if(!clean.includes(marker))throw Error(`built clean UI missing ${marker}`);
           const dashboard=fs.readFileSync('dist/bandalytics-dashboard-shell.js','utf8');
-          for(const marker of ['presentationOnly:true','researchOnly:true','scoringChanged:false','evidenceChanged:false','gameIdentityChanged:false'])if(!dashboard.includes(marker))throw Error(`built dashboard shell integrity marker missing: ${marker}`);
+          for(const marker of ['presentationOnly:false','researchOnly:true','contextHydration:true','gameClassificationWithheldUntilContext:true','profileGateChanged:false','longshotRuleChanged:false','scoringChanged:false','evidenceChanged:false','gameIdentityChanged:false'])if(!dashboard.includes(marker))throw Error(`built dashboard shell integrity marker missing: ${marker}`);
           if(manifest.name!=='BANDALYTICS'||manifest.short_name!=='BANDALYTICS'||manifest.display!=='standalone')throw Error('bad built manifest identity');
           if(!Array.isArray(manifest.icons)||!manifest.icons.some(x=>x.sizes==='180x180')||!manifest.icons.some(x=>x.sizes==='192x192'))throw Error('built manifest icon set incomplete');
           console.log('BANDALYTICS_BUILT_PWA_PUBLIC_UI_PASS');
