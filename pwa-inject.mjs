@@ -9,15 +9,18 @@ const POLICY_UI_SRC='v38-site-policy-ui.js';
 const POLICY_UI_DST='dist/v38-site-policy-ui.js';
 const CLEAN_UI_SRC='v38-clean-research-ui.js';
 const CLEAN_UI_DST='dist/v38-clean-research-ui.js';
+const POLISH_CSS_SRC='bandalytics-polish.css';
+const POLISH_CSS_DST='dist/bandalytics-polish.css';
 const MANIFEST='dist/manifest.webmanifest';
-const CLEAN_UI_VERSION='v18';
+const CLEAN_UI_VERSION='v19';
 
 await fs.mkdir('dist/pwa',{recursive:true});
 await Promise.all([
   fs.copyFile(ICON_180_SRC,ICON_180_DST),
   fs.copyFile(ICON_192_SRC,ICON_192_DST),
   fs.copyFile(POLICY_UI_SRC,POLICY_UI_DST),
-  fs.copyFile(CLEAN_UI_SRC,CLEAN_UI_DST)
+  fs.copyFile(CLEAN_UI_SRC,CLEAN_UI_DST),
+  fs.copyFile(POLISH_CSS_SRC,POLISH_CSS_DST)
 ]);
 
 const manifest={
@@ -58,6 +61,7 @@ if(!html.includes('bandalytics-public-critical'))html=html.replace('</head>',cri
 
 const tags=[
   '<link rel="manifest" href="/manifest.webmanifest">',
+  '<link rel="stylesheet" href="/bandalytics-polish.css?v=19">',
   '<link rel="icon" type="image/png" sizes="192x192" href="/pwa/bandalytics-icon-192.png">',
   '<link rel="apple-touch-icon" sizes="180x180" href="/pwa/bandalytics-icon-180.png">',
   '<meta name="apple-mobile-web-app-capable" content="yes">',
@@ -68,12 +72,12 @@ const tags=[
   '<meta name="theme-color" content="#05070a">'
 ].join('');
 if(!html.includes('apple-mobile-web-app-capable'))html=html.replace('</head>',tags+'</head>');
-if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js?v=18"></script></body>');
+if(!html.includes('/v38-site-policy-ui.js'))html=html.replace('</body>','<script src="/v38-site-policy-ui.js?v=19"></script></body>');
 if(!html.includes('/v38-clean-research-ui.js'))html=html.replace('</body>',`<script src="/v38-clean-research-ui.js?${CLEAN_UI_VERSION}"></script></body>`);
 await fs.writeFile(INDEX,html);
 
 const verify=await fs.readFile(INDEX,'utf8');
-for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/v38-site-policy-ui.js?v=18','/v38-clean-research-ui.js?v18','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
+for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/bandalytics-polish.css?v=19','/v38-site-policy-ui.js?v=19','/v38-clean-research-ui.js?v19','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"']){
   if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 }
 for(const forbidden of ['Waiting for ZIP.','Tonight HR Score v37']){
