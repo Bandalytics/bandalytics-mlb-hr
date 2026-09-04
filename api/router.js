@@ -12,27 +12,28 @@ import h10 from "../api-handlers/profile-native-qa.js";
 import h11 from "../api-handlers/profile-research.js";
 import h12 from "../api-handlers/profile-v38-candidate.js";
 import h13 from "../api-handlers/profile-v38-leakage-replay.js";
-import h14 from "../api-handlers/research-board.js";
-import h15 from "../api-handlers/research-status.js";
-import h16 from "../api-handlers/results-identity.js";
-import h17 from "../api-handlers/sim-calibrate-range.js";
-import h18 from "../api-handlers/sim-calibrate.js";
-import h19 from "../api-handlers/sim-exact-parlay.js";
-import h20 from "../api-handlers/sim-joint-calibration-batch.js";
-import h21 from "../api-handlers/sim-joint-calibration.js";
-import h22 from "../api-handlers/sim-joint-game-player.js";
-import h23 from "../api-handlers/sim-joint-holdout.js";
-import h24 from "../api-handlers/sim-joint-offer-eval.js";
-import h25 from "../api-handlers/sim-joint-player.js";
-import h26 from "../api-handlers/sim-joint-replay.js";
-import h27 from "../api-handlers/sim-joint-walkforward.js";
-import h28 from "../api-handlers/sim-market.js";
-import h29 from "../api-handlers/sim-players.js";
-import h30 from "../api-handlers/sim-research-readiness.js";
-import h31 from "../api-handlers/sim-settle-joint.js";
-import h32 from "../api-handlers/sim-slate-standalone.js";
-import h33 from "../api-handlers/sim-slate.js";
-import h34 from "../api-handlers/sim.js";
+import h14 from "../api-handlers/projected-lineups.js";
+import h15 from "../api-handlers/research-board.js";
+import h16 from "../api-handlers/research-status.js";
+import h17 from "../api-handlers/results-identity.js";
+import h18 from "../api-handlers/sim-calibrate-range.js";
+import h19 from "../api-handlers/sim-calibrate.js";
+import h20 from "../api-handlers/sim-exact-parlay.js";
+import h21 from "../api-handlers/sim-joint-calibration-batch.js";
+import h22 from "../api-handlers/sim-joint-calibration.js";
+import h23 from "../api-handlers/sim-joint-game-player.js";
+import h24 from "../api-handlers/sim-joint-holdout.js";
+import h25 from "../api-handlers/sim-joint-offer-eval.js";
+import h26 from "../api-handlers/sim-joint-player.js";
+import h27 from "../api-handlers/sim-joint-replay.js";
+import h28 from "../api-handlers/sim-joint-walkforward.js";
+import h29 from "../api-handlers/sim-market.js";
+import h30 from "../api-handlers/sim-players.js";
+import h31 from "../api-handlers/sim-research-readiness.js";
+import h32 from "../api-handlers/sim-settle-joint.js";
+import h33 from "../api-handlers/sim-slate-standalone.js";
+import h34 from "../api-handlers/sim-slate.js";
+import h35 from "../api-handlers/sim.js";
 
 const handlers = {
   "direct-preview": h0,
@@ -49,27 +50,28 @@ const handlers = {
   "profile-research": h11,
   "profile-v38-candidate": h12,
   "profile-v38-leakage-replay": h13,
-  "research-board": h14,
-  "research-status": h15,
-  "results-identity": h16,
-  "sim-calibrate-range": h17,
-  "sim-calibrate": h18,
-  "sim-exact-parlay": h19,
-  "sim-joint-calibration-batch": h20,
-  "sim-joint-calibration": h21,
-  "sim-joint-game-player": h22,
-  "sim-joint-holdout": h23,
-  "sim-joint-offer-eval": h24,
-  "sim-joint-player": h25,
-  "sim-joint-replay": h26,
-  "sim-joint-walkforward": h27,
-  "sim-market": h28,
-  "sim-players": h29,
-  "sim-research-readiness": h30,
-  "sim-settle-joint": h31,
-  "sim-slate-standalone": h32,
-  "sim-slate": h33,
-  "sim": h34
+  "projected-lineups": h14,
+  "research-board": h15,
+  "research-status": h16,
+  "results-identity": h17,
+  "sim-calibrate-range": h18,
+  "sim-calibrate": h19,
+  "sim-exact-parlay": h20,
+  "sim-joint-calibration-batch": h21,
+  "sim-joint-calibration": h22,
+  "sim-joint-game-player": h23,
+  "sim-joint-holdout": h24,
+  "sim-joint-offer-eval": h25,
+  "sim-joint-player": h26,
+  "sim-joint-replay": h27,
+  "sim-joint-walkforward": h28,
+  "sim-market": h29,
+  "sim-players": h30,
+  "sim-research-readiness": h31,
+  "sim-settle-joint": h32,
+  "sim-slate-standalone": h33,
+  "sim-slate": h34,
+  "sim": h35
 };
 
 export default async function router(req, res) {
