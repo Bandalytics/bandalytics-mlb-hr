@@ -20,6 +20,7 @@
     {"source":"/api/profile-research","destination":"/api/router?route=profile-research"},
     {"source":"/api/profile-v38-candidate","destination":"/api/router?route=profile-v38-candidate"},
     {"source":"/api/profile-v38-leakage-replay","destination":"/api/router?route=profile-v38-leakage-replay"},
+    {"source":"/api/projected-lineups","destination":"/api/router?route=projected-lineups"},
     {"source":"/api/research-board","destination":"/api/router?route=research-board"},
     {"source":"/api/research-status","destination":"/api/router?route=research-status"},
     {"source":"/api/results-identity","destination":"/api/router?route=results-identity"},
