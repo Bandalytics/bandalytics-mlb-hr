@@ -1,0 +1,15 @@
+(function(){
+'use strict';
+const ROOT_ID='bandalyticsMobileFlatRoot';
+const isMobile=()=>window.matchMedia('(max-width:760px)').matches;
+const esc=x=>String(x??'—').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));
+function profileLabel(n){return n===6?'ELITE PROFILE • 6/6':n===5?'PROFILE MATCH • 5/6':''}
+function root(){let r=document.getElementById(ROOT_ID);if(r)return r;r=document.createElement('main');r.id=ROOT_ID;r.setAttribute('aria-label','BANDALYTICS mobile matchup research');document.body.appendChild(r);return r}
+function lineup(rows=[]){return rows.slice().sort((a,b)=>a.lineup-b.lineup).map(x=>`<div class="bmf-row ${x.profile_passes>=5?'qualified':''}"><span>${esc(x.lineup)}</span><b>${esc(x.player)}</b><em>${esc(profileLabel(x.profile_passes))}</em></div>`).join('')}
+function gameCard(g){const a=g.teams?.[0]||'—',b=g.teams?.[1]||'—',ar=(g.rows||[]).filter(x=>x.team===a),br=(g.rows||[]).filter(x=>x.team===b),matchup=g.rows?.[0]?.matchup||`${a} @ ${b}`;return`<section class="bmf-game"><div class="bmf-game-head"><div><span>MATCHUP</span><h2>${esc(matchup)}</h2></div><strong>${g.qualified||0} SCREENS</strong></div><div class="bmf-starter">${esc(a)} vs ${esc(ar[0]?.opp_pitcher||'TBD')} • ${esc(b)} vs ${esc(br[0]?.opp_pitcher||'TBD')}</div><div class="bmf-team"><div class="bmf-team-head"><b>${esc(a)}</b><span>${esc(ar.some(x=>x.lineup_type==='CONFIRMED')?'CONFIRMED':'PROJECTED')}</span></div>${lineup(ar)}</div><div class="bmf-team"><div class="bmf-team-head"><b>${esc(b)}</b><span>${esc(br.some(x=>x.lineup_type==='CONFIRMED')?'CONFIRMED':'PROJECTED')}</span></div>${lineup(br)}</div></section>`}
+function render(data){if(!isMobile()||!data?.games?.length)return false;const r=root(),c=data.feed?.counts||{};document.body.classList.add('bandalytics-mobile-flat-live');r.innerHTML=`<header class="bmf-head"><span>BANDALYTICS • MOBILE RESEARCH</span><h1>Today’s Matchups</h1><p>Flat iPhone research view. Projected lineups automatically yield to confirmed lineups as they arrive.</p><div class="bmf-stats"><b>${data.games.length} GAMES</b><b>${c.projected_lineup_slots||0} PROJECTED</b><b>${c.confirmed_lineup_slots||0} CONFIRMED</b></div></header><div class="bmf-games">${data.games.map(gameCard).join('')}</div><footer class="bmf-foot">Research-only presentation. Locked MLB HR profile gates, evidence, scoring state and prospective snapshots are unchanged.</footer>`;return true}
+function tryRender(){return render(window.__BANDALYTICS_PROJECTED_RESEARCH)}
+function boot(){if(!isMobile())return;if(tryRender())return;let n=0;const t=setInterval(()=>{if(tryRender()||++n>300)clearInterval(t)},100);window.addEventListener('resize',()=>{if(isMobile())tryRender()},{passive:true})}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+window.__BANDALYTICS_MOBILE_FLAT_UI={version:'v1',flatSiblingRoot:true,researchOnly:true,modelScoringChanged:false,profileGateChanged:false,longshotRuleChanged:false};
+})();
