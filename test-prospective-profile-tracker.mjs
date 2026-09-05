@@ -1,52 +1,13 @@
-import fs from 'node:fs/promises';
+import fs from'node:fs/promises';
 const src=await fs.readFile('bandalytics-prospective-profile-tracker.js','utf8');
 const fail=m=>{throw new Error('PROSPECTIVE PROFILE TRACKER: '+m)};
-for(const marker of [
-  "bandalytics:prospective-profile-ledger:v1",
-  "BANDALYTICS_PROSPECTIVE_PROFILE_LEDGER_V1",
-  "BANDALYTICS_RESULTS_SETTLEMENT_V1",
-  "immutable_profile_snapshot:true",
-  "immutable_snapshot_untouched:true",
-  "prospective:true",
-  "research_only:true",
-  "scoring_eligible:false",
-  "projection_is_evidence:false",
-  "VOID_NOT_APPEARED",
-  "NO_HR",
-  "FOUNDATION",
-  "LONGSHOT",
-  "PULL POWER",
-  "BARREL MONSTER",
-  "ELITE CONTACT WATCH",
-  "LONGSHOT_700_4OF6",
-  "LONGSHOT_PLUS_ISO_200",
-  "LONGSHOT_PLUS_BARREL_12",
-  "FORMAL_ARCHETYPE_OVERLAP_2PLUS",
-  "FORMAL_ARCHETYPE_OVERLAP_3PLUS",
-  "profileGateChanged:false",
-  "longshotRuleChanged:false",
-  "scoringChanged:false",
-  "separateOutcomeRecords:true",
-  "settleFinalGamesOnly:true",
-  "voidNonParticipants:true"
-]) if(!src.includes(marker))fail('missing marker '+marker);
-for(const forbidden of [
-  'scoring_eligible:true',
-  'projection_is_evidence:true',
-  'profileGateChanged:true',
-  'longshotRuleChanged:true',
-  'scoringChanged:true',
-  'profile_passes>=4',
-  'fill to target'
-]) if(src.includes(forbidden))fail('forbidden behavior '+forbidden);
+for(const marker of ['bandalytics:prospective-profile-ledger:v1','BANDALYTICS_PROSPECTIVE_PROFILE_LEDGER_V1','BANDALYTICS_RESULTS_SETTLEMENT_V1','BANDALYTICS_ARCHETYPE_SCHEMA_V2','immutable_profile_snapshot:true','immutable_snapshot_untouched:true','derived_from_immutable_snapshot:true','pregame_metrics_only:true','outcome_independent:true','corrected_archetypes_separate:true','prospective:true','research_only:true','scoring_eligible:false','projection_is_evidence:false','VOID_NOT_APPEARED','NO_HR','FOUNDATION','LONGSHOT','PULL POWER','BARREL MONSTER','ELITE CONTACT WATCH','LONGSHOT_700_4OF6','FORMAL_ARCHETYPE_OVERLAP_2PLUS','FORMAL_ARCHETYPE_OVERLAP_3PLUS','profileGateChanged:false','longshotRuleChanged:false','scoringChanged:false','separateOutcomeRecords:true','separateCorrectedArchetypeEvaluations:true','settleFinalGamesOnly:true','voidNonParticipants:true','noSnapshotRewrite:true'])if(!src.includes(marker))fail('missing marker '+marker);
+for(const forbidden of ['scoring_eligible:true','projection_is_evidence:true','profileGateChanged:true','longshotRuleChanged:true','scoringChanged:true','profile_passes>=4','fill to target'])if(src.includes(forbidden))fail('forbidden behavior '+forbidden);
 if(!src.includes('if(ledger.snapshots[k])continue'))fail('snapshot immutability guard missing');
 if(!src.includes('if(s.date!==date||ledger.outcomes[s.snapshot_id])continue'))fail('outcome immutability guard missing');
-if(!src.includes("if(!g?.final||g.participation_complete!==true)continue"))fail('final-game settlement guard missing');
+if(!src.includes('if(!g?.final||g.participation_complete!==true)continue'))fail('final-game settlement guard missing');
 if(!src.includes("status='VOID_NOT_APPEARED'"))fail('nonparticipant void guard missing');
-if(!src.includes('gt(m.barrel,8)'))fail('barrel threshold missing');
-if(!src.includes('gt(m.hh,35)'))fail('hard-hit threshold missing');
-if(!src.includes('gt(m.blast,8)'))fail('blast threshold missing');
-if(!src.includes('gt(m.pullair,18)'))fail('pull-air threshold missing');
-if(!src.includes('gt(m.ev,89)'))fail('EV threshold missing');
-if(!src.includes('gt(m.iso,.180)'))fail('ISO threshold missing');
-console.log('PROSPECTIVE PROFILE TRACKER PASS');
+for(const threshold of ['gt(m.barrel,10)','gt(m.hh,40)','gt(m.pullair,20)','gt(m.iso,.200)','gt(m.ev,90)','gt(m.blast,10)'])if(!src.includes(threshold))fail('strict Foundation threshold missing '+threshold);
+for(const threshold of ['gt(m.barrel,8)','gt(m.hh,35)','gt(m.blast,8)','gt(m.pullair,18)','gt(m.ev,89)','gt(m.iso,.180)'])if(!src.includes(threshold))fail('core/longshot threshold missing '+threshold);
+if(!src.includes('ledger.archetype_evaluations_v2[s.snapshot_id]'))fail('separate V2 evaluation store missing');
+console.log('PROSPECTIVE PROFILE TRACKER V2 SCHEMA PASS');
