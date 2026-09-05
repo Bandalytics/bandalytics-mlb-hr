@@ -3,6 +3,7 @@
   "outputDirectory": "dist",
   "headers": [
     {"source":"/","headers":[{"key":"Cache-Control","value":"no-store"}]},
+    {"source":"/mobile","headers":[{"key":"Cache-Control","value":"no-store"}]},
     {"source":"/assets/(.*)","headers":[{"key":"Cache-Control","value":"public, max-age=31536000, immutable"}]}
   ],
   "rewrites": [
@@ -44,6 +45,7 @@
     {"source":"/api/sim-slate-standalone","destination":"/api/router?route=sim-slate-standalone"},
     {"source":"/api/sim-slate","destination":"/api/router?route=sim-slate"},
     {"source":"/api/sim","destination":"/api/router?route=sim"},
+    {"source":"/mobile","destination":"/mobile.html"},
     {"source":"/sim","destination":"/sim.html"},
     {"source":"/slate-cache","destination":"https://bandalytics-v88-direct-coverage.vercel.app/slate-cache"}
   ]
