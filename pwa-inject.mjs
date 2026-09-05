@@ -25,6 +25,8 @@ const MOBILE_FLAT_UI_SRC='bandalytics-mobile-flat-ui.js';
 const MOBILE_FLAT_UI_DST='dist/bandalytics-mobile-flat-ui.js';
 const MOBILE_FLAT_CSS_SRC='bandalytics-mobile-flat-ui.css';
 const MOBILE_FLAT_CSS_DST='dist/bandalytics-mobile-flat-ui.css';
+const MOBILE_V7_SRC='bandalytics-mobile-v7.html';
+const MOBILE_V7_DST='dist/mobile-v7.html';
 const POLISH_CSS_SRC='bandalytics-polish.css';
 const POLISH_CSS_DST='dist/bandalytics-polish.css';
 const HISTORY_RECOVERY_SRC='bandalytics-history-recovery.js';
@@ -53,6 +55,7 @@ await Promise.all([
   fs.copyFile(MOBILE_SCROLL_CSS_SRC,MOBILE_SCROLL_CSS_DST),
   fs.copyFile(MOBILE_FLAT_UI_SRC,MOBILE_FLAT_UI_DST),
   fs.copyFile(MOBILE_FLAT_CSS_SRC,MOBILE_FLAT_CSS_DST),
+  fs.copyFile(MOBILE_V7_SRC,MOBILE_V7_DST),
   fs.copyFile(POLISH_CSS_SRC,POLISH_CSS_DST),
   fs.copyFile(HISTORY_RECOVERY_SRC,HISTORY_RECOVERY_DST)
 ]);
@@ -86,4 +89,6 @@ const verify=await fs.readFile(INDEX,'utf8');
 for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/bandalytics-polish.css?v26','/bandalytics-game-first-ui.css?v2','/bandalytics-mobile-scroll-fix.css?v3','/bandalytics-mobile-flat-ui.css?v1','/v38-site-policy-ui.js?v=25','/v38-clean-research-ui.js?v26','/bandalytics-dashboard-shell.js?v=25','/bandalytics-dashboard-guard.js?v=1','/bandalytics-prospective-profile-tracker.js?v3','/bandalytics-game-first-ui.js?v2','/bandalytics-mobile-flat-ui.js?v1','/bandalytics-history-recovery.js?v=1','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"'])if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 for(const forbidden of ['Waiting for ZIP.','Tonight HR Score v37','/bandalytics-prospective-report.js'])if(verify.includes(forbidden))throw new Error('Public UI copy/schema leak: '+forbidden);
 if(/MODEL\s+v37\s*•\s*LOCKED/i.test(verify))throw new Error('Public UI copy leaked into production shell: MODEL v37 • LOCKED');
-console.log('BANDALYTICS GAME-FIRST V2 + FLAT MOBILE + CORRECTED PROSPECTIVE TRACKER PASS');
+const mobileV7=await fs.readFile(MOBILE_V7_DST,'utf8');
+for(const marker of ['qualificationLevelsNotFilters:true','longshotProfileVisibleWithoutMarket:true','longshotQualifiedRequires700:true'])if(!mobileV7.includes(marker))throw new Error('Mobile v7 marker missing: '+marker);
+console.log('BANDALYTICS GAME-FIRST V2 + FLAT MOBILE + CORRECTED PROSPECTIVE TRACKER + MOBILE V7 PASS');
