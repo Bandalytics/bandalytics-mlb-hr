@@ -1,0 +1,13 @@
+/* Presentation-only iPhone viewport/scroll guard. No model, evidence, scoring, or qualification logic. */
+@media (max-width:760px){
+  html,body{height:auto!important;min-height:100%!important;max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
+  body.bandalytics-game-ui-booting,body.bandalytics-combined-live{height:auto!important;min-height:100dvh!important;max-height:none!important;overflow-y:auto!important}
+  body.bandalytics-game-ui-booting .app,body.bandalytics-combined-live .app,
+  body.bandalytics-game-ui-booting #v38ProjectedResearch,body.bandalytics-combined-live #v38ProjectedResearch,
+  body.bandalytics-combined-live .bd-shell,body.bandalytics-combined-live .bd-workspace,body.bandalytics-combined-live .bd-main-card{
+    height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important
+  }
+  body.bandalytics-combined-live .app{padding-bottom:calc(32px + env(safe-area-inset-bottom))!important}
+  body.bandalytics-combined-live .bd-game-list{max-height:none!important;overflow-x:auto!important;overflow-y:hidden!important}
+  body.bandalytics-combined-live .bd-main-card{contain:none!important}
+}
