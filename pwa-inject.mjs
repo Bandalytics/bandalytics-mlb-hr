@@ -30,7 +30,7 @@ const CLEAN_UI_VERSION='v26';
 const PROSPECTIVE_TRACKER_VERSION='v3';
 const GAME_FIRST_UI_VERSION='v2';
 const GAME_FIRST_CSS_VERSION='v2';
-const MOBILE_SCROLL_CSS_VERSION='v1';
+const MOBILE_SCROLL_CSS_VERSION='v2';
 const POLISH_VERSION='v26';
 
 await fs.mkdir('dist/pwa',{recursive:true});
@@ -74,7 +74,7 @@ if(!html.includes('/bandalytics-game-first-ui.js'))html=html.replace('</body>',`
 if(!html.includes('/bandalytics-history-recovery.js'))html=html.replace('</body>','<script src="/bandalytics-history-recovery.js?v=1"></script></body>');
 await fs.writeFile(INDEX,html);
 const verify=await fs.readFile(INDEX,'utf8');
-for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/bandalytics-polish.css?v26','/bandalytics-game-first-ui.css?v2','/bandalytics-mobile-scroll-fix.css?v1','/v38-site-policy-ui.js?v=25','/v38-clean-research-ui.js?v26','/bandalytics-dashboard-shell.js?v=25','/bandalytics-dashboard-guard.js?v=1','/bandalytics-prospective-profile-tracker.js?v3','/bandalytics-game-first-ui.js?v2','/bandalytics-history-recovery.js?v=1','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"'])if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
+for(const marker of ['manifest.webmanifest','bandalytics-icon-192.png','apple-touch-icon','apple-mobile-web-app-capable','apple-mobile-web-app-title','/bandalytics-polish.css?v26','/bandalytics-game-first-ui.css?v2','/bandalytics-mobile-scroll-fix.css?v2','/v38-site-policy-ui.js?v=25','/v38-clean-research-ui.js?v26','/bandalytics-dashboard-shell.js?v=25','/bandalytics-dashboard-guard.js?v=1','/bandalytics-prospective-profile-tracker.js?v3','/bandalytics-game-first-ui.js?v2','/bandalytics-history-recovery.js?v=1','bandalytics-public-critical','#bSourceRail','#bDirectBtn','#bDirectShade','#bDirectPanel','data-legacy-import-compat','id="file" type="file"','id="msg" class="msg"'])if(!verify.includes(marker))throw new Error('PWA/site marker missing: '+marker);
 for(const forbidden of ['Waiting for ZIP.','Tonight HR Score v37','/bandalytics-prospective-report.js'])if(verify.includes(forbidden))throw new Error('Public UI copy/schema leak: '+forbidden);
 if(/MODEL\s+v37\s*•\s*LOCKED/i.test(verify))throw new Error('Public UI copy leaked into production shell: MODEL v37 • LOCKED');
 console.log('BANDALYTICS GAME-FIRST V2 + CORRECTED PROSPECTIVE TRACKER PASS');
