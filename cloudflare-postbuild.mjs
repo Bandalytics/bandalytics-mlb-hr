@@ -10,7 +10,7 @@ const headers = `/*
 /mobile
   Cache-Control: no-store
 
-/mobile.html
+/mobile/*
   Cache-Control: no-store
 
 /bandalytics-mobile-v7.html
@@ -20,9 +20,6 @@ const headers = `/*
   Cache-Control: public, max-age=31536000, immutable
 `;
 
-const redirects = `/mobile /mobile.html 200\n`;
-
 await fs.mkdir('dist', { recursive: true });
 await fs.writeFile('dist/_headers', headers, 'utf8');
-await fs.writeFile('dist/_redirects', redirects, 'utf8');
-console.log('Cloudflare Pages headers + mobile routing written');
+console.log('Cloudflare Pages headers written; /mobile served from dist/mobile/index.html');
