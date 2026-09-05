@@ -6,6 +6,7 @@ const LIVE_CLASS='bandalytics-combined-live';
 const qs=(s,r=document)=>r.querySelector(s);
 const qsa=(s,r=document)=>[...r.querySelectorAll(s)];
 let observerStarted=false;
+let extentObserver=null;
 function panel(){return document.getElementById(PANEL_ID)}
 function loadingShell(){return `<div class="bd-shell bd-loading-shell"><div class="bd-shell-head"><div><span class="bd-kicker">TODAY'S MLB SLATE</span><h1>Research Matchups</h1><p>Projected lineups, starter damage and profile-qualified early looks are loading automatically.</p></div><div class="bd-stat-row"><span><b>—</b><small>Games</small></span><span><b>—</b><small>Projected</small></span><span><b>—</b><small>Confirmed</small></span></div></div><div class="bd-loading-workspace"><div class="bd-loading-rail"><div class="bd-section-title">Today's slate</div><div class="bd-skeleton bd-s1"></div><div class="bd-skeleton bd-s1"></div><div class="bd-skeleton bd-s1"></div></div><div class="bd-loading-main"><span class="bd-kicker">SELECTED MATCHUP</span><div class="bd-skeleton bd-s2"></div><div class="bd-loading-lineups"><div class="bd-skeleton bd-s3"></div><div class="bd-skeleton bd-s3"></div></div></div></div></div>`}
 function ensureBootShell(){const p=panel();if(!p)return false;document.body.classList.add(BOOT_CLASS);if(!p.querySelector('.bd-shell')&&!p.querySelector('.pre-title'))p.innerHTML=loadingShell();return true}
@@ -43,10 +44,36 @@ function decorateProfiles(root){for(const row of qsa('.bd-line,.bd-look',root)){
  row.appendChild(chip);
  const evidence=qs('small',row);if(evidence)evidence.classList.add('bd-evidence-strip');
  }}
-function markReady(){const p=panel();if(!p)return;const hasWorkspace=!!p.querySelector('.bd-workspace');if(hasWorkspace){document.body.classList.remove(BOOT_CLASS);document.body.classList.add(LIVE_CLASS);trimDiagnostics(p);decorateProfiles(p)}}
+function enforceDocumentExtent(){
+ if(!matchMedia('(max-width:760px)').matches)return;
+ const p=panel(),app=qs('.app');if(!p||!app)return;
+ const shell=qs('.bd-shell',p)||p;
+ for(const el of [document.documentElement,document.body,app,p,shell]){
+  el.style.setProperty('height','auto','important');
+  el.style.setProperty('max-height','none','important');
+  el.style.setProperty('overflow-y','visible','important');
+ }
+ document.documentElement.style.setProperty('overflow-y','auto','important');
+ document.body.style.setProperty('overflow-y','auto','important');
+ const contentHeight=Math.ceil(Math.max(shell.scrollHeight,shell.getBoundingClientRect().height,p.scrollHeight));
+ if(contentHeight>0){
+  p.style.setProperty('min-height',contentHeight+'px','important');
+  app.style.setProperty('min-height',(p.offsetTop+contentHeight+96)+'px','important');
+  document.body.style.setProperty('min-height',(app.offsetTop+p.offsetTop+contentHeight+160)+'px','important');
+ }
+}
+function startExtentGuard(){
+ if(extentObserver)return;
+ const p=panel();if(!p)return;
+ const run=()=>requestAnimationFrame(()=>requestAnimationFrame(enforceDocumentExtent));
+ extentObserver=new ResizeObserver(run);extentObserver.observe(p);const shell=qs('.bd-shell',p);if(shell)extentObserver.observe(shell);
+ window.addEventListener('resize',run,{passive:true});window.visualViewport?.addEventListener('resize',run,{passive:true});
+ setTimeout(run,0);setTimeout(run,250);setTimeout(run,1000);
+}
+function markReady(){const p=panel();if(!p)return;const hasWorkspace=!!p.querySelector('.bd-workspace');if(hasWorkspace){document.body.classList.remove(BOOT_CLASS);document.body.classList.add(LIVE_CLASS);trimDiagnostics(p);decorateProfiles(p);startExtentGuard();enforceDocumentExtent()}}
 function observe(){if(observerStarted)return true;const p=panel();if(!p)return false;observerStarted=true;let queued=false;const mo=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;markReady()})});mo.observe(p,{childList:true,subtree:true,characterData:true});markReady();return true}
 function attach(){if(!ensureBootShell())return false;observe();return true}
 function boot(){if(attach())return;let n=0;const t=setInterval(()=>{if(attach()||++n>240)clearInterval(t)},100)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-window.__BANDALYTICS_GAME_FIRST_UI={version:'V1.3',publicTakeover:true,hidesDiagnosticReadiness:true,profileHighlighting:'presentation-only',qualificationMarkerSystem:'gold-profile-blue-longshot',pregameScreenCopy:true,hydrationObserverHandoff:true,modelScoringChanged:false,profileGateChanged:false,longshotRuleChanged:false,fullLineupVisible:true};
+window.__BANDALYTICS_GAME_FIRST_UI={version:'V1.4',publicTakeover:true,hidesDiagnosticReadiness:true,profileHighlighting:'presentation-only',qualificationMarkerSystem:'gold-profile-blue-longshot',pregameScreenCopy:true,hydrationObserverHandoff:true,mobileDocumentExtentGuard:true,modelScoringChanged:false,profileGateChanged:false,longshotRuleChanged:false,fullLineupVisible:true};
 })();
