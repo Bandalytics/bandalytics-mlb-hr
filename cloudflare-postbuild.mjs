@@ -20,6 +20,9 @@ const headers = `/*
   Cache-Control: public, max-age=31536000, immutable
 `;
 
+const redirects = `/mobile /mobile.html 200\n`;
+
 await fs.mkdir('dist', { recursive: true });
 await fs.writeFile('dist/_headers', headers, 'utf8');
-console.log('Cloudflare Pages headers written to dist/_headers');
+await fs.writeFile('dist/_redirects', redirects, 'utf8');
+console.log('Cloudflare Pages headers + mobile routing written');
