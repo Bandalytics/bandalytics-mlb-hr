@@ -1,13 +1,45 @@
-/* Presentation-only iPhone viewport/scroll guard. No model, evidence, scoring, or qualification logic. */
+/* Presentation-only iPhone/WebView viewport guard. No model, evidence, scoring, or qualification logic. */
 @media (max-width:760px){
-  html,body{height:auto!important;min-height:100%!important;max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch!important}
-  body.bandalytics-game-ui-booting,body.bandalytics-combined-live{height:auto!important;min-height:100dvh!important;max-height:none!important;overflow-y:auto!important}
-  body.bandalytics-game-ui-booting .app,body.bandalytics-combined-live .app,
-  body.bandalytics-game-ui-booting #v38ProjectedResearch,body.bandalytics-combined-live #v38ProjectedResearch,
-  body.bandalytics-combined-live .bd-shell,body.bandalytics-combined-live .bd-workspace,body.bandalytics-combined-live .bd-main-card{
-    height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important
+  html,body{
+    height:auto!important;min-height:100%!important;max-height:none!important;
+    overflow-x:hidden!important;overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch!important;
   }
-  body.bandalytics-combined-live .app{padding-bottom:calc(32px + env(safe-area-inset-bottom))!important}
-  body.bandalytics-combined-live .bd-game-list{max-height:none!important;overflow-x:auto!important;overflow-y:hidden!important}
-  body.bandalytics-combined-live .bd-main-card{contain:none!important}
+  body.bandalytics-game-ui-booting,body.bandalytics-combined-live{
+    height:auto!important;min-height:100dvh!important;max-height:none!important;
+    overflow:visible!important;
+  }
+  body.bandalytics-game-ui-booting .app,
+  body.bandalytics-combined-live .app,
+  body.bandalytics-game-ui-booting #v38ProjectedResearch,
+  body.bandalytics-combined-live #v38ProjectedResearch,
+  body.bandalytics-combined-live .bd-shell,
+  body.bandalytics-combined-live .bd-workspace,
+  body.bandalytics-combined-live .bd-main-card,
+  body.bandalytics-combined-live .bd-lineups,
+  body.bandalytics-combined-live .bd-lineup,
+  body.bandalytics-combined-live .bd-right{
+    position:static!important;
+    display:block!important;
+    height:auto!important;min-height:0!important;max-height:none!important;
+    overflow:visible!important;
+    contain:none!important;
+    transform:none!important;
+    filter:none!important;
+    clip:auto!important;
+    clip-path:none!important;
+  }
+  body.bandalytics-combined-live .bd-workspace{width:100%!important}
+  body.bandalytics-combined-live .bd-main-card{width:100%!important;margin:0 0 8px!important}
+  body.bandalytics-combined-live .bd-lineups{padding:6px!important}
+  body.bandalytics-combined-live .bd-lineup{width:100%!important;margin:0 0 7px!important}
+  body.bandalytics-combined-live .bd-right{width:100%!important;padding:0!important}
+  body.bandalytics-combined-live .bd-right .bd-side-card{display:block!important;overflow:visible!important}
+  body.bandalytics-combined-live .app{padding-bottom:calc(72px + env(safe-area-inset-bottom))!important}
+  body.bandalytics-combined-live .bd-game-list{
+    display:flex!important;max-height:none!important;
+    overflow-x:auto!important;overflow-y:hidden!important;
+    -webkit-overflow-scrolling:touch!important;
+  }
+  body.bandalytics-combined-live .bd-subtabs{overflow-x:auto!important;overflow-y:visible!important}
 }
