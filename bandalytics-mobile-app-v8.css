@@ -1,0 +1,76 @@
+/* BANDALYTICS mobile v8 — overlap-safe fidelity pass based on approved home + option2 references; presentation only */
+/* Goal: keep text and photography in separate visual lanes, preserve mockup hierarchy, no research logic changes. */
+
+/* HERO: protect copy from image; keep image cinematic on right */
+.b7-home-hero{min-height:330px!important;padding:28px 22px 92px!important}
+.b7-home-copy{width:52%!important;max-width:52%!important;padding-top:26px!important}
+.b7-home-title{font-size:40px!important;line-height:.92!important}
+.b7-home-sub{font-size:10px!important;line-height:1.45!important;max-width:100%!important}
+.b7-hero-art{right:-8px!important;width:46%!important;height:91%!important;overflow:hidden!important}
+.b7-hero-art:before{background:linear-gradient(90deg,rgba(2,3,4,1) 0%,rgba(2,3,4,.78) 16%,rgba(2,3,4,.16) 48%,rgba(2,3,4,0) 70%)!important}
+.b7-hero-art img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:right bottom!important}
+
+/* TOP PROFILE: match approved image more literally — image left, content right */
+.b7-profile.primary{min-height:240px!important;padding:20px 18px 18px 48%!important;background:radial-gradient(circle at 20% 45%,rgba(90,140,255,.10),transparent 28%),linear-gradient(105deg,#11161d,#090c11 58%,#230911)!important}
+.b7-profile.primary:before{background:linear-gradient(90deg,rgba(7,9,13,.12) 0%,rgba(7,9,13,.28) 34%,rgba(7,9,13,.92) 55%,rgba(7,9,13,.98) 100%)!important}
+.b7-profile.primary img.b7-player{left:-2%!important;right:auto!important;width:48%!important;height:94%!important;object-fit:contain!important;object-position:left bottom!important;z-index:1!important}
+.b7-profile.primary img.b7-logo{left:18px!important;right:auto!important;top:16px!important;width:58px!important;height:58px!important;opacity:.13!important}
+.b7-profile.primary .b7-profile-content{width:100%!important;padding-top:24px!important;min-width:0!important}
+.b7-profile.primary .b7-name{font-size:26px!important;line-height:.98!important;overflow-wrap:normal!important;word-break:normal!important}
+.b7-profile.primary .b7-pm{font-size:9px!important}
+.b7-profile.primary .b7-tags{max-width:100%!important}
+.b7-profile.primary .b7-save{margin-top:12px!important}
+
+/* SECONDARY PROFILES: dedicated photo lane, no portrait/text collision */
+.b7-top-grid{gap:10px!important}
+.b7-profile:not(.primary){min-height:176px!important;padding:14px 10px 12px 44%!important}
+.b7-profile:not(.primary):before{background:linear-gradient(90deg,rgba(8,10,14,.08) 0%,rgba(8,10,14,.28) 30%,rgba(8,10,14,.92) 48%,rgba(8,10,14,.98) 100%)!important}
+.b7-profile:not(.primary) img.b7-player{left:-4%!important;right:auto!important;width:44%!important;height:88%!important;object-fit:contain!important;object-position:left bottom!important}
+.b7-profile:not(.primary) img.b7-logo{left:10px!important;top:10px!important;width:27px!important;height:27px!important}
+.b7-profile:not(.primary) .b7-profile-content{width:100%!important;min-width:0!important}
+.b7-profile:not(.primary) .b7-name{font-size:15px!important;line-height:1.02!important;overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important}
+.b7-profile:not(.primary) .b7-pm{font-size:8px!important}
+.b7-profile:not(.primary) .b7-tags{gap:4px!important;margin-top:8px!important}
+.b7-profile:not(.primary) .b7-tag{font-size:5.5px!important;padding:4px 5px!important}
+.b7-profile:not(.primary) .b7-save{font-size:7px!important;padding:7px 8px!important;margin-top:8px!important}
+
+/* slate cards closer to mockup proportions */
+.b7-game-card{flex-basis:170px!important;min-height:144px!important}
+.b7-game-team img{width:42px!important;height:42px!important}
+
+/* INSIDE GAME: preserve app feel and prevent all image collisions */
+.b7-game-hero{min-height:270px!important}
+.b7-game-team-big img{width:82px!important;height:82px!important}
+.b7-line-row{grid-template-columns:26px 44px minmax(0,1fr) 28px!important;gap:7px!important;min-height:70px!important}
+.b7-line-row img{width:40px!important;height:40px!important}
+.b7-line-name{font-size:13px!important}
+.b7-line-tags{max-width:100%!important}
+.b7-line-tags .b7-tag{font-size:5.5px!important;padding:4px 5px!important}
+
+/* TOP LOOKS: image gets a fixed lane, content never renders under it */
+.b7-toplook{min-height:210px!important;padding:17px 14px 15px 110px!important}
+.b7-toplook:before{background:linear-gradient(90deg,rgba(8,10,14,.10) 0%,rgba(8,10,14,.58) 31%,rgba(8,10,14,.96) 46%)!important}
+.b7-toplook img{left:0!important;width:98px!important;height:150px!important;object-fit:contain!important}
+.b7-toplook h3{font-size:18px!important;line-height:1.02!important}
+.b7-toplook .b7-metrics{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important}
+.b7-toplook .b7-metric{padding:6px 4px!important;min-width:0!important}
+
+@media(max-width:390px){
+  .b7-home-copy{width:54%!important;max-width:54%!important}
+  .b7-home-title{font-size:32px!important}
+  .b7-hero-art{width:43%!important}
+  .b7-profile.primary{padding-left:46%!important;min-height:224px!important}
+  .b7-profile.primary img.b7-player{width:46%!important;height:90%!important}
+  .b7-profile.primary .b7-name{font-size:22px!important}
+  .b7-profile:not(.primary){padding-left:42%!important;min-height:168px!important}
+  .b7-profile:not(.primary) img.b7-player{width:42%!important;height:84%!important}
+  .b7-profile:not(.primary) .b7-name{font-size:14px!important}
+  .b7-toplook{padding-left:100px!important}
+  .b7-toplook img{width:90px!important;height:142px!important}
+}
+
+@media(max-width:350px){
+  .b7-top-grid{grid-template-columns:1fr!important}
+  .b7-profile.primary{grid-column:1!important}
+  .b7-profile:not(.primary){min-height:160px!important}
+}
