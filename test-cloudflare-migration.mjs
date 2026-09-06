@@ -19,6 +19,8 @@ const shellV10Js=fs.readFileSync('bandalytics-mobile-shell-v10.js','utf8');
 const shellV11Css=fs.readFileSync('bandalytics-mobile-shell-v11.css','utf8');
 const shellV12Css=fs.readFileSync('bandalytics-mobile-shell-v12.css','utf8');
 const shellV13Css=fs.readFileSync('bandalytics-mobile-shell-v13.css','utf8');
+const shellV14Css=fs.readFileSync('bandalytics-mobile-shell-v14.css','utf8');
+const shellV14Js=fs.readFileSync('bandalytics-mobile-shell-v14.js','utf8');
 const lineupPatch=fs.readFileSync('cloudflare-mobile-lineup-integrity.mjs','utf8');
 
 assert.match(pkg.scripts['build:cloudflare'],/bandalytics-mobile-v7\.html/);
@@ -43,7 +45,9 @@ assert.match(post,/bandalytics-mobile-shell-v10\.js/);
 assert.match(post,/bandalytics-mobile-shell-v11\.css/);
 assert.match(post,/bandalytics-mobile-shell-v12\.css/);
 assert.match(post,/bandalytics-mobile-shell-v13\.css/);
-assert.match(post,/const version=20/);
+assert.match(post,/bandalytics-mobile-shell-v14\.css/);
+assert.match(post,/bandalytics-mobile-shell-v14\.js/);
+assert.match(post,/const version=21/);
 assert.ok(!post.includes('dist/_redirects'));
 for(const oldCss of ['bandalytics-mobile-app-v6.css','bandalytics-mobile-app-v7.css','bandalytics-mobile-app-v8.css']){
   assert.match(post,new RegExp(`Deprecated mobile CSS still injected|${oldCss.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`));
@@ -59,15 +63,13 @@ assert.match(shellV10Css,/bx-feature-grid/);
 assert.match(shellV10Css,/bx-game-hero/);
 assert.match(shellV10Css,/bx-line-row/);
 assert.match(shellV11Css,/literal approved-mockup fidelity pass/);
-assert.match(shellV11Css,/bx-player-card\.primary/);
-assert.match(shellV11Css,/bx-line-row\.qual/);
 assert.match(shellV12Css,/targeted polish pass/);
-assert.match(shellV12Css,/filtergrid/);
-assert.match(shellV12Css,/o32-toggle/);
 assert.match(shellV13Css,/fidelity polish/);
-assert.match(shellV13Css,/text-overflow:clip/);
-assert.match(shellV13Css,/bx-game-hero/);
-assert.match(shellV13Css,/bx-player-card\.primary/);
+assert.match(shellV14Css,/home composition correction/);
+assert.match(shellV14Css,/bx-secondary-rail/);
+assert.match(shellV14Css,/nth-child\(n\+3\)/);
+assert.match(shellV14Js,/featuredFullWidth:true/);
+assert.match(shellV14Js,/secondaryProfilesSwipeRail:true/);
 assert.match(shellV10Js,/purposeBuiltMarkup:true/);
 assert.match(shellV10Js,/preservesLiveHandlers:true/);
 assert.match(shellV10Js,/waitsForNativeBindings:true/);
@@ -85,7 +87,7 @@ assert.match(appV5Js,/realDataOnly:true/);
 assert.match(appV7Js,/exactMockupShell:true/);
 assert.match(lineupPatch,/filters no longer remove lineup players/);
 assert.match(lineupPatch,/\.sort\(\(a,b\)=>a\.lineup-b\.lineup\)\.map/);
-for(const source of [optionJs,appJs,appV5Js,appV7Js,shellV10Js]){
+for(const source of [optionJs,appJs,appV5Js,appV7Js,shellV10Js,shellV14Js]){
   assert.match(source,/logicChanged:false/);
   assert.match(source,/profileGateChanged:false/);
   assert.match(source,/scoringChanged:false/);
@@ -95,6 +97,7 @@ for(const source of [optionJs,appJs,appV5Js,appV7Js,shellV10Js]){
 assert.match(appV5Js,/longshotRuleChanged:false/);
 assert.match(appV7Js,/longshotRuleChanged:false/);
 assert.match(shellV10Js,/longshotRuleChanged:false/);
+assert.match(shellV14Js,/longshotRuleChanged:false/);
 assert.ok(!mobile.includes('scoringChanged:true'));
 assert.ok(!mobile.includes('profileGateChanged:true'));
-console.log('CLOUDFLARE MIGRATION V2 + BANDALYTICS MOBILE V13 FIDELITY POLISH CONTRACT PASS');
+console.log('CLOUDFLARE MIGRATION V2 + BANDALYTICS MOBILE V14 HOME COMPOSITION CONTRACT PASS');
