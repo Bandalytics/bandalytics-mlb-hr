@@ -70,7 +70,7 @@ for (const file of ['bandalytics-mobile-option32.js','bandalytics-mobile-app-v4.
   const re=new RegExp(`<script src="/${file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\?v=\\d+"><\\/script>`,'g');
   html=html.replace(re,'');
 }
-const version=8;
+const version=9;
 const cssTag=`<link rel="stylesheet" href="/bandalytics-mobile-option32.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-option32-v3.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v4.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v5.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v6.css?v=${version}">`;
 const jsTag=`<script src="/bandalytics-mobile-option32.js?v=${version}"></script><script src="/bandalytics-mobile-app-v4.js?v=${version}"></script><script src="/bandalytics-mobile-app-v5.js?v=${version}"></script><script src="/bandalytics-mobile-app-v6.js?v=${version}"></script>`;
 html=html.replace('</head>',cssTag+'</head>');
@@ -91,4 +91,4 @@ for(const marker of [
 ]) if(!verify.includes(marker)) throw new Error('Mobile app visual marker missing: '+marker);
 
 await fs.writeFile('dist/_headers', headers, 'utf8');
-console.log('Cloudflare Pages mockup-faithful BANDALYTICS mobile v6 written; real-data presentation only');
+console.log('Cloudflare Pages mockup-faithful BANDALYTICS mobile v6 headshot composition fix written; real-data presentation only');
