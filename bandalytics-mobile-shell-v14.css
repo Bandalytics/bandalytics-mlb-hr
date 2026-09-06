@@ -1,0 +1,46 @@
+/* BANDALYTICS v14 home composition correction — presentation only, mockup proportions. */
+:root{--b14-red:#ff2c46;--b14-red2:#ff7083;--b14-line:rgba(255,255,255,.10);--b14-panel:#0a0d12}
+
+/* HERO: copy owns the left, art supports it from a protected right lane. */
+.bx-hero{min-height:430px!important;margin-bottom:38px!important;border-radius:26px!important;overflow:hidden!important}
+.bx-hero-copy{width:55%!important;max-width:55%!important;padding:48px 0 112px 26px!important}
+.bx-title{font-size:46px!important;line-height:.86!important;margin:30px 0 16px!important}
+.bx-sub{max-width:205px!important;font-size:11px!important;line-height:1.55!important}
+.bx-hero-art{right:-6%!important;width:50%!important;height:90%!important;overflow:hidden!important}
+.bx-hero-art:after{content:'';position:absolute;inset:8% 2% 8% 8%;border-radius:50%;border:1px solid rgba(255,44,70,.24);box-shadow:0 0 44px rgba(255,44,70,.16),inset 0 0 44px rgba(255,44,70,.08);pointer-events:none}
+.bx-hero-art img{width:100%!important;height:100%!important;object-fit:contain!important;object-position:center bottom!important;transform:scale(.94) translateY(3%)!important}
+
+/* PROFILE COMPOSITION: one true hero card, secondary cards become a swipe rail. */
+.bx-feature-grid{display:block!important;margin-bottom:42px!important;overflow:visible!important}
+.bx-player-card.primary{width:100%!important;min-height:330px!important;margin-bottom:16px!important;border-radius:24px!important}
+.bx-player-card.primary .bx-card-art{width:43%!important;height:100%!important}
+.bx-player-card.primary .bx-card-content{margin-left:44%!important;padding:46px 22px 22px 16px!important}
+.bx-player-card.primary .bx-name{font-size:36px!important;line-height:.92!important;overflow-wrap:normal!important;word-break:normal!important}
+.bx-player-card.primary .bx-rank{font-size:8px!important}
+.bx-secondary-rail{display:flex!important;gap:12px!important;overflow-x:auto!important;scroll-snap-type:x mandatory!important;padding:2px 2px 14px!important;margin:0 -2px!important;scrollbar-width:none!important}
+.bx-secondary-rail::-webkit-scrollbar{display:none!important}
+.bx-secondary-rail>.bx-player-card{flex:0 0 78%!important;min-height:238px!important;scroll-snap-align:start!important;border-radius:20px!important}
+.bx-secondary-rail .bx-card-art{width:38%!important;height:92%!important}
+.bx-secondary-rail .bx-card-content{margin-left:39%!important;padding:28px 18px 20px 12px!important}
+.bx-secondary-rail .bx-name{font-size:23px!important;line-height:.96!important;overflow-wrap:normal!important;word-break:normal!important}
+.bx-secondary-rail .bx-pm{font-size:9px!important}
+
+/* Show only the most useful two profile badges on Home; deeper qualifications stay available inside game/player views. */
+.bx-home .bx-player-card .bx-tags .bx-tag:nth-child(n+3){display:none!important}
+.bx-home .bx-player-card .bx-tags{gap:7px!important;margin-top:14px!important}
+.bx-home .bx-player-card .bx-tag{font-size:7px!important;padding:6px 8px!important;border-radius:8px!important}
+.bx-home .bx-save{margin-top:16px!important}
+
+/* HOME RHYTHM / SLATE: fewer tiny labels, larger tap targets. */
+.bx-section-head{margin-bottom:18px!important}.bx-section-head h2{font-size:32px!important;text-transform:none!important;letter-spacing:-.05em!important}.bx-section-head h2:after{width:44px!important;height:2px!important;margin-top:8px!important}
+.bx-slate{gap:12px!important;padding-bottom:18px!important}.bx-game{flex:0 0 198px!important;min-height:186px!important;padding:17px!important;border-radius:20px!important}.bx-team img{width:56px!important;height:56px!important}.bx-game-status{font-size:8px!important}.bx-game-meta{font-size:8px!important;-webkit-line-clamp:1!important}
+
+/* GAME DETAIL stays structurally stable; only small proportion cleanup. */
+.bx-game-hero{min-height:360px!important}.bx-game-team img{width:104px!important;height:104px!important}.bx-line-row{min-height:82px!important}.bx-toplook{min-height:250px!important}
+
+@media(max-width:390px){
+ .bx-hero{min-height:406px!important}.bx-hero-copy{width:56%!important;max-width:56%!important;padding-left:20px!important}.bx-title{font-size:39px!important}.bx-hero-art{width:48%!important;right:-7%!important}
+ .bx-player-card.primary{min-height:304px!important}.bx-player-card.primary .bx-name{font-size:31px!important}.bx-player-card.primary .bx-card-content{margin-left:42%!important;padding-left:14px!important}.bx-player-card.primary .bx-card-art{width:41%!important}
+ .bx-secondary-rail>.bx-player-card{flex-basis:84%!important;min-height:228px!important}.bx-secondary-rail .bx-name{font-size:21px!important}.bx-game{flex-basis:188px!important}
+}
+@media(max-width:350px){.bx-secondary-rail>.bx-player-card{flex-basis:90%!important}.bx-player-card.primary .bx-name{font-size:28px!important}.bx-title{font-size:35px!important}}
