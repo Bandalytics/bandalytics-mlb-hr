@@ -1,0 +1,34 @@
+/* BANDALYTICS v15 visible Home composition correction — presentation only. */
+:root{--b15-red:#ff2c46;--b15-line:rgba(255,255,255,.11)}
+
+/* Make this pass unmistakably different from the prior 2-column dashboard feel. */
+.bx-feature-grid{display:flex!important;flex-direction:column!important;gap:16px!important;overflow:visible!important;margin-bottom:42px!important}
+.bx-feature-grid>.bx-player-card,.bx-secondary-rail>.bx-player-card{width:100%!important;max-width:none!important;min-height:244px!important;flex:none!important;margin:0!important;border-radius:22px!important}
+.bx-feature-grid>.bx-player-card.primary{min-height:328px!important}
+.bx-secondary-rail{display:flex!important;flex-direction:column!important;gap:16px!important;overflow:visible!important;padding:0!important;margin:0!important}
+
+/* Wide card proportions: photo lane left, readable content right. */
+.bx-player-card .bx-card-art{left:0!important;right:auto!important;width:40%!important;height:96%!important}
+.bx-player-card.primary .bx-card-art{width:43%!important;height:100%!important}
+.bx-player-card .bx-card-content{margin-left:40%!important;padding:28px 22px 24px 18px!important}
+.bx-player-card.primary .bx-card-content{margin-left:43%!important;padding:48px 24px 26px 18px!important}
+.bx-player-card .bx-name{font-size:24px!important;line-height:.96!important;white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:normal!important;word-break:normal!important}
+.bx-player-card.primary .bx-name{font-size:38px!important;line-height:.92!important}
+.bx-player-card .bx-pm{font-size:9px!important}
+.bx-home .bx-player-card .bx-tags .bx-tag:nth-child(n+3){display:none!important}
+.bx-home .bx-player-card .bx-tag{font-size:7px!important;padding:6px 9px!important}
+
+/* Hero: reduce the face-wall effect and give copy more ownership. */
+.bx-hero{min-height:420px!important}
+.bx-hero-copy{width:60%!important;max-width:60%!important;padding-left:28px!important}
+.bx-title{font-size:46px!important}
+.bx-hero-art{right:-10%!important;width:44%!important;height:86%!important}
+.bx-hero-art img{transform:scale(.86) translateY(4%)!important;object-fit:contain!important;object-position:center bottom!important}
+
+/* Slate cards stay horizontal, but larger and cleaner. */
+.bx-game{flex:0 0 210px!important;min-height:190px!important}
+.bx-team img{width:58px!important;height:58px!important}
+
+@media(max-width:390px){
+  .bx-player-card .bx-card-art{width:39%!important}.bx-player-card .bx-card-content{margin-left:39%!important;padding-left:16px!important}.bx-player-card.primary .bx-card-art{width:42%!important}.bx-player-card.primary .bx-card-content{margin-left:42%!important}.bx-player-card .bx-name{font-size:21px!important}.bx-player-card.primary .bx-name{font-size:32px!important}.bx-hero-copy{width:61%!important;max-width:61%!important;padding-left:20px!important}.bx-title{font-size:40px!important}.bx-hero-art{width:42%!important;right:-9%!important}
+}
