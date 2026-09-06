@@ -32,8 +32,8 @@ assert.match(post,/bandalytics-mobile-option32-v3\.css/);
 assert.match(post,/bandalytics-mobile-option32\.js/);
 assert.match(post,/bandalytics-mobile-app-v4\.css/);
 assert.match(post,/bandalytics-mobile-app-v4\.js/);
-assert.match(post,/app-v4\.css\?v=4/);
-assert.match(post,/app-v4\.js\?v=4/);
+assert.match(post,/app-v4\.css\?v=5/);
+assert.match(post,/app-v4\.js\?v=5/);
 assert.ok(!post.includes('dist/_redirects'));
 assert.match(polish,/\.nav\{/);
 assert.match(polish,/\.game\{/);
@@ -48,8 +48,11 @@ assert.match(optionJs,/componentRedesign:true/);
 assert.match(appCss,/consumer mobile app layer v4/);
 assert.match(appCss,/o32-feature-primary/);
 assert.match(appCss,/o32-game-hero/);
+assert.match(appCss,/app-v4-tags-expanded/);
 assert.match(appJs,/consumerApp:true/);
 assert.match(appJs,/fullLineupExpected:true/);
+assert.match(appJs,/expandableProfileBadges:true/);
+assert.match(appJs,/aria-expanded/);
 assert.match(lineupPatch,/filters no longer remove lineup players/);
 assert.match(lineupPatch,/\.sort\(\(a,b\)=>a\.lineup-b\.lineup\)\.map/);
 for(const source of [optionJs,appJs]){
@@ -61,4 +64,4 @@ for(const source of [optionJs,appJs]){
 }
 assert.ok(!mobile.includes('scoringChanged:true'));
 assert.ok(!mobile.includes('profileGateChanged:true'));
-console.log('CLOUDFLARE MIGRATION V2 + FULL LINEUPS + CONSUMER APP V4 CONTRACT PASS');
+console.log('CLOUDFLARE MIGRATION V2 + FULL LINEUPS + CONSUMER APP + EXPANDABLE PROFILES CONTRACT PASS');
