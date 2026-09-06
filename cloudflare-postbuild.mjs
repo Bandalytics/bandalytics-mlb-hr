@@ -16,6 +16,18 @@ const headers = `/*
 /bandalytics-mobile-v7.html
   Cache-Control: no-store
 
+/bandalytics-mobile-option32.css
+  Cache-Control: no-store
+
+/bandalytics-mobile-option32-v3.css
+  Cache-Control: no-store
+
+/bandalytics-mobile-app-v4.css
+  Cache-Control: no-store
+
+/bandalytics-mobile-app-v5.css
+  Cache-Control: no-store
+
 /bandalytics-mobile-option32.js
   Cache-Control: no-store
 
@@ -37,6 +49,10 @@ const headers = `/*
 
 await fs.mkdir('dist/mobile', { recursive: true });
 for (const file of [
+  'bandalytics-mobile-option32.css',
+  'bandalytics-mobile-option32-v3.css',
+  'bandalytics-mobile-app-v4.css',
+  'bandalytics-mobile-app-v5.css',
   'bandalytics-mobile-option32.js',
   'bandalytics-mobile-app-v4.js',
   'bandalytics-mobile-app-v5.js',
@@ -46,18 +62,18 @@ for (const file of [
 
 const mobilePath='dist/mobile/index.html';
 let html=await fs.readFile(mobilePath,'utf8');
-const legacyCss=['bandalytics-mobile-option32.css','bandalytics-mobile-option32-v3.css','bandalytics-mobile-app-v4.css','bandalytics-mobile-app-v5.css','bandalytics-mobile-app-v6.css','bandalytics-mobile-app-v7.css','bandalytics-mobile-app-v8.css','bandalytics-mobile-app-v9.css'];
-const legacyJs=['bandalytics-mobile-option32.js','bandalytics-mobile-app-v4.js','bandalytics-mobile-app-v5.js','bandalytics-mobile-app-v6.js','bandalytics-mobile-app-v7.js'];
-for (const file of legacyCss) {
+const knownCss=['bandalytics-mobile-option32.css','bandalytics-mobile-option32-v3.css','bandalytics-mobile-app-v4.css','bandalytics-mobile-app-v5.css','bandalytics-mobile-app-v6.css','bandalytics-mobile-app-v7.css','bandalytics-mobile-app-v8.css','bandalytics-mobile-app-v9.css'];
+const knownJs=['bandalytics-mobile-option32.js','bandalytics-mobile-app-v4.js','bandalytics-mobile-app-v5.js','bandalytics-mobile-app-v6.js','bandalytics-mobile-app-v7.js'];
+for (const file of knownCss) {
   const re=new RegExp(`<link rel="stylesheet" href="/${file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\?v=\\d+">`,'g');
   html=html.replace(re,'');
 }
-for (const file of legacyJs) {
+for (const file of knownJs) {
   const re=new RegExp(`<script src="/${file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\?v=\\d+"><\\/script>`,'g');
   html=html.replace(re,'');
 }
-const version=13;
-const cssTag=`<link rel="stylesheet" href="/bandalytics-mobile-app-v9.css?v=${version}">`;
+const version=14;
+const cssTag=`<link rel="stylesheet" href="/bandalytics-mobile-option32.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-option32-v3.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v4.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v5.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v9.css?v=${version}">`;
 const jsTag=`<script src="/bandalytics-mobile-option32.js?v=${version}"></script><script src="/bandalytics-mobile-app-v4.js?v=${version}"></script><script src="/bandalytics-mobile-app-v5.js?v=${version}"></script><script src="/bandalytics-mobile-app-v7.js?v=${version}"></script>`;
 html=html.replace('</head>',cssTag+'</head>');
 html=html.replace('</body>',jsTag+'</body>');
@@ -65,14 +81,18 @@ await fs.writeFile(mobilePath,html,'utf8');
 
 const verify=await fs.readFile(mobilePath,'utf8');
 for(const marker of [
+  `bandalytics-mobile-option32.css?v=${version}`,
+  `bandalytics-mobile-option32-v3.css?v=${version}`,
+  `bandalytics-mobile-app-v4.css?v=${version}`,
+  `bandalytics-mobile-app-v5.css?v=${version}`,
   `bandalytics-mobile-app-v9.css?v=${version}`,
   `bandalytics-mobile-option32.js?v=${version}`,
   `bandalytics-mobile-app-v4.js?v=${version}`,
   `bandalytics-mobile-app-v5.js?v=${version}`,
   `bandalytics-mobile-app-v7.js?v=${version}`
 ]) if(!verify.includes(marker)) throw new Error('Mobile app visual marker missing: '+marker);
-for(const oldCss of ['bandalytics-mobile-option32.css','bandalytics-mobile-option32-v3.css','bandalytics-mobile-app-v4.css','bandalytics-mobile-app-v5.css','bandalytics-mobile-app-v6.css','bandalytics-mobile-app-v7.css','bandalytics-mobile-app-v8.css']) {
-  if(verify.includes(`<link rel="stylesheet" href="/${oldCss}`)) throw new Error('Legacy mobile CSS still injected: '+oldCss);
+for(const oldCss of ['bandalytics-mobile-app-v6.css','bandalytics-mobile-app-v7.css','bandalytics-mobile-app-v8.css']) {
+  if(verify.includes(`<link rel="stylesheet" href="/${oldCss}`)) throw new Error('Deprecated mobile CSS still injected: '+oldCss);
 }
 await fs.writeFile('dist/_headers', headers, 'utf8');
-console.log('Cloudflare Pages BANDALYTICS mobile v9 consolidated visual layer written; one CSS source of truth, real-data presentation only');
+console.log('Cloudflare Pages BANDALYTICS mobile v9 restored with foundational layout CSS and v9 as final visual authority');
