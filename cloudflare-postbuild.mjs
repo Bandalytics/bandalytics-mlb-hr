@@ -49,14 +49,14 @@ html=html.replace(/<link rel="stylesheet" href="\/bandalytics-mobile-option32-v3
 html=html.replace(/<link rel="stylesheet" href="\/bandalytics-mobile-app-v4\.css\?v=\d+">/g,'');
 html=html.replace(/<script src="\/bandalytics-mobile-option32\.js\?v=\d+"><\/script>/g,'');
 html=html.replace(/<script src="\/bandalytics-mobile-app-v4\.js\?v=\d+"><\/script>/g,'');
-const cssTag='<link rel="stylesheet" href="/bandalytics-mobile-option32.css?v=5"><link rel="stylesheet" href="/bandalytics-mobile-option32-v3.css?v=5"><link rel="stylesheet" href="/bandalytics-mobile-app-v4.css?v=5">';
-const jsTag='<script src="/bandalytics-mobile-option32.js?v=5"></script><script src="/bandalytics-mobile-app-v4.js?v=5"></script>';
+const cssTag='<link rel="stylesheet" href="/bandalytics-mobile-option32.css?v=6"><link rel="stylesheet" href="/bandalytics-mobile-option32-v3.css?v=6"><link rel="stylesheet" href="/bandalytics-mobile-app-v4.css?v=6">';
+const jsTag='<script src="/bandalytics-mobile-option32.js?v=6"></script><script src="/bandalytics-mobile-app-v4.js?v=6"></script>';
 html=html.replace('</head>',cssTag+'</head>');
 html=html.replace('</body>',jsTag+'</body>');
 await fs.writeFile(mobilePath,html,'utf8');
 
 const verify=await fs.readFile(mobilePath,'utf8');
-for(const marker of ['bandalytics-mobile-option32.css?v=5','bandalytics-mobile-option32-v3.css?v=5','bandalytics-mobile-option32.js?v=5','bandalytics-mobile-app-v4.css?v=5','bandalytics-mobile-app-v4.js?v=5'])if(!verify.includes(marker))throw new Error('Mobile app visual marker missing: '+marker);
+for(const marker of ['bandalytics-mobile-option32.css?v=6','bandalytics-mobile-option32-v3.css?v=6','bandalytics-mobile-option32.js?v=6','bandalytics-mobile-app-v4.css?v=6','bandalytics-mobile-app-v4.js?v=6'])if(!verify.includes(marker))throw new Error('Mobile app visual marker missing: '+marker);
 
 await fs.writeFile('dist/_headers', headers, 'utf8');
-console.log('Cloudflare Pages consumer app v4 + expandable profiles written; /mobile served from dist/mobile/index.html');
+console.log('Cloudflare Pages consumer app v4 + expandable profiles + overlap fix written; /mobile served from dist/mobile/index.html');
