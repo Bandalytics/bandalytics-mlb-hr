@@ -112,7 +112,7 @@ for (const file of knownJs) {
   const re=new RegExp(`<script src="/${file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\?v=\\d+"><\\/script>`,'g');
   html=html.replace(re,'');
 }
-const version=23;
+const version=24;
 const cssTag=`<link rel="stylesheet" href="/bandalytics-mobile-option32.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-option32-v3.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v4.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v5.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v9.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-shell-v10.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-shell-v11.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-shell-v12.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-shell-v13.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-shell-v14.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-shell-v15.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-reference-v15.css?v=${version}">`;
 const jsTag=`<script src="/bandalytics-mobile-option32.js?v=${version}"></script><script src="/bandalytics-mobile-app-v4.js?v=${version}"></script><script src="/bandalytics-mobile-app-v5.js?v=${version}"></script><script src="/bandalytics-mobile-app-v7.js?v=${version}"></script><script src="/bandalytics-mobile-shell-v10.js?v=${version}"></script><script src="/bandalytics-mobile-shell-v14.js?v=${version}"></script><script src="/bandalytics-mobile-reference-v15.js?v=${version}"></script>`;
 html=html.replace('</head>',cssTag+'</head>');
@@ -145,4 +145,4 @@ for(const oldCss of ['bandalytics-mobile-app-v6.css','bandalytics-mobile-app-v7.
   if(verify.includes(`<link rel="stylesheet" href="/${oldCss}`)) throw new Error('Deprecated mobile CSS still injected: '+oldCss);
 }
 await fs.writeFile('dist/_headers', headers, 'utf8');
-console.log('Cloudflare Pages BANDALYTICS mobile v15 reference-locked home + player profile written; research logic unchanged');
+console.log('Cloudflare Pages BANDALYTICS reference-locked UI v24 written; research logic unchanged');
