@@ -80,7 +80,7 @@ for (const file of knownJs) {
   const re=new RegExp(`<script src="/${file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\?v=\\d+"><\\/script>`,'g');
   html=html.replace(re,'');
 }
-const version=16;
+const version=17;
 const cssTag=`<link rel="stylesheet" href="/bandalytics-mobile-option32.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-option32-v3.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v4.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v5.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-app-v9.css?v=${version}"><link rel="stylesheet" href="/bandalytics-mobile-shell-v10.css?v=${version}">`;
 const jsTag=`<script src="/bandalytics-mobile-option32.js?v=${version}"></script><script src="/bandalytics-mobile-app-v4.js?v=${version}"></script><script src="/bandalytics-mobile-app-v5.js?v=${version}"></script><script src="/bandalytics-mobile-app-v7.js?v=${version}"></script><script src="/bandalytics-mobile-shell-v10.js?v=${version}"></script>`;
 html=html.replace('</head>',cssTag+'</head>');
@@ -105,4 +105,4 @@ for(const oldCss of ['bandalytics-mobile-app-v6.css','bandalytics-mobile-app-v7.
   if(verify.includes(`<link rel="stylesheet" href="/${oldCss}`)) throw new Error('Deprecated mobile CSS still injected: '+oldCss);
 }
 await fs.writeFile('dist/_headers', headers, 'utf8');
-console.log('Cloudflare Pages BANDALYTICS mobile v10 purpose-built shell + preserved interactions written');
+console.log('Cloudflare Pages BANDALYTICS mobile v10 purpose-built shell + delayed native interaction bridge written');
