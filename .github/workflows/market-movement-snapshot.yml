@@ -1,0 +1,60 @@
+name: Market Movement Snapshot
+on:
+  schedule:
+    - cron: '17 13-23 * * *'
+    - cron: '17 0-3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Collector contract
+        run: node test-market-movement-snapshot.mjs
+      - name: Capture immutable market snapshot
+        env:
+          BANDALYTICS_API_BASE: https://bandalytics-mlb-hr.pages.dev
+        run: node scripts/capture-market-movement-snapshot.mjs
+      - name: Verify latest snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          F=$(find market-snapshots -type f -name 'market-*.json' | sort | tail -1)
+          node --input-type=module - "$F" <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const f=process.argv[2],z=JSON.parse(fs.readFileSync(f,'utf8'));
+          if(z.schema!=='BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1') throw Error('bad schema');
+          if(z.point_in_time!==true||z.append_only!==true||z.research_only!==true) throw Error('unsafe flags');
+          if(z.scoring_enabled!==false||z.scoring_eligible!==false||z.model_scoring_changed!==false||z.profile_gate_changed!==false||z.longshot_rule_changed!==false||z.no_forced_pool!==true) throw Error('research gates changed');
+          if(!Array.isArray(z.rows)) throw Error('rows missing');
+          const {sha256,...body}=z,calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+          if(calc!==sha256) throw Error('sha mismatch');
+          for(const r of z.rows){if(!Number.isInteger(r.player_id)||!r.event_starts_at) throw Error('bad identity');}
+          console.log('MARKET_SNAPSHOT_OK='+JSON.stringify({file:f,date:z.date,captured_at:z.captured_at,rows:z.row_count,provider:z.provider,sha256:z.sha256}));
+          NODE
+      - name: Commit append-only snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- market-snapshots && [ -z "$(git status --porcelain -- market-snapshots)" ]; then
+            echo 'No snapshot change'
+            exit 0
+          fi
+          git config user.name 'bandalytics-market-bot'
+          git config user.email 'bandalytics-market-bot@users.noreply.github.com'
+          git add market-snapshots
+          git commit -m "market snapshot $(date -u +'%Y-%m-%dT%H:%MZ')"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: market-snapshot-${{ github.run_id }}
+          path: market-snapshots/**/*.json
+          if-no-files-found: error
+          retention-days: 90
