@@ -1,0 +1,23 @@
+name: v38 Execution Diagnostics Contract
+on:
+  push:
+    paths:
+      - 'scripts/diagnose-v38-execution-plan.mjs'
+      - 'test-v38-execution-diagnostics.mjs'
+      - '.github/workflows/v38-execution-diagnostics-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax
+        run: node --check scripts/diagnose-v38-execution-plan.mjs
+      - name: Diagnostics contract
+        run: node test-v38-execution-diagnostics.mjs
