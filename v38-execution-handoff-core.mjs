@@ -10,10 +10,10 @@ function lineupInfo(row={}){
   const l=row?.context?.lineup||row?.lineup||{};
   const slot=n(l?.lineup??l?.lineup_slot??l?.batting_order??row?.lineup_slot);
   const type=String(l?.lineup_type??l?.status??row?.lineup_type??'').toUpperCase();
-  const confirmed=type==='CONFIRMED'||bool(l?.confirmed)||bool(row?.lineup_confirmed);
-  const starter=bool(l?.starting)||bool(row?.starting)||slot!=null||(confirmed&&!/BENCH|NOT_STARTING|OUT/.test(type));
+  const confirmed=type==='CONFIRMED'||bool(l?.confirmed)||bool(row?.lineup_confirmed)||bool(row?.observed_starting_lineup);
+  const starter=bool(l?.starting)||bool(row?.starting)||bool(row?.observed_starting_lineup)||slot!=null||(confirmed&&!/BENCH|NOT_STARTING|OUT/.test(type));
   const pinchRisk=bool(l?.pinch_risk)||bool(row?.pinch_risk)||/BENCH|NOT_STARTING/.test(type);
-  return {slot,type:type||null,confirmed,starter,pinch_risk:pinchRisk,eligible:starter&&!pinchRisk};
+  return {slot,type:type||null,confirmed,starter,pinch_risk:pinchRisk,eligible:starter&&!pinchRisk,source:row?.opportunity_source||null};
 }
 function summarize(rows=[]){
   const hr=rows.filter(r=>r.homer===true).length;
@@ -22,6 +22,11 @@ function summarize(rows=[]){
 function exposureState(v){
   const s=String(v||'UNCLASSIFIED').trim().toUpperCase().replace(/[ -]+/g,'_');
   return EXPOSURE_STATES.includes(s)?s:'UNCLASSIFIED';
+}
+function rowWithPlanMarket(row,p){
+  if(row?.context?.market||row?.market)return row;
+  const odds=n(p?.hr_odds??p?.odds??p?.american_odds);
+  return odds==null?row:{...row,market:{hr_odds:odds,source:'FROZEN_EXECUTION_PLAN'}};
 }
 
 export function evaluateExecutionHandoff(rows=[],executionPlan=[]){
@@ -33,8 +38,8 @@ export function evaluateExecutionHandoff(rows=[],executionPlan=[]){
   }
   const out=[];
   for(const row of rows||[]){
-    const policy=classifyLockedPolicy(row),lineup=lineupInfo(row);
     const key=idKey(row?.gamePk,row?.player_id),p=planMap.get(key)||{};
+    const policy=classifyLockedPolicy(rowWithPlanMarket(row,p)),lineup=lineupInfo(row);
     const finalCut=p?.final_cut===true||p?.kept===true||p?.in_final_pool===true;
     const explicitCut=p?.final_cut===false||p?.kept===false||p?.in_final_pool===false;
     const state=exposureState(p?.exposure_state);
@@ -46,7 +51,7 @@ export function evaluateExecutionHandoff(rows=[],executionPlan=[]){
     const zeroPathQualified=policy.qualified&&finalCut&&lineup.eligible&&!ticketed&&state!=='INTENTIONAL_ZERO';
     const intentionalZero=policy.qualified&&finalCut&&state==='INTENTIONAL_ZERO'&&!ticketed;
     const unclassifiedQualified=policy.qualified&&!finalCut&&!explicitCut;
-    out.push({...row,execution:{policy,lineup,final_cut:finalCut,explicit_cut:explicitCut,cut_reason:cutReason,exposure_state:state,ticket_paths:ticketPaths,ticketed,planned_exposure:plannedExposure,opportunity_mismatch:opportunityMismatch,zero_path_qualified:zeroPathQualified,intentional_zero:intentionalZero,unclassified_qualified:unclassifiedQualified}});
+    out.push({...row,execution:{policy,lineup,final_cut:finalCut,explicit_cut:explicitCut,cut_reason:cutReason,exposure_state:state,ticket_paths:ticketPaths,ticketed,planned_exposure:plannedExposure,opportunity_mismatch:opportunityMismatch,zero_path_qualified:zeroPathQualified,intentional_zero:intentionalZero,unclassified_qualified:unclassifiedQualified,plan_hr_odds:n(p?.hr_odds??p?.odds??p?.american_odds)}});
   }
   const qualified=out.filter(r=>r.execution.policy.qualified);
   const finalPool=qualified.filter(r=>r.execution.final_cut);
