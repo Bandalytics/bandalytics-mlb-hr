@@ -3,8 +3,10 @@ on:
   push:
     paths:
       - 'scripts/freeze-v38-slate-decision-bundle.mjs'
+      - 'scripts/hydrate-v38-execution-draft.mjs'
       - 'test-v38-slate-decision-bundle.mjs'
       - 'test-v38-prospective-slate-lock-workflow.mjs'
+      - 'test-v38-execution-draft-hydrator.mjs'
       - '.github/workflows/v38-prospective-slate-lock.yml'
       - 'package.json'
       - '.github/workflows/v38-slate-decision-bundle-contract.yml'
@@ -21,8 +23,12 @@ jobs:
         with:
           node-version: '24'
       - name: Syntax
-        run: node --check scripts/freeze-v38-slate-decision-bundle.mjs
+        run: |
+          node --check scripts/freeze-v38-slate-decision-bundle.mjs
+          node --check scripts/hydrate-v38-execution-draft.mjs
       - name: Decision bundle contract
         run: node test-v38-slate-decision-bundle.mjs
+      - name: Execution draft hydrator contract
+        run: node test-v38-execution-draft-hydrator.mjs
       - name: Prospective slate lock workflow contract
         run: node test-v38-prospective-slate-lock-workflow.mjs
