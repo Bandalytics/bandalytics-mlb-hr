@@ -28,6 +28,7 @@ function rowWithPlanMarket(row,p){
   const odds=n(p?.hr_odds??p?.odds??p?.american_odds);
   return odds==null?row:{...row,market:{hr_odds:odds,source:'FROZEN_EXECUTION_PLAN'}};
 }
+function ticketIds(p={}){return [...new Set(Array.isArray(p?.ticket_ids)?p.ticket_ids.map(String).filter(Boolean):[])]}
 
 export function evaluateExecutionHandoff(rows=[],executionPlan=[]){
   const planMap=new Map();
@@ -43,15 +44,16 @@ export function evaluateExecutionHandoff(rows=[],executionPlan=[]){
     const finalCut=p?.final_cut===true||p?.kept===true||p?.in_final_pool===true;
     const explicitCut=p?.final_cut===false||p?.kept===false||p?.in_final_pool===false;
     const state=exposureState(p?.exposure_state);
-    const ticketPaths=Math.max(0,Math.trunc(n(p?.ticket_paths??p?.ticket_count??p?.exposure_count)??0));
-    const ticketed=ticketPaths>0||p?.ticketed===true;
+    const ids=ticketIds(p);
+    const ticketPaths=Math.max(0,Math.trunc(n(p?.ticket_paths??p?.ticket_count??p?.exposure_count)??ids.length??0));
+    const ticketed=ticketPaths>0||ids.length>0||p?.ticketed===true;
     const cutReason=p?.cut_reason||p?.reason||null;
     const plannedExposure=state!=='INTENTIONAL_ZERO'&&(ticketed||['PRIORITY_PLUS','PRIORITY','ONE_PATH'].includes(state));
     const opportunityMismatch=plannedExposure&&!lineup.eligible;
     const zeroPathQualified=policy.qualified&&finalCut&&lineup.eligible&&!ticketed&&state!=='INTENTIONAL_ZERO';
     const intentionalZero=policy.qualified&&finalCut&&state==='INTENTIONAL_ZERO'&&!ticketed;
     const unclassifiedQualified=policy.qualified&&!finalCut&&!explicitCut;
-    out.push({...row,execution:{policy,lineup,final_cut:finalCut,explicit_cut:explicitCut,cut_reason:cutReason,exposure_state:state,ticket_paths:ticketPaths,ticketed,planned_exposure:plannedExposure,opportunity_mismatch:opportunityMismatch,zero_path_qualified:zeroPathQualified,intentional_zero:intentionalZero,unclassified_qualified:unclassifiedQualified,plan_hr_odds:n(p?.hr_odds??p?.odds??p?.american_odds)}});
+    out.push({...row,execution:{policy,lineup,final_cut:finalCut,explicit_cut:explicitCut,cut_reason:cutReason,exposure_state:state,ticket_paths:ticketPaths,ticket_ids:ids,ticketed,planned_exposure:plannedExposure,opportunity_mismatch:opportunityMismatch,zero_path_qualified:zeroPathQualified,intentional_zero:intentionalZero,unclassified_qualified:unclassifiedQualified,plan_hr_odds:n(p?.hr_odds??p?.odds??p?.american_odds)}});
   }
   const qualified=out.filter(r=>r.execution.policy.qualified);
   const finalPool=qualified.filter(r=>r.execution.final_cut);
@@ -60,8 +62,11 @@ export function evaluateExecutionHandoff(rows=[],executionPlan=[]){
   const totalLegs=eligible.reduce((s,r)=>s+r.execution.ticket_paths,0);
   const usage=[...eligible].map(r=>r.execution.ticket_paths).sort((a,b)=>b-a);
   const top3=usage.slice(0,3).reduce((a,b)=>a+b,0);
-  const portfolioDependency=totalLegs?Math.max(...usage,0)/totalLegs:null;
   const top3Concentration=totalLegs?top3/totalLegs:null;
+  const allTicketIds=new Set(finalPool.flatMap(r=>r.execution.ticket_ids));
+  const maxTicketAppearances=finalPool.reduce((m,r)=>Math.max(m,r.execution.ticket_ids.length),0);
+  const portfolioDependency=allTicketIds.size?maxTicketAppearances/allTicketIds.size:null;
+  const maxLegShare=totalLegs?Math.max(...usage,0)/totalLegs:null;
   const byExposure={};
   for(const s of EXPOSURE_STATES)byExposure[s]=summarize(finalPool.filter(r=>r.execution.exposure_state===s));
   const retainedHr=finalPool.filter(r=>r.homer===true).length;
@@ -80,7 +85,9 @@ export function evaluateExecutionHandoff(rows=[],executionPlan=[]){
       opportunity_mismatch_count:finalPool.filter(r=>r.execution.opportunity_mismatch).length,
       unclassified_qualified_count:qualified.filter(r=>r.execution.unclassified_qualified).length,
       total_ticket_paths:totalLegs,
+      unique_ticket_count:allTicketIds.size||null,
       top3_exposure_concentration_pct:top3Concentration==null?null:+(100*top3Concentration).toFixed(2),
+      max_single_hitter_leg_share_pct:maxLegShare==null?null:+(100*maxLegShare).toFixed(2),
       max_single_hitter_portfolio_dependency_pct:portfolioDependency==null?null:+(100*portfolioDependency).toFixed(2),
       by_exposure_state:byExposure
     }
