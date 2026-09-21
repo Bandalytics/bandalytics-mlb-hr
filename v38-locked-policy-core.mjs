@@ -2,13 +2,12 @@ import {v38GateCount,V38_GATE_NAMES} from './v38-gate-rules.mjs';
 
 export const LOCKED_POLICY_VERSION='BANDALYTICS_LOCKED_POLICY_V2';
 export const LOCKED_HR_MARKET_SCHEMA='BANDALYTICS_MLB_HR_MARKET_CURRENT_V1';
-export const LOCKED_POLICY_LABELS=Object.freeze({
-  QUALIFIED_6OF6:'QUALIFIED_6OF6',QUALIFIED_5OF6:'QUALIFIED_5OF6',PROTECTED_4OF6_700PLUS:'PROTECTED_4OF6_700PLUS',PRICE_UNKNOWN_4OF6:'PRICE_UNKNOWN_4OF6',NOT_QUALIFIED_4OF6_PRICE_SHORT:'NOT_QUALIFIED_4OF6_PRICE_SHORT',NOT_QUALIFIED_PROFILE:'NOT_QUALIFIED_PROFILE',INCOMPLETE_PROFILE:'INCOMPLETE_PROFILE'
-});
+export const LOCKED_POLICY_LABELS=Object.freeze({QUALIFIED_6OF6:'QUALIFIED_6OF6',QUALIFIED_5OF6:'QUALIFIED_5OF6',PROTECTED_4OF6_700PLUS:'PROTECTED_4OF6_700PLUS',PRICE_UNKNOWN_4OF6:'PRICE_UNKNOWN_4OF6',NOT_QUALIFIED_4OF6_PRICE_SHORT:'NOT_QUALIFIED_4OF6_PRICE_SHORT',NOT_QUALIFIED_PROFILE:'NOT_QUALIFIED_PROFILE',INCOMPLETE_PROFILE:'INCOMPLETE_PROFILE'});
 function parseAmerican(v){if(v==null)return null;if(typeof v==='number'&&Number.isFinite(v)&&v!==0)return Math.trunc(v);if(typeof v==='string'){const s=v.trim().replaceAll(',','');if(!s)return null;const m=s.match(/^([+-]?\d+(?:\.\d+)?)$/);if(m){const n=Math.trunc(Number(m[1]));return n===0?null:n}}return null}
 function coreValue(row,name){if(name==='hh')return row?.hh??row?.hard_hit;if(name==='pullair')return row?.pullair??row?.pull_air;if(name==='blast')return row?.blast??row?.blast_swing??row?.blasts_swing;return row?.[name]}
 function normalizedCore(row={}){return{ev:coreValue(row,'ev'),hh:coreValue(row,'hh'),barrel:coreValue(row,'barrel'),iso:coreValue(row,'iso'),pullair:coreValue(row,'pullair'),blast:coreValue(row,'blast')}}
-export function lockedCoreProfileComplete(row={}){return V38_GATE_NAMES.every(name=>Number.isFinite(Number(coreValue(row,name))))}
+function knownNumber(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))}
+export function lockedCoreProfileComplete(row={}){return V38_GATE_NAMES.every(name=>knownNumber(coreValue(row,name)))}
 export function extractPregameHrAmericanOdds(row={}){
   const direct=parseAmerican(row?.hr_odds);if(direct!=null)return direct;
   const market=row?.context?.market??row?.market??null;if(!market||typeof market!=='object')return null;
@@ -17,9 +16,7 @@ export function extractPregameHrAmericanOdds(row={}){
   return exact?parseAmerican(market.best_odds):null;
 }
 export function classifyLockedPolicy(row={}){
-  const core=normalizedCore(row),profileComplete=lockedCoreProfileComplete(core);
-  const suppliedGate=row?.gate_count!=null&&Number.isInteger(Number(row.gate_count))?Number(row.gate_count):null;
-  const computedGate=v38GateCount(core),gateCount=profileComplete?(suppliedGate??computedGate):computedGate,odds=extractPregameHrAmericanOdds(row);
+  const core=normalizedCore(row),profileComplete=lockedCoreProfileComplete(core),suppliedGate=row?.gate_count!=null&&Number.isInteger(Number(row.gate_count))?Number(row.gate_count):null,computedGate=v38GateCount(core),gateCount=profileComplete?(suppliedGate??computedGate):computedGate,odds=extractPregameHrAmericanOdds(row);
   let label,qualified=false,priceRequired=false;
   if(!profileComplete)label=LOCKED_POLICY_LABELS.INCOMPLETE_PROFILE;
   else if(gateCount===6){label=LOCKED_POLICY_LABELS.QUALIFIED_6OF6;qualified=true}
