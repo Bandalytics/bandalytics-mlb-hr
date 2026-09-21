@@ -23,15 +23,28 @@ function windowLabel(minutes,lineupType){
   if(minutes<=360) return 'MORNING';
   return 'EARLY';
 }
-async function getj(url,timeout=20000){
-  const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
-  try{
-    const r=await fetch(url,{cache:'no-store',signal:c.signal,headers:{accept:'application/json','user-agent':'BANDALYTICS-MARKET-SNAPSHOT/1'}});
-    const text=await r.text(); let j;
-    try{j=JSON.parse(text)}catch{throw Error(`NON_JSON ${r.status} ${text.slice(0,160)}`)}
-    if(!r.ok||j?.ok!==true) throw Error(`${j?.error||`HTTP_${r.status}`}`);
-    return j;
-  } finally {clearTimeout(t)}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function getj(url,timeout=20000,attempts=5){
+  let last=null;
+  for(let attempt=1;attempt<=attempts;attempt++){
+    const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
+    try{
+      const r=await fetch(url,{cache:'no-store',signal:c.signal,headers:{accept:'application/json','user-agent':'BANDALYTICS-MARKET-SNAPSHOT/2'}});
+      const text=await r.text(); let j;
+      try{j=JSON.parse(text)}catch{throw Error(`NON_JSON ${r.status} ${text.slice(0,160)}`)}
+      if(r.ok&&j?.ok===true)return j;
+      const err=Error(`${j?.error||`HTTP_${r.status}`}`);err.status=r.status;throw err;
+    }catch(e){
+      last=e;
+      const msg=String(e?.message||e||'');
+      const transient=e?.name==='AbortError'||e?.status===429||e?.status===502||e?.status===503||e?.status===504||/rate limit|HTTP[_ ]?(429|502|503|504)/i.test(msg);
+      if(!transient||attempt===attempts)throw e;
+      const delay=Math.min(15000,1000*(2**(attempt-1)))+Math.floor(Math.random()*500);
+      console.warn(`MARKET_SNAPSHOT_RETRY attempt=${attempt} delay_ms=${delay} error=${msg.slice(0,180)}`);
+      await sleep(delay);
+    }finally{clearTimeout(t)}
+  }
+  throw last||Error('market snapshot fetch failed');
 }
 function lineupMap(feed){
   const m=new Map();
@@ -47,8 +60,8 @@ function cleanBook(b){
 
 const now=new Date(),capturedAt=now.toISOString(),date=process.env.SNAPSHOT_DATE||etDate(now);
 const [market,lineups]=await Promise.all([
-  getj(`${BASE}/api/market-native?date=${encodeURIComponent(date)}`),
-  getj(`${BASE}/api/projected-lineups?date=${encodeURIComponent(date)}`).catch(()=>({ok:false,items:[]}))
+  getj(`${BASE}/api/market-native?date=${encodeURIComponent(date)}`,25000,5),
+  getj(`${BASE}/api/projected-lineups?date=${encodeURIComponent(date)}`,20000,3).catch(()=>({ok:false,items:[]}))
 ]);
 const lm=lineupMap(lineups);
 const capturedMs=now.getTime();
