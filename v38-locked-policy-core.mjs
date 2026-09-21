@@ -9,23 +9,29 @@ function coreValue(row,name){if(name==='hh')return row?.hh??row?.hard_hit;if(nam
 function normalizedCore(row={}){return{ev:coreValue(row,'ev'),hh:coreValue(row,'hh'),barrel:coreValue(row,'barrel'),iso:coreValue(row,'iso'),pullair:coreValue(row,'pullair'),blast:coreValue(row,'blast')}}
 function knownNumber(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))}
 export function lockedCoreProfileComplete(row={}){return V38_GATE_NAMES.every(name=>knownNumber(coreValue(row,name)))}
+function marketObject(row={}){return row?.context?.market??row?.market??null}
+function resolvedHrPriceSource(row={}){
+  const directSource=String(row?.hr_odds_source||'').toUpperCase(),direct=parseAmerican(row?.hr_odds);
+  if(direct!=null&&LOCKED_HR_PRICE_SOURCES.includes(directSource))return directSource;
+  const market=marketObject(row);if(!market||typeof market!=='object')return null;
+  if(market?.source==='FROZEN_EXECUTION_PLAN'&&parseAmerican(market?.hr_odds)!=null)return 'FROZEN_EXECUTION_PLAN';
+  const exact=market?.market_schema===LOCKED_HR_MARKET_SCHEMA&&market?.market_type==='MLB_BATTER_HOME_RUN_YES'&&market?.identity_status==='EXACT'&&parseAmerican(market?.best_odds)!=null;
+  return exact?'FROZEN_CONTEXT_MARKET':null;
+}
 export function extractPregameHrAmericanOdds(row={}){
-  const source=String(row?.hr_odds_source||'').toUpperCase(),direct=parseAmerican(row?.hr_odds);
-  if(direct!=null&&LOCKED_HR_PRICE_SOURCES.includes(source))return direct;
-  const market=row?.context?.market??row?.market??null;if(!market||typeof market!=='object')return null;
-  if(market?.source==='FROZEN_EXECUTION_PLAN'){const n=parseAmerican(market?.hr_odds);if(n!=null)return n}
-  const exact=market?.market_schema===LOCKED_HR_MARKET_SCHEMA&&market?.market_type==='MLB_BATTER_HOME_RUN_YES'&&market?.identity_status==='EXACT';
-  return exact?parseAmerican(market.best_odds):null;
+  const source=resolvedHrPriceSource(row);
+  if(source&&LOCKED_HR_PRICE_SOURCES.includes(source)&&parseAmerican(row?.hr_odds)!=null)return parseAmerican(row.hr_odds);
+  const market=marketObject(row);if(source==='FROZEN_EXECUTION_PLAN')return parseAmerican(market?.hr_odds);if(source==='FROZEN_CONTEXT_MARKET')return parseAmerican(market?.best_odds);return null;
 }
 export function classifyLockedPolicy(row={}){
-  const core=normalizedCore(row),profileComplete=lockedCoreProfileComplete(core),suppliedGate=row?.gate_count!=null&&Number.isInteger(Number(row.gate_count))?Number(row.gate_count):null,computedGate=v38GateCount(core),gateCount=profileComplete?(suppliedGate??computedGate):computedGate,odds=extractPregameHrAmericanOdds(row);
+  const core=normalizedCore(row),profileComplete=lockedCoreProfileComplete(core),suppliedGate=row?.gate_count!=null&&Number.isInteger(Number(row.gate_count))?Number(row.gate_count):null,computedGate=v38GateCount(core),gateCount=profileComplete?(suppliedGate??computedGate):computedGate,odds=extractPregameHrAmericanOdds(row),priceSource=resolvedHrPriceSource(row);
   let label,qualified=false,priceRequired=false;
   if(!profileComplete)label=LOCKED_POLICY_LABELS.INCOMPLETE_PROFILE;
   else if(gateCount===6){label=LOCKED_POLICY_LABELS.QUALIFIED_6OF6;qualified=true}
   else if(gateCount===5){label=LOCKED_POLICY_LABELS.QUALIFIED_5OF6;qualified=true}
   else if(gateCount===4){priceRequired=true;if(odds==null)label=LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6;else if(odds>=700){label=LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS;qualified=true}else label=LOCKED_POLICY_LABELS.NOT_QUALIFIED_4OF6_PRICE_SHORT}
   else label=LOCKED_POLICY_LABELS.NOT_QUALIFIED_PROFILE;
-  return Object.freeze({policy_version:LOCKED_POLICY_VERSION,profile_complete:profileComplete,gate_count:gateCount,computed_gate_count:computedGate,hr_american_odds:odds,hr_price_source:source||null,price_required:priceRequired,label,qualified});
+  return Object.freeze({policy_version:LOCKED_POLICY_VERSION,profile_complete:profileComplete,gate_count:gateCount,computed_gate_count:computedGate,hr_american_odds:odds,hr_price_source:priceSource,price_required:priceRequired,label,qualified});
 }
 export function summarizeLockedPolicy(rows=[]){
   const classified=(rows||[]).map(row=>({...row,locked_policy:classifyLockedPolicy(row)})),byLabel={};
