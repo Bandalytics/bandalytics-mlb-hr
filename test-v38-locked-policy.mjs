@@ -1,13 +1,26 @@
 import assert from 'node:assert/strict';
-import {classifyLockedPolicy,extractPregameHrAmericanOdds,LOCKED_POLICY_LABELS} from './v38-locked-policy-core.mjs';
+import {classifyLockedPolicy,extractPregameHrAmericanOdds,lockedCoreProfileComplete,LOCKED_POLICY_LABELS,LOCKED_HR_MARKET_SCHEMA} from './v38-locked-policy-core.mjs';
 
 const base={ev:91,hh:42,barrel:12,iso:.22,pullair:24,blast:10};
+const hrMarket=(best,extra={})=>({market_schema:LOCKED_HR_MARKET_SCHEMA,market_type:'MLB_BATTER_HOME_RUN_YES',identity_status:'EXACT',best_odds:best,...extra});
 assert.equal(classifyLockedPolicy(base).label,LOCKED_POLICY_LABELS.QUALIFIED_6OF6);
 assert.equal(classifyLockedPolicy({...base,blast:7}).label,LOCKED_POLICY_LABELS.QUALIFIED_5OF6);
 const four={...base,blast:7,pullair:17};
-assert.equal(classifyLockedPolicy({...four,context:{market:{best_odds:'+700'}}}).label,LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS);
-assert.equal(classifyLockedPolicy({...four,context:{market:{current_odds:650}}}).label,LOCKED_POLICY_LABELS.NOT_QUALIFIED_4OF6_PRICE_SHORT);
+assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(700)}}).label,LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS);
+assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(650,{books:[{book:'A',odds:900,open_odds:800}]})}}).label,LOCKED_POLICY_LABELS.NOT_QUALIFIED_4OF6_PRICE_SHORT,'nested book cannot override authoritative current best_odds');
+assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(650,{open_odds:800})}}).label,LOCKED_POLICY_LABELS.NOT_QUALIFIED_4OF6_PRICE_SHORT,'opening +800 cannot protect current +650');
+assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(800,{open_odds:650})}}).label,LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS,'current +800 protects even if opener was shorter');
+assert.equal(classifyLockedPolicy({...four,context:{market:{odds:900,best_odds:900}}}).label,LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6,'untyped generic odds must fail closed');
+assert.equal(classifyLockedPolicy({...four,context:{market:{market_schema:LOCKED_HR_MARKET_SCHEMA,market_type:'MLB_BATTER_HOME_RUN_YES',identity_status:'UNRESOLVED',best_odds:900}}}).label,LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6,'unresolved market identity must fail closed');
+assert.equal(classifyLockedPolicy({...four,hr_odds:925}).label,LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS,'explicit frozen execution hr_odds is allowed');
 assert.equal(classifyLockedPolicy(four).label,LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6);
 assert.equal(classifyLockedPolicy({...four,barrel:7}).label,LOCKED_POLICY_LABELS.NOT_QUALIFIED_PROFILE);
-assert.equal(extractPregameHrAmericanOdds({context:{market:{books:[{hr_odds:'+925'}]}}}),925);
+assert.equal(extractPregameHrAmericanOdds({context:{market:hrMarket('+925')}}),925);
+assert.equal(extractPregameHrAmericanOdds({context:{market:{books:[{hr_odds:'+925'}]}}}),null,'recursive arbitrary odds extraction removed');
+
+assert.equal(classifyLockedPolicy({...base,gate_count:null}).label,LOCKED_POLICY_LABELS.QUALIFIED_6OF6,'null gate_count must recompute, not coerce to zero');
+assert.equal(classifyLockedPolicy({...base,blast:undefined,gate_count:5}).label,LOCKED_POLICY_LABELS.INCOMPLETE_PROFILE,'partial 5 known passes cannot masquerade as 5/6');
+assert.equal(classifyLockedPolicy({...base,iso:null,gate_count:6}).label,LOCKED_POLICY_LABELS.INCOMPLETE_PROFILE,'partial profile cannot qualify even with supplied gate count');
+assert.equal(lockedCoreProfileComplete({ev:91,hard_hit:42,barrel:12,iso:.22,pull_air:24,blast_swing:10}),true,'known Core aliases are normalized');
+assert.equal(classifyLockedPolicy({ev:91,hard_hit:42,barrel:12,iso:.22,pull_air:24,blast_swing:10}).label,LOCKED_POLICY_LABELS.QUALIFIED_6OF6);
 console.log('v38 locked policy tests passed');
