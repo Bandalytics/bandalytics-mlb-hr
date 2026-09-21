@@ -4,6 +4,13 @@ on:
     workflows: ['v38 Live Research Board']
     types: [completed]
     branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build-v38-lock-readiness.mjs'
+      - 'test-v38-lock-readiness.mjs'
+      - 'v38-locked-policy-core.mjs'
+      - '.github/workflows/v38-lock-readiness.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,8 +39,8 @@ jobs:
           mkdir -p incoming/live-board
           RID='${{ github.event.workflow_run.id }}'
           gh run download "$RID" --repo "$GH_REPO" --name "v38-live-research-board-${RID}" --dir incoming/live-board
-      - name: Download latest live board for manual run
-        if: github.event_name == 'workflow_dispatch'
+      - name: Download latest live board for push or manual run
+        if: github.event_name != 'workflow_run'
         run: |
           set -euo pipefail
           mkdir -p incoming/live-board
