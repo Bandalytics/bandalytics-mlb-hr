@@ -25,7 +25,7 @@ function evidenceLanes(v){
 function rowWithPlanMarket(row,p){
   if(row?.context?.market||row?.market)return row;
   const odds=n(p?.hr_odds??p?.odds??p?.american_odds);
-  return odds==null?row:{...row,market:{hr_odds:odds,source:'FROZEN_EXECUTION_PLAN'}};
+  return odds==null?row:{...row,hr_odds:odds,hr_odds_source:'FROZEN_EXECUTION_PLAN'};
 }
 function ticketIds(p={}){return [...new Set(Array.isArray(p?.ticket_ids)?p.ticket_ids.map(String).filter(Boolean):[])]}
 
