@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/v38-execution-handoff-sept19.yml'
       - 'v38-execution-handoff-core.mjs'
+      - 'test-v38-execution-handoff-core.mjs'
       - 'scripts/evaluate-v38-execution-handoff.mjs'
       - 'scripts/run-v38-point-in-time-replay.mjs'
       - 'historical-execution-plans/2026-09-19.json'
