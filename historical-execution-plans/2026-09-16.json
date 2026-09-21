@@ -1,0 +1,42 @@
+{
+  "protocol": "BANDALYTICS_EXECUTION_PLAN_RECOVERED_V1",
+  "date": "2026-09-16",
+  "research_only": true,
+  "retrospective_reconstruction": true,
+  "coverage_status": "RECOVERED_PREGAME_FINAL_POOL_AND_VERIFIED_TICKETS",
+  "exposure_states_assigned": false,
+  "notes": "Recovered from the Sept. 16 final pool groupings and verified pregame ticket set. The later Torkelson live HR single is intentionally excluded from pregame ticket-path counts. Missing HR prices remain unknown and must not be inferred retrospectively.",
+  "rows": [
+    {"player":"Aaron Judge","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Juan Soto","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":1},
+    {"player":"Ben Rice","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Jackson Merrill","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Riley Greene","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Spencer Torkelson","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0,"note":"Live HR single excluded from pregame paths"},
+    {"player":"Kyle Stowers","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Kazuma Okamoto","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Brett Baty","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":1},
+    {"player":"Corbin Carroll","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Pete Crow-Armstrong","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Matt Olson","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Hunter Goodman","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Alec Burleson","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Garrett Mitchell","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Jonathan Aranda","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Shay Whitcomb","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Ryan Vilade","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":1},
+    {"player":"Michael Harris II","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":1},
+    {"player":"Elly De La Cruz","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Oneil Cruz","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Michael Conforto","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":1},
+    {"player":"Elias Diaz","final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0}
+  ],
+  "tickets": [
+    ["Matt Olson","Jackson Merrill","Kyle Stowers"],
+    ["Michael Harris II","Ryan Vilade","Jackson Merrill"],
+    ["Corbin Carroll","Pete Crow-Armstrong","Juan Soto"],
+    ["Michael Conforto","Kyle Stowers"],
+    ["Matt Olson","Brett Baty"],
+    ["Pete Crow-Armstrong","Corbin Carroll"]
+  ]
+}
