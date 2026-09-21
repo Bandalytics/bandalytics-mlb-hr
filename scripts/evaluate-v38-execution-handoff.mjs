@@ -10,7 +10,9 @@ if(!Array.isArray(evalJson?.rows))throw Error('evaluated rows missing');
 const rawPlan0=Array.isArray(planJson)?planJson:(planJson?.rows||planJson?.players||[]);
 if(!Array.isArray(rawPlan0))throw Error('execution plan rows missing');
 
-function norm(s){return String(s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,' ').trim()}
+function norm(s){
+  return String(s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+(jr|sr|ii|iii|iv|v)$/,'').trim();
+}
 const ticketMap=new Map();
 for(const [i,t] of (Array.isArray(planJson?.tickets)?planJson.tickets:[]).entries()){
   const tid=`T${i+1}`;
