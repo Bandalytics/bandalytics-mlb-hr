@@ -1,0 +1,37 @@
+name: v38 Sept16 Execution Handoff Replay
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v38-execution-handoff-sept16.yml'
+      - 'v38-execution-handoff-core.mjs'
+      - 'scripts/evaluate-v38-execution-handoff.mjs'
+      - 'scripts/run-v38-point-in-time-replay.mjs'
+      - 'historical-execution-plans/2026-09-16.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Handoff contract
+        run: |
+          node --check v38-execution-handoff-core.mjs
+          node --check scripts/evaluate-v38-execution-handoff.mjs
+          node test-v38-execution-handoff-core.mjs
+      - name: Build Sept 16 point-in-time replay
+        run: node scripts/run-v38-point-in-time-replay.mjs 2026-09-16
+      - name: Evaluate recovered execution handoff
+        run: node scripts/evaluate-v38-execution-handoff.mjs snapshots/v38-point-in-time-replay-2026-09-16.json historical-execution-plans/2026-09-16.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-execution-handoff-2026-09-16-${{ github.run_id }}
+          path: snapshots/v38-point-in-time-replay-2026-09-16-execution-handoff.json
+          if-no-files-found: error
+          retention-days: 90
