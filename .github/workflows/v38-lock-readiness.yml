@@ -1,0 +1,68 @@
+name: v38 Lock Readiness
+on:
+  workflow_run:
+    workflows: ['v38 Live Research Board']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  readiness:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Contract preflight
+        run: |
+          node --check scripts/build-v38-lock-readiness.mjs
+          node test-v38-lock-readiness.mjs
+      - name: Download triggering live board
+        if: github.event_name == 'workflow_run'
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/live-board
+          RID='${{ github.event.workflow_run.id }}'
+          gh run download "$RID" --repo "$GH_REPO" --name "v38-live-research-board-${RID}" --dir incoming/live-board
+      - name: Download latest live board for manual run
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/live-board
+          RID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-live-research-board.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id')
+          gh run download "$RID" --repo "$GH_REPO" --name "v38-live-research-board-${RID}" --dir incoming/live-board
+      - name: Build prospective lock readiness
+        run: |
+          set -euo pipefail
+          BOARD=$(find incoming/live-board -type f -name 'v38-live-research-board-*.json' | sort | tail -1)
+          test -n "$BOARD"
+          node scripts/build-v38-lock-readiness.mjs "$BOARD"
+      - name: Verify readiness artifact
+        run: |
+          set -euo pipefail
+          F=$(find snapshots -type f -name 'v38-lock-readiness-*.json' | sort | tail -1)
+          node --input-type=module - "$F" <<'NODE'
+          import fs from 'node:fs';import crypto from 'node:crypto';
+          const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(z.protocol!=='BANDALYTICS_LOCK_READINESS_V1'||z.point_in_time!==true||z.research_only!==true||z.scoring_enabled!==false||z.production_rule_changed!==false||z.final_cut_promoted!==false)throw Error('unsafe readiness artifact');
+          const {sha256,...body}=z,calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');if(calc!==sha256)throw Error('readiness sha mismatch');
+          for(const r of z.rows){
+            if(r.readiness_state==='ACTIONABLE_REVIEW'&&(!r.locked_policy?.qualified||r.lineup_verified!==true))throw Error(`invalid actionable row ${r.player}`);
+            if(r.locked_policy?.gate_count===4&&r.readiness_state==='ACTIONABLE_REVIEW'&&!(Number(r.american_odds)>=700))throw Error(`unprotected 4/6 actionable row ${r.player}`);
+          }
+          console.log('V38_LOCK_READINESS_OK='+JSON.stringify({date:z.date,counts:z.counts}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-lock-readiness-${{ github.run_id }}
+          path: snapshots/v38-lock-readiness-*.json
+          if-no-files-found: error
+          retention-days: 90
