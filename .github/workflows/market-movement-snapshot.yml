@@ -1,5 +1,11 @@
 name: Market Movement Snapshot
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/capture-market-movement-snapshot.mjs'
+      - '.github/workflows/market-movement-snapshot.yml'
+      - 'test-market-movement-snapshot.mjs'
   schedule:
     - cron: '17 13,15,17,19,21,23 * * *'
     - cron: '17 1,3 * * *'
