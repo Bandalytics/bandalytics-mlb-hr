@@ -1,0 +1,121 @@
+name: v38 Prospective Post-Slate Audit
+on:
+  workflow_dispatch:
+    inputs:
+      lock_run_id:
+        description: 'GitHub Actions run ID from v38 Prospective Slate Lock'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate lock run ID
+        shell: bash
+        env:
+          LOCK_RUN_ID: ${{ inputs.lock_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$LOCK_RUN_ID" =~ ^[0-9]+$ ]] || { echo 'lock_run_id must be numeric' >&2; exit 1; }
+      - name: Download immutable prospective lock artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LOCK_RUN_ID: ${{ inputs.lock_run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p lock-artifact
+          gh run download "$LOCK_RUN_ID" --repo "${{ github.repository }}" --name "v38-prospective-slate-lock-${LOCK_RUN_ID}" --dir lock-artifact
+      - name: Resolve and verify bound artifacts
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROFILE=$(find lock-artifact -type f -name 'v38-pregame-*.json' | sort | tail -1)
+          CONTEXT=$(find lock-artifact -type f -name 'v38-context-*.json' | sort | tail -1)
+          PLAN=$(find lock-artifact -type f -path '*/prospective-execution-plans/*.json' -o -type f -name '*.json' | grep 'prospective-execution-plans/' | sort | tail -1)
+          BUNDLE=$(find lock-artifact -type f -path '*/prospective-decision-bundles/*.json' -o -type f -name '*.json' | grep 'prospective-decision-bundles/' | sort | tail -1)
+          test -n "$PROFILE" -a -f "$PROFILE"
+          test -n "$CONTEXT" -a -f "$CONTEXT"
+          test -n "$PLAN" -a -f "$PLAN"
+          test -n "$BUNDLE" -a -f "$BUNDLE"
+          node --input-type=module - "$PROFILE" "$CONTEXT" "$PLAN" "$BUNDLE" <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const [pf,cf,ef,bf]=process.argv.slice(2),o={};
+          for(const [k,f] of [['profile',pf],['context',cf],['plan',ef],['bundle',bf]]){
+            o[k]=JSON.parse(fs.readFileSync(f,'utf8'));
+            const {sha256,...body}=o[k];
+            const calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+            if(calc!==sha256)throw Error(`${k} sha256 mismatch`);
+          }
+          if(o.bundle.source_artifacts?.profile?.sha256!==o.profile.sha256)throw Error('profile not bound to bundle');
+          if(o.bundle.source_artifacts?.context?.sha256!==o.context.sha256)throw Error('context not bound to bundle');
+          if(o.bundle.source_artifacts?.execution_plan?.sha256!==o.plan.sha256)throw Error('plan not bound to bundle');
+          if(o.profile.date!==o.plan.date||o.context.date!==o.plan.date||o.bundle.date!==o.plan.date)throw Error('date mismatch');
+          if(o.bundle.coverage?.exact_game_set_match!==true)throw Error('game universe mismatch');
+          console.log('BANDALYTICS_POSTSLATE_SOURCE_OK='+JSON.stringify({date:o.plan.date,profile_sha256:o.profile.sha256,plan_sha256:o.plan.sha256,bundle_sha256:o.bundle.sha256}));
+          NODE
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "context=$CONTEXT" >> "$GITHUB_OUTPUT"
+          echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
+          echo "bundle=$BUNDLE" >> "$GITHUB_OUTPUT"
+      - name: Settle frozen pregame population
+        run: node scripts/evaluate-v38-pregame-snapshot.mjs "${{ steps.source.outputs.profile }}" lock-artifact lock-artifact
+      - name: Evaluate execution handoff and exact ticket outcomes
+        id: auditfiles
+        shell: bash
+        env:
+          PROFILE: ${{ steps.source.outputs.profile }}
+          PLAN: ${{ steps.source.outputs.plan }}
+        run: |
+          set -euo pipefail
+          EVAL="${PROFILE%.json}-evaluated.json"
+          test -f "$EVAL" || { echo 'evaluated snapshot missing; games may not all be final' >&2; exit 2; }
+          node scripts/evaluate-v38-execution-handoff.mjs "$EVAL" "$PLAN" | tee postslate-handoff.log
+          HANDOFF="${EVAL%.json}-execution-handoff.json"
+          test -f "$HANDOFF"
+          echo "eval=$EVAL" >> "$GITHUB_OUTPUT"
+          echo "handoff=$HANDOFF" >> "$GITHUB_OUTPUT"
+      - name: Verify prospective audit provenance
+        shell: bash
+        env:
+          PROFILE: ${{ steps.source.outputs.profile }}
+          PLAN: ${{ steps.source.outputs.plan }}
+          BUNDLE: ${{ steps.source.outputs.bundle }}
+          EVAL: ${{ steps.auditfiles.outputs.eval }}
+          HANDOFF: ${{ steps.auditfiles.outputs.handoff }}
+        run: |
+          node --input-type=module - "$PROFILE" "$PLAN" "$BUNDLE" "$EVAL" "$HANDOFF" <<'NODE'
+          import fs from 'node:fs';
+          const [pf,ef,bf,vf,hf]=process.argv.slice(2);
+          const profile=JSON.parse(fs.readFileSync(pf,'utf8'));
+          const plan=JSON.parse(fs.readFileSync(ef,'utf8'));
+          const bundle=JSON.parse(fs.readFileSync(bf,'utf8'));
+          const evalz=JSON.parse(fs.readFileSync(vf,'utf8'));
+          const handoff=JSON.parse(fs.readFileSync(hf,'utf8'));
+          if(evalz.status!=='FINAL'||evalz.prospective_validation!==true)throw Error('final prospective evaluation required');
+          if(evalz.snapshot_sha256!==profile.sha256)throw Error('evaluation/profile provenance mismatch');
+          if(handoff.source_snapshot_sha256!==profile.sha256)throw Error('handoff/profile provenance mismatch');
+          if(bundle.source_artifacts?.execution_plan?.sha256!==plan.sha256)throw Error('handoff plan is not bundle-bound');
+          if(handoff.date!==plan.date)throw Error('handoff date mismatch');
+          console.log('BANDALYTICS_PROSPECTIVE_POSTSLATE_AUDIT_OK='+JSON.stringify({date:plan.date,final_pool_n:handoff.recovered_plan_summary?.final_pool_n,ticketed_n:handoff.recovered_plan_summary?.ticketed_n,zero_path_n:handoff.recovered_plan_summary?.zero_path_n,ticket_count:handoff.recovered_plan_summary?.exact_ticket_count,winning_tickets:handoff.recovered_plan_summary?.winning_tickets_n,ticket_conversion_pct:handoff.recovered_plan_summary?.ticket_conversion_pct,portfolio_dependency_pct:handoff.recovered_plan_summary?.exact_max_portfolio_dependency_pct,policy_mismatches:handoff.recovered_plan_summary?.resolved_final_pool_policy_mismatch_n}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-prospective-postslate-audit-${{ github.run_id }}
+          path: |
+            lock-artifact/**/*.json
+            lock-artifact/**/*-evaluated.json
+            lock-artifact/**/*-execution-handoff.json
+            postslate-handoff.log
+          if-no-files-found: error
+          retention-days: 90
