@@ -55,12 +55,22 @@ const planNonstarters=planFinal.filter(p=>p?.opportunity_verified===true&&p?.obs
 const planNonstarterTicketPaths=planNonstarters.reduce((s,p)=>s+paths(p),0);
 const resolvedByKey=new Map(report.rows.map(r=>[`${Number(r.gamePk)}:${Number(r.player_id)}`,r]));
 const resolvedPlanPolicy=[];
+const outcomeByName=new Map();
+for(const r of evalJson.rows){if(typeof r?.homer==='boolean')outcomeByName.set(norm(r.player),r.homer)}
+for(const p of rawPlan){if(p?.outcome_verified===true&&typeof p?.homer==='boolean')outcomeByName.set(norm(p.player),p.homer)}
 for(const p of resolvedPlan){
   const r=resolvedByKey.get(`${Number(p?.gamePk??p?.game_pk)}:${Number(p?.player_id)}`);
   if(!r)continue;
   resolvedPlanPolicy.push({player:p.player||r.player,hr_odds:Number(p?.hr_odds??p?.odds??p?.american_odds)||null,gate_count:r.execution?.policy?.gate_count??null,policy_label:r.execution?.policy?.label||null,locked_qualified:r.execution?.policy?.qualified===true,final_cut:p?.final_cut===true,ticket_paths:paths(p),homer:r.homer===true});
 }
 const policyMismatches=resolvedPlanPolicy.filter(x=>x.final_cut&&!x.locked_qualified);
+const ticketOutcomes=(Array.isArray(planJson?.tickets)?planJson.tickets:[]).map((legs,i)=>{
+  const resolved=(Array.isArray(legs)?legs:[]).map(player=>({player,homer:outcomeByName.has(norm(player))?outcomeByName.get(norm(player)):null}));
+  const unknown=resolved.filter(x=>x.homer==null).map(x=>x.player);
+  const status=unknown.length?'UNKNOWN':resolved.every(x=>x.homer===true)?'WIN':'LOSS';
+  return {ticket_id:`T${i+1}`,legs:[...legs],status,unknown_players:unknown,winning_legs:resolved.filter(x=>x.homer===true).map(x=>x.player),losing_legs:resolved.filter(x=>x.homer===false).map(x=>x.player)};
+});
+const knownTickets=ticketOutcomes.filter(t=>t.status!=='UNKNOWN'),winningTickets=knownTickets.filter(t=>t.status==='WIN');
 const out={
   ...report,
   date:evalJson.date||planJson.date||null,
@@ -89,11 +99,15 @@ const out={
     nonstarter_n:planNonstarters.length,
     nonstarter_ticket_paths:planNonstarterTicketPaths,
     exact_ticket_count:totalPlannedTickets,
+    known_ticket_outcomes_n:knownTickets.length,
+    winning_tickets_n:winningTickets.length,
+    ticket_conversion_pct:knownTickets.length?+(100*winningTickets.length/knownTickets.length).toFixed(2):null,
     exact_max_portfolio_dependency_player:exactPlanDependencyPlayer,
     exact_max_portfolio_dependency_pct:totalPlannedTickets&&exactPlanDependency!=null?+(100*exactPlanDependency/totalPlannedTickets).toFixed(2):null,
     resolved_policy_rows:resolvedPlanPolicy.length,
     resolved_final_pool_policy_mismatch_n:policyMismatches.length
   },
+  ticket_outcomes:ticketOutcomes,
   resolved_plan_policy:resolvedPlanPolicy,
   resolved_final_pool_policy_mismatches:policyMismatches
 };
