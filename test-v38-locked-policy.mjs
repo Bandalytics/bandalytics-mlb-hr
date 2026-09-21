@@ -12,11 +12,14 @@ assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(650,{open_od
 assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(800,{open_odds:650})}}).label,LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS,'current +800 protects even if opener was shorter');
 assert.equal(classifyLockedPolicy({...four,context:{market:{odds:900,best_odds:900}}}).label,LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6,'untyped generic odds must fail closed');
 assert.equal(classifyLockedPolicy({...four,context:{market:{market_schema:LOCKED_HR_MARKET_SCHEMA,market_type:'MLB_BATTER_HOME_RUN_YES',identity_status:'UNRESOLVED',best_odds:900}}}).label,LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6,'unresolved market identity must fail closed');
-assert.equal(classifyLockedPolicy({...four,hr_odds:925}).label,LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS,'explicit frozen execution hr_odds is allowed');
+assert.equal(classifyLockedPolicy({...four,hr_odds:925}).label,LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6,'unattributed direct odds must fail closed');
+assert.equal(classifyLockedPolicy({...four,hr_odds:925,hr_odds_source:'FROZEN_EXECUTION_PLAN'}).label,LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS,'explicit frozen execution hr_odds is allowed');
 assert.equal(classifyLockedPolicy(four).label,LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6);
 assert.equal(classifyLockedPolicy({...four,barrel:7}).label,LOCKED_POLICY_LABELS.NOT_QUALIFIED_PROFILE);
 assert.equal(extractPregameHrAmericanOdds({context:{market:hrMarket('+925')}}),925);
 assert.equal(extractPregameHrAmericanOdds({context:{market:{books:[{hr_odds:'+925'}]}}}),null,'recursive arbitrary odds extraction removed');
+assert.equal(classifyLockedPolicy({...four,hr_odds:800,hr_odds_source:'EXECUTION_DRAFT_EXPLICIT'}).hr_price_source,'EXECUTION_DRAFT_EXPLICIT');
+assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(800)}}).hr_price_source,'FROZEN_CONTEXT_MARKET');
 
 assert.equal(classifyLockedPolicy({...base,gate_count:null}).label,LOCKED_POLICY_LABELS.QUALIFIED_6OF6,'null gate_count must recompute, not coerce to zero');
 assert.equal(classifyLockedPolicy({...base,blast:undefined,gate_count:5}).label,LOCKED_POLICY_LABELS.INCOMPLETE_PROFILE,'partial 5 known passes cannot masquerade as 5/6');
