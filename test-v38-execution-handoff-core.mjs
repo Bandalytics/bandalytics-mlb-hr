@@ -12,12 +12,12 @@ const rows=[
   base(7,4,false,8)
 ];
 const plan=[
-  {gamePk:1,player_id:1,final_cut:true,exposure_state:'PRIORITY',ticket_paths:3,ticket_ids:['T1','T2','T3']},
-  {gamePk:1,player_id:2,final_cut:true,exposure_state:'ONE_PATH',ticket_paths:1,ticket_ids:['T4']},
-  {gamePk:1,player_id:3,final_cut:true,exposure_state:'UNCLASSIFIED',ticket_paths:0},
-  {gamePk:1,player_id:4,final_cut:true,exposure_state:'PRIORITY',ticket_paths:2,ticket_ids:['T5','T6']},
+  {gamePk:1,player_id:1,final_cut:true,exposure_state:'PRIORITY',evidence_lanes:['PROFILE','HEAT','MATCHUP'],ticket_paths:3,ticket_ids:['T1','T2','T3']},
+  {gamePk:1,player_id:2,final_cut:true,exposure_state:'ONE_PATH',evidence_lanes:['PROFILE','VALUE'],ticket_paths:1,ticket_ids:['T4']},
+  {gamePk:1,player_id:3,final_cut:true,exposure_state:'UNCLASSIFIED',evidence_lanes:['PROFILE','MATCHUP'],ticket_paths:0},
+  {gamePk:1,player_id:4,final_cut:true,exposure_state:'PRIORITY',evidence_lanes:['PROFILE'],ticket_paths:2,ticket_ids:['T5','T6']},
   {gamePk:1,player_id:5,final_cut:false,cut_reason:'BASEBALL CUT'},
-  {gamePk:1,player_id:7,final_cut:true,exposure_state:'ONE_PATH',ticket_paths:1,ticket_ids:['T4'],hr_odds:800}
+  {gamePk:1,player_id:7,final_cut:true,exposure_state:'ONE_PATH',evidence_lanes:['PROFILE','VALUE'],ticket_paths:1,ticket_ids:['T4'],hr_odds:800}
 ];
 const z=evaluateExecutionHandoff(rows,plan);
 assert.equal(z.protocol,EXECUTION_HANDOFF_PROTOCOL);
@@ -35,12 +35,18 @@ assert.equal(z.summary.top3_exposure_concentration_pct,100);
 assert.equal(z.summary.unique_ticket_count,6);
 assert.equal(z.summary.max_single_hitter_leg_share_pct,60);
 assert.equal(z.summary.max_single_hitter_portfolio_dependency_pct,50);
+assert.equal(z.summary.by_evidence_lane_count['2'].n,3);
+assert.equal(z.summary.by_evidence_lane_count['3'].n,1);
+assert.equal(z.summary.by_evidence_lane_presence.PROFILE.n,5);
+assert.equal(z.summary.by_evidence_lane_presence.HEAT.hr,1);
 const p4=z.rows.find(r=>r.player_id===4);
 assert.equal(p4.execution.opportunity_mismatch,true);
+assert.deepEqual(p4.execution.evidence_lanes,['PROFILE']);
 const p3=z.rows.find(r=>r.player_id===3);
 assert.equal(p3.execution.zero_path_qualified,true);
+assert.equal(p3.execution.evidence_lane_count,2);
 const p5=z.rows.find(r=>r.player_id===5);
-assert.equal(p5.execution.policy.qualified,false); // 4/6 with no price is unresolved, not locked-qualified
+assert.equal(p5.execution.policy.qualified,false);
 const p7=z.rows.find(r=>r.player_id===7);
 assert.equal(p7.execution.policy.qualified,true);
 assert.equal(p7.execution.policy.label,'PROTECTED_4OF6_700PLUS');
