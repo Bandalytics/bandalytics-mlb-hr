@@ -1,0 +1,36 @@
+{
+  "protocol": "BANDALYTICS_EXECUTION_PLAN_RECOVERED_V1",
+  "date": "2026-09-19",
+  "research_only": true,
+  "retrospective_reconstruction": true,
+  "exposure_states_assigned": false,
+  "notes": "Recovered from the user's final pool/ticket graphic and placed-ticket records. Exposure-state labels are intentionally left UNCLASSIFIED. Salvador Perez nonstarter status is separately verified and is used only for opportunity audit, not predictive scoring.",
+  "rows": [
+    {"player":"Zack Gelof","hr_odds":600,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":3},
+    {"player":"Garrett Mitchell","hr_odds":950,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":4},
+    {"player":"Bryan Reynolds","hr_odds":800,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":3},
+    {"player":"Jake Burger","hr_odds":650,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Kyle Teel","hr_odds":750,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":1},
+    {"player":"Salvador Perez","player_id":521692,"hr_odds":700,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2,"observed_starting_lineup":false,"opportunity_verified":true,"opportunity_note":"Did not start; entered as a ninth-inning pinch hitter."},
+    {"player":"Rafael Flores","hr_odds":750,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":3},
+    {"player":"Elly De La Cruz","hr_odds":325,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Jackson Merrill","hr_odds":525,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Carter Jensen","hr_odds":420,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":2},
+    {"player":"Munetaka Murakami","hr_odds":450,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Pete Crow-Armstrong","hr_odds":240,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Pete Alonso","hr_odds":320,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":0},
+    {"player":"Mike Trout","hr_odds":475,"final_cut":true,"exposure_state":"UNCLASSIFIED","ticket_paths":1}
+  ],
+  "tickets": [
+    ["Zack Gelof","Garrett Mitchell"],
+    ["Bryan Reynolds","Jake Burger"],
+    ["Carter Jensen","Rafael Flores"],
+    ["Jackson Merrill","Salvador Perez"],
+    ["Garrett Mitchell","Kyle Teel"],
+    ["Zack Gelof","Bryan Reynolds"],
+    ["Rafael Flores","Garrett Mitchell"],
+    ["Zack Gelof","Bryan Reynolds","Jackson Merrill"],
+    ["Garrett Mitchell","Carter Jensen","Mike Trout"],
+    ["Jake Burger","Salvador Perez","Rafael Flores"]
+  ]
+}
