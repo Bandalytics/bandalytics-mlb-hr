@@ -2,7 +2,17 @@ import {buildIdentityIndex,normalizeSportsGameOdds,normTeam} from '../market-nat
 
 async function getj(url,opts={},timeoutMs=12000){
   const c=new AbortController(),t=setTimeout(()=>c.abort(),timeoutMs);
-  try{const r=await fetch(url,{...opts,signal:c.signal});if(!r.ok){const body=await r.text().catch(()=> '');throw Error(`HTTP ${r.status} ${body.slice(0,160)}`)}return await r.json()}finally{clearTimeout(t)}
+  try{
+    const r=await fetch(url,{...opts,signal:c.signal});
+    if(!r.ok){
+      const body=await r.text().catch(()=> '');
+      const e=Error(`HTTP ${r.status} ${body.slice(0,160)}`);
+      e.status=r.status;
+      e.retryAfter=r.headers.get('retry-after');
+      throw e;
+    }
+    return await r.json();
+  }finally{clearTimeout(t)}
 }
 async function sanitizedUsage(key){
   try{
@@ -59,8 +69,9 @@ export default async function handler(req,res){
     return res.status(200).json({ok:true,date,rows,rejected,provider:'SPORTSGAMEODDS',source:'SPORTSGAMEODDS_PLUS_MLB_EXACT_IDENTITY',live_market_connected:true,query_window:window,slate_games:identity.slateGames.length,identity_mode:'MLBAM_EXACT_FAIL_CLOSED',slate_isolation:'MLB_GAME_TIME_MATCH',research_only:true,scoring_eligible:false,diagnostics,model_scoring_changed:false});
   }catch(e){
     const message=e?.name==='AbortError'?'market timeout':e?.message||String(e);
-    const rateLimited=/HTTP 429|rate limit/i.test(String(message));
+    const rateLimited=e?.status===429||/HTTP 429|rate limit/i.test(String(message));
     const usage=rateLimited?await sanitizedUsage(key):null;
-    return res.status(502).json({ok:false,error:message,provider:'SPORTSGAMEODDS',live_market_connected:false,research_only:true,scoring_eligible:false,model_scoring_changed:false,rate_limited:rateLimited,rate_limit_usage:usage});
+    if(rateLimited&&e?.retryAfter)res.setHeader('Retry-After',String(e.retryAfter));
+    return res.status(rateLimited?429:502).json({ok:false,error:message,provider:'SPORTSGAMEODDS',live_market_connected:false,research_only:true,scoring_eligible:false,model_scoring_changed:false,rate_limited:rateLimited,retry_after:e?.retryAfter||null,rate_limit_usage:usage});
   }
 }
