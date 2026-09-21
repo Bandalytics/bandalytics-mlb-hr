@@ -27,12 +27,14 @@ jobs:
         env:
           BANDALYTICS_API_BASE: https://bandalytics-mlb-hr.pages.dev
         run: node scripts/capture-market-movement-snapshot.mjs
-      - name: Verify latest snapshot
+      - name: Verify capture result
         shell: bash
         run: |
           set -euo pipefail
-          F=$(find market-snapshots -type f -name 'market-*.json' | sort | tail -1)
-          node --input-type=module - "$F" <<'NODE'
+          F=$(find market-snapshots -type f -name 'market-*.json' 2>/dev/null | sort | tail -1 || true)
+          S=$(find market-status -type f -name 'blocked-*.json' 2>/dev/null | sort | tail -1 || true)
+          if [ -n "$F" ]; then
+            node --input-type=module - "$F" <<'NODE'
           import fs from 'node:fs';
           import crypto from 'node:crypto';
           const f=process.argv[2],z=JSON.parse(fs.readFileSync(f,'utf8'));
@@ -45,9 +47,24 @@ jobs:
           for(const r of z.rows){if(!Number.isInteger(r.player_id)||!r.event_starts_at) throw Error('bad identity');}
           console.log('MARKET_SNAPSHOT_OK='+JSON.stringify({file:f,date:z.date,captured_at:z.captured_at,rows:z.row_count,provider:z.provider,sha256:z.sha256}));
           NODE
+          elif [ -n "$S" ]; then
+            node --input-type=module - "$S" <<'NODE'
+          import fs from 'node:fs';
+          const f=process.argv[2],z=JSON.parse(fs.readFileSync(f,'utf8'));
+          if(z.schema!=='BANDALYTICS_MARKET_SNAPSHOT_STATUS_V1'||z.status!=='BLOCKED_QUOTA') throw Error('bad blocked status');
+          if(z.point_in_time!==true||z.research_only!==true||z.scoring_enabled!==false||z.scoring_eligible!==false) throw Error('unsafe blocked flags');
+          if(z?.quota?.exhausted!==true) throw Error('quota state missing');
+          console.log('MARKET_SNAPSHOT_BLOCKED_OK='+JSON.stringify({file:f,date:z.date,captured_at:z.captured_at,status:z.status,quota:z.quota}));
+          NODE
+          else
+            echo 'No market snapshot or blocked-status artifact produced' >&2
+            exit 1
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: market-snapshot-${{ github.run_id }}
-          path: market-snapshots/**/*.json
+          path: |
+            market-snapshots/**/*.json
+            market-status/**/*.json
           if-no-files-found: error
           retention-days: 90
