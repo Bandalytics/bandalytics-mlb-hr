@@ -1,0 +1,24 @@
+name: v38 Slate Decision Bundle Contract
+on:
+  push:
+    paths:
+      - 'scripts/freeze-v38-slate-decision-bundle.mjs'
+      - 'test-v38-slate-decision-bundle.mjs'
+      - 'package.json'
+      - '.github/workflows/v38-slate-decision-bundle-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax
+        run: node --check scripts/freeze-v38-slate-decision-bundle.mjs
+      - name: Decision bundle contract
+        run: node test-v38-slate-decision-bundle.mjs
