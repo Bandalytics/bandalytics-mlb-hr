@@ -2,6 +2,7 @@ import {v38GateCount,V38_GATE_NAMES} from './v38-gate-rules.mjs';
 
 export const LOCKED_POLICY_VERSION='BANDALYTICS_LOCKED_POLICY_V2';
 export const LOCKED_HR_MARKET_SCHEMA='BANDALYTICS_MLB_HR_MARKET_CURRENT_V1';
+export const LOCKED_HR_PRICE_SOURCES=Object.freeze(['FROZEN_EXECUTION_PLAN','EXECUTION_DRAFT_EXPLICIT','FROZEN_CONTEXT_MARKET','RECOVERED_EXECUTION_PLAN']);
 export const LOCKED_POLICY_LABELS=Object.freeze({QUALIFIED_6OF6:'QUALIFIED_6OF6',QUALIFIED_5OF6:'QUALIFIED_5OF6',PROTECTED_4OF6_700PLUS:'PROTECTED_4OF6_700PLUS',PRICE_UNKNOWN_4OF6:'PRICE_UNKNOWN_4OF6',NOT_QUALIFIED_4OF6_PRICE_SHORT:'NOT_QUALIFIED_4OF6_PRICE_SHORT',NOT_QUALIFIED_PROFILE:'NOT_QUALIFIED_PROFILE',INCOMPLETE_PROFILE:'INCOMPLETE_PROFILE'});
 function parseAmerican(v){if(v==null)return null;if(typeof v==='number'&&Number.isFinite(v)&&v!==0)return Math.trunc(v);if(typeof v==='string'){const s=v.trim().replaceAll(',','');if(!s)return null;const m=s.match(/^([+-]?\d+(?:\.\d+)?)$/);if(m){const n=Math.trunc(Number(m[1]));return n===0?null:n}}return null}
 function coreValue(row,name){if(name==='hh')return row?.hh??row?.hard_hit;if(name==='pullair')return row?.pullair??row?.pull_air;if(name==='blast')return row?.blast??row?.blast_swing??row?.blasts_swing;return row?.[name]}
@@ -9,7 +10,8 @@ function normalizedCore(row={}){return{ev:coreValue(row,'ev'),hh:coreValue(row,'
 function knownNumber(v){return v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v))}
 export function lockedCoreProfileComplete(row={}){return V38_GATE_NAMES.every(name=>knownNumber(coreValue(row,name)))}
 export function extractPregameHrAmericanOdds(row={}){
-  const direct=parseAmerican(row?.hr_odds);if(direct!=null)return direct;
+  const source=String(row?.hr_odds_source||'').toUpperCase(),direct=parseAmerican(row?.hr_odds);
+  if(direct!=null&&LOCKED_HR_PRICE_SOURCES.includes(source))return direct;
   const market=row?.context?.market??row?.market??null;if(!market||typeof market!=='object')return null;
   if(market?.source==='FROZEN_EXECUTION_PLAN'){const n=parseAmerican(market?.hr_odds);if(n!=null)return n}
   const exact=market?.market_schema===LOCKED_HR_MARKET_SCHEMA&&market?.market_type==='MLB_BATTER_HOME_RUN_YES'&&market?.identity_status==='EXACT';
@@ -23,7 +25,7 @@ export function classifyLockedPolicy(row={}){
   else if(gateCount===5){label=LOCKED_POLICY_LABELS.QUALIFIED_5OF6;qualified=true}
   else if(gateCount===4){priceRequired=true;if(odds==null)label=LOCKED_POLICY_LABELS.PRICE_UNKNOWN_4OF6;else if(odds>=700){label=LOCKED_POLICY_LABELS.PROTECTED_4OF6_700PLUS;qualified=true}else label=LOCKED_POLICY_LABELS.NOT_QUALIFIED_4OF6_PRICE_SHORT}
   else label=LOCKED_POLICY_LABELS.NOT_QUALIFIED_PROFILE;
-  return Object.freeze({policy_version:LOCKED_POLICY_VERSION,profile_complete:profileComplete,gate_count:gateCount,computed_gate_count:computedGate,hr_american_odds:odds,price_required:priceRequired,label,qualified});
+  return Object.freeze({policy_version:LOCKED_POLICY_VERSION,profile_complete:profileComplete,gate_count:gateCount,computed_gate_count:computedGate,hr_american_odds:odds,hr_price_source:source||null,price_required:priceRequired,label,qualified});
 }
 export function summarizeLockedPolicy(rows=[]){
   const classified=(rows||[]).map(row=>({...row,locked_policy:classifyLockedPolicy(row)})),byLabel={};
