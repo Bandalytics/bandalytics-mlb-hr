@@ -24,6 +24,8 @@ assert.equal(classifyLockedPolicy({...four,context:{market:hrMarket(800)}}).hr_p
 assert.equal(classifyLockedPolicy({...base,gate_count:null}).label,LOCKED_POLICY_LABELS.QUALIFIED_6OF6,'null gate_count must recompute, not coerce to zero');
 assert.equal(classifyLockedPolicy({...base,blast:undefined,gate_count:5}).label,LOCKED_POLICY_LABELS.INCOMPLETE_PROFILE,'partial 5 known passes cannot masquerade as 5/6');
 assert.equal(classifyLockedPolicy({...base,iso:null,gate_count:6}).label,LOCKED_POLICY_LABELS.INCOMPLETE_PROFILE,'partial profile cannot qualify even with supplied gate count');
+const staleHigh=classifyLockedPolicy({...four,gate_count:6,hr_odds:650,hr_odds_source:'FROZEN_EXECUTION_PLAN'});assert.equal(staleHigh.gate_count,4);assert.equal(staleHigh.gate_count_mismatch,true);assert.equal(staleHigh.label,LOCKED_POLICY_LABELS.NOT_QUALIFIED_4OF6_PRICE_SHORT,'stale supplied 6/6 cannot override computed 4/6');
+const staleLow=classifyLockedPolicy({...base,gate_count:3});assert.equal(staleLow.gate_count,6);assert.equal(staleLow.gate_count_mismatch,true);assert.equal(staleLow.label,LOCKED_POLICY_LABELS.QUALIFIED_6OF6,'stale supplied low count cannot suppress exact Core metrics');
 assert.equal(lockedCoreProfileComplete({ev:91,hard_hit:42,barrel:12,iso:.22,pull_air:24,blast_swing:10}),true,'known Core aliases are normalized');
 assert.equal(classifyLockedPolicy({ev:91,hard_hit:42,barrel:12,iso:.22,pull_air:24,blast_swing:10}).label,LOCKED_POLICY_LABELS.QUALIFIED_6OF6);
 console.log('v38 locked policy tests passed');
