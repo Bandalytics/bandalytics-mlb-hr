@@ -1,0 +1,34 @@
+name: v38 Execution Plan Contract
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/freeze-v38-execution-plan.mjs'
+      - 'test-v38-execution-plan-freezer.mjs'
+      - 'test-v38-execution-handoff-core.mjs'
+      - 'test-v38-locked-policy.mjs'
+      - 'v38-execution-handoff-core.mjs'
+      - 'v38-locked-policy-core.mjs'
+      - '.github/workflows/v38-execution-plan-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax
+        run: |
+          node --check scripts/freeze-v38-execution-plan.mjs
+          node --check v38-execution-handoff-core.mjs
+          node --check v38-locked-policy-core.mjs
+      - name: BANDALYTICS contracts
+        run: |
+          node test-v38-locked-policy.mjs
+          node test-v38-execution-handoff-core.mjs
+          node test-v38-execution-plan-freezer.mjs
