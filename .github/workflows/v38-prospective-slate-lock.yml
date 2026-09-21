@@ -40,6 +40,7 @@ jobs:
         run: |
           node --check scripts/capture-v38-pregame-snapshot.mjs
           node --check scripts/capture-v38-context-snapshot.mjs
+          node --check scripts/hydrate-v38-execution-draft.mjs
           node --check scripts/freeze-v38-execution-plan.mjs
           node --check scripts/diagnose-v38-execution-plan.mjs
           node --check scripts/freeze-v38-slate-decision-bundle.mjs
@@ -47,22 +48,36 @@ jobs:
         run: node scripts/capture-v38-pregame-snapshot.mjs "${{ steps.draft.outputs.date }}"
       - name: Capture fresh point-in-time context evidence
         run: node scripts/capture-v38-context-snapshot.mjs "${{ steps.draft.outputs.date }}"
-      - name: Freeze exact execution plan
-        env:
-          DRAFT_PATH: ${{ inputs.draft_path }}
-        run: node scripts/freeze-v38-execution-plan.mjs "$DRAFT_PATH"
-      - name: Bind evidence and decision artifacts
-        id: files
+      - name: Hydrate exact player, game and lineup identity
+        id: hydrate
         shell: bash
         env:
+          DRAFT_PATH: ${{ inputs.draft_path }}
           DATE: ${{ steps.draft.outputs.date }}
         run: |
           set -euo pipefail
           PROFILE=$(find snapshots -type f -name "v38-pregame-${DATE}-*.json" | sort | tail -1)
           CONTEXT=$(find snapshots -type f -name "v38-context-${DATE}-*.json" | sort | tail -1)
-          PLAN=$(find prospective-execution-plans -type f -name "${DATE}-*.json" | sort | tail -1)
           test -n "$PROFILE" -a -f "$PROFILE"
           test -n "$CONTEXT" -a -f "$CONTEXT"
+          node scripts/hydrate-v38-execution-draft.mjs "$DRAFT_PATH" "$PROFILE" "$CONTEXT" | tee hydration.log
+          HYDRATED=$(find hydrated-execution-drafts -type f -name "${DATE}-*.json" | sort | tail -1)
+          test -n "$HYDRATED" -a -f "$HYDRATED"
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "context=$CONTEXT" >> "$GITHUB_OUTPUT"
+          echo "hydrated=$HYDRATED" >> "$GITHUB_OUTPUT"
+      - name: Freeze exact execution plan
+        run: node scripts/freeze-v38-execution-plan.mjs "${{ steps.hydrate.outputs.hydrated }}"
+      - name: Bind evidence and decision artifacts
+        id: files
+        shell: bash
+        env:
+          DATE: ${{ steps.draft.outputs.date }}
+          PROFILE: ${{ steps.hydrate.outputs.profile }}
+          CONTEXT: ${{ steps.hydrate.outputs.context }}
+        run: |
+          set -euo pipefail
+          PLAN=$(find prospective-execution-plans -type f -name "${DATE}-*.json" | sort | tail -1)
           test -n "$PLAN" -a -f "$PLAN"
           node scripts/diagnose-v38-execution-plan.mjs "$PLAN" | tee execution-diagnostics.log
           node scripts/freeze-v38-slate-decision-bundle.mjs "$PROFILE" "$CONTEXT" "$PLAN" | tee decision-bundle.log
@@ -99,6 +114,10 @@ jobs:
           if(z.bundle.source_artifacts?.execution_plan?.sha256!==z.plan.sha256) throw Error('bundle/plan mismatch');
           if(z.bundle.coverage?.exact_game_set_match!==true) throw Error('game universe mismatch');
           if(z.plan.point_in_time!==true||z.plan.prospective!==true||z.bundle.point_in_time!==true||z.bundle.prospective!==true) throw Error('unsafe prospective flags');
+          for(const r of z.plan.rows.filter(x=>x.final_cut===true)){
+            if(!Number.isInteger(Number(r.player_id))||!Number.isInteger(Number(r.gamePk))) throw Error(`final-cut exact identity missing for ${r.player}`);
+            if(r.opportunity_verified!==true||r.observed_starting_lineup!==true) throw Error(`final-cut opportunity not verified for ${r.player}`);
+          }
           console.log('BANDALYTICS_PROSPECTIVE_SLATE_LOCK_OK='+JSON.stringify({date:z.plan.date,plan_sha256:z.plan.sha256,bundle_sha256:z.bundle.sha256,final_pool_n:z.plan.summary?.final_pool_n,tickets:z.plan.summary?.ticket_count,total_paths:z.plan.summary?.total_ticket_paths}));
           NODE
       - uses: actions/upload-artifact@v4
@@ -107,8 +126,10 @@ jobs:
           path: |
             snapshots/v38-pregame-${{ steps.draft.outputs.date }}-*.json
             snapshots/v38-context-${{ steps.draft.outputs.date }}-*.json
+            hydrated-execution-drafts/${{ steps.draft.outputs.date }}-*.json
             prospective-execution-plans/${{ steps.draft.outputs.date }}-*.json
             prospective-decision-bundles/${{ steps.draft.outputs.date }}-*.json
+            hydration.log
             execution-diagnostics.log
             decision-bundle.log
           if-no-files-found: error
