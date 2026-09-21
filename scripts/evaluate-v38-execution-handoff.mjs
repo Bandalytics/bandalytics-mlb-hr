@@ -7,10 +7,19 @@ if(!evalFile||!planFile)throw Error('usage: node scripts/evaluate-v38-execution-
 const evalJson=JSON.parse(await fs.readFile(evalFile,'utf8'));
 const planJson=JSON.parse(await fs.readFile(planFile,'utf8'));
 if(!Array.isArray(evalJson?.rows))throw Error('evaluated rows missing');
-const rawPlan=Array.isArray(planJson)?planJson:(planJson?.rows||planJson?.players||[]);
-if(!Array.isArray(rawPlan))throw Error('execution plan rows missing');
+const rawPlan0=Array.isArray(planJson)?planJson:(planJson?.rows||planJson?.players||[]);
+if(!Array.isArray(rawPlan0))throw Error('execution plan rows missing');
 
 function norm(s){return String(s||'').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g,' ').trim()}
+const ticketMap=new Map();
+for(const [i,t] of (Array.isArray(planJson?.tickets)?planJson.tickets:[]).entries()){
+  const tid=`T${i+1}`;
+  for(const name of Array.isArray(t)?t:[]){const k=norm(name);if(!k)continue;if(!ticketMap.has(k))ticketMap.set(k,[]);ticketMap.get(k).push(tid)}
+}
+const rawPlan=rawPlan0.map(p=>{
+  const ids=Array.isArray(p?.ticket_ids)?p.ticket_ids:ticketMap.get(norm(p?.player));
+  return ids?.length?{...p,ticket_ids:[...new Set(ids.map(String))]}:p;
+});
 const rowByName=new Map();
 for(const r of evalJson.rows){
   const k=norm(r.player); if(!k)continue;
@@ -28,6 +37,11 @@ for(const p of rawPlan){
 }
 const report=evaluateExecutionHandoff(evalJson.rows,resolvedPlan);
 const verifiedPlannedExposureNonstarters=verifiedPlanOnlyNonstarters.filter(p=>Number(p?.ticket_paths??p?.ticket_count??p?.exposure_count??0)>0);
+const totalPlannedTickets=Array.isArray(planJson?.tickets)?planJson.tickets.length:null;
+let exactPlanDependency=null,exactPlanDependencyPlayer=null;
+if(totalPlannedTickets){
+  for(const p of rawPlan){const c=Array.isArray(p?.ticket_ids)?new Set(p.ticket_ids.map(String)).size:0;if(exactPlanDependency==null||c>exactPlanDependency){exactPlanDependency=c;exactPlanDependencyPlayer=p?.player||null}}
+}
 const out={
   ...report,
   date:evalJson.date||planJson.date||null,
@@ -41,9 +55,13 @@ const out={
   verified_plan_only_nonstarters:verifiedPlanOnlyNonstarters,
   plan_only_opportunity_mismatch_count:verifiedPlannedExposureNonstarters.length,
   plan_only_opportunity_mismatch_ticket_paths:verifiedPlannedExposureNonstarters.reduce((s,p)=>s+Math.max(0,Number(p?.ticket_paths??p?.ticket_count??p?.exposure_count??0)||0),0),
-  combined_opportunity_mismatch_count:(report.summary?.opportunity_mismatch_count||0)+verifiedPlannedExposureNonstarters.length
+  combined_opportunity_mismatch_count:(report.summary?.opportunity_mismatch_count||0)+verifiedPlannedExposureNonstarters.length,
+  exact_planned_ticket_count:totalPlannedTickets,
+  exact_max_player_ticket_appearances:exactPlanDependency,
+  exact_max_portfolio_dependency_player:exactPlanDependencyPlayer,
+  exact_max_portfolio_dependency_pct:totalPlannedTickets&&exactPlanDependency!=null?+(100*exactPlanDependency/totalPlannedTickets).toFixed(2):null
 };
 const stem=path.basename(evalFile).replace(/\.json$/,'');
 const outfile=path.join(path.dirname(evalFile),`${stem}-execution-handoff.json`);
 await fs.writeFile(outfile,JSON.stringify(out,null,2)+'\n','utf8');
-console.log('V38_EXECUTION_HANDOFF='+JSON.stringify({outfile,date:out.date,summary:out.summary,unresolved:out.unresolved_execution_plan_rows,plan_only_opportunity_mismatch_count:out.plan_only_opportunity_mismatch_count,combined_opportunity_mismatch_count:out.combined_opportunity_mismatch_count}));
+console.log('V38_EXECUTION_HANDOFF='+JSON.stringify({outfile,date:out.date,summary:out.summary,unresolved:out.unresolved_execution_plan_rows,plan_only_opportunity_mismatch_count:out.plan_only_opportunity_mismatch_count,combined_opportunity_mismatch_count:out.combined_opportunity_mismatch_count,exact_max_portfolio_dependency_pct:out.exact_max_portfolio_dependency_pct}));
