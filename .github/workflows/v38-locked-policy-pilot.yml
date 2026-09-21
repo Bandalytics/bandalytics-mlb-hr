@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/v38-locked-policy-pilot.yml'
+      - 'scripts/run-v38-point-in-time-replay.mjs'
   workflow_dispatch:
 permissions:
   contents: read
