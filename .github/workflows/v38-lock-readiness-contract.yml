@@ -1,0 +1,25 @@
+name: v38 Lock Readiness Contract
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build-v38-lock-readiness.mjs'
+      - 'test-v38-lock-readiness.mjs'
+      - 'v38-locked-policy-core.mjs'
+      - '.github/workflows/v38-lock-readiness-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax
+        run: node --check scripts/build-v38-lock-readiness.mjs
+      - name: Lock readiness contract
+        run: node test-v38-lock-readiness.mjs
