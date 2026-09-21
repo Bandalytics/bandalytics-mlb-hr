@@ -1,0 +1,23 @@
+name: v38 Execution Handoff Test
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'v38-execution-handoff-core.mjs'
+      - 'test-v38-execution-handoff-core.mjs'
+      - '.github/workflows/v38-execution-handoff-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax
+        run: node --check v38-execution-handoff-core.mjs
+      - name: Contract
+        run: node test-v38-execution-handoff-core.mjs
