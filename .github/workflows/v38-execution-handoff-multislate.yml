@@ -1,0 +1,48 @@
+name: v38 Multi-Slate Execution Handoff Audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v38-execution-handoff-multislate.yml'
+      - 'scripts/summarize-v38-execution-handoffs.mjs'
+      - 'scripts/evaluate-v38-execution-handoff.mjs'
+      - 'scripts/run-v38-point-in-time-replay.mjs'
+      - 'v38-execution-handoff-core.mjs'
+      - 'historical-execution-plans/2026-09-16.json'
+      - 'historical-execution-plans/2026-09-19.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Contract
+        run: |
+          node --check scripts/summarize-v38-execution-handoffs.mjs
+          node --check scripts/evaluate-v38-execution-handoff.mjs
+          node test-v38-execution-handoff-core.mjs
+      - name: Replay Sept 16
+        run: |
+          node scripts/run-v38-point-in-time-replay.mjs 2026-09-16
+          node scripts/evaluate-v38-execution-handoff.mjs snapshots/v38-point-in-time-replay-2026-09-16.json historical-execution-plans/2026-09-16.json
+      - name: Replay Sept 19
+        run: |
+          node scripts/run-v38-point-in-time-replay.mjs 2026-09-19
+          node scripts/evaluate-v38-execution-handoff.mjs snapshots/v38-point-in-time-replay-2026-09-19.json historical-execution-plans/2026-09-19.json
+      - name: Aggregate execution handoff
+        run: node scripts/summarize-v38-execution-handoffs.mjs snapshots/v38-point-in-time-replay-2026-09-16-execution-handoff.json snapshots/v38-point-in-time-replay-2026-09-19-execution-handoff.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-execution-handoff-multislate-${{ github.run_id }}
+          path: |
+            snapshots/v38-point-in-time-replay-2026-09-16-execution-handoff.json
+            snapshots/v38-point-in-time-replay-2026-09-19-execution-handoff.json
+            snapshots/v38-execution-handoff-multislate-summary.json
+          if-no-files-found: error
+          retention-days: 90
