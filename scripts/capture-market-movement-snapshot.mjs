@@ -23,19 +23,32 @@ function windowLabel(minutes,lineupType){
   if(minutes<=360) return 'MORNING';
   return 'EARLY';
 }
+function quotaState(j){
+  const rl=j?.rate_limit_usage?.rateLimits||null;
+  if(!rl)return null;
+  const month=rl['per-month']||null;
+  const max=Number(month?.['max-entities']),current=Number(month?.['current-entities']);
+  if(Number.isFinite(max)&&Number.isFinite(current)&&current>=max){
+    return {scope:'per-month',metric:'entities',max,current,exhausted:true};
+  }
+  return null;
+}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function getj(url,timeout=20000,attempts=5){
   let last=null;
   for(let attempt=1;attempt<=attempts;attempt++){
     const c=new AbortController(),t=setTimeout(()=>c.abort(),timeout);
     try{
-      const r=await fetch(url,{cache:'no-store',signal:c.signal,headers:{accept:'application/json','user-agent':'BANDALYTICS-MARKET-SNAPSHOT/2'}});
+      const r=await fetch(url,{cache:'no-store',signal:c.signal,headers:{accept:'application/json','user-agent':'BANDALYTICS-MARKET-SNAPSHOT/3'}});
       const text=await r.text(); let j;
       try{j=JSON.parse(text)}catch{throw Error(`NON_JSON ${r.status} ${text.slice(0,160)}`)}
       if(r.ok&&j?.ok===true)return j;
-      const err=Error(`${j?.error||`HTTP_${r.status}`}`);err.status=r.status;throw err;
+      const exhausted=quotaState(j);
+      const err=Error(exhausted?`MARKET_QUOTA_EXHAUSTED ${JSON.stringify(exhausted)}`:`${j?.error||`HTTP_${r.status}`}`);
+      err.status=r.status;err.quota=exhausted;throw err;
     }catch(e){
       last=e;
+      if(e?.quota?.exhausted)throw e;
       const msg=String(e?.message||e||'');
       const transient=e?.name==='AbortError'||e?.status===429||e?.status===502||e?.status===503||e?.status===504||/rate limit|HTTP[_ ]?(429|502|503|504)/i.test(msg);
       if(!transient||attempt===attempts)throw e;
