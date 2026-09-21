@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/freeze-v38-slate-decision-bundle.mjs'
       - 'test-v38-slate-decision-bundle.mjs'
+      - 'test-v38-prospective-slate-lock-workflow.mjs'
+      - '.github/workflows/v38-prospective-slate-lock.yml'
       - 'package.json'
       - '.github/workflows/v38-slate-decision-bundle-contract.yml'
   workflow_dispatch:
@@ -22,3 +24,5 @@ jobs:
         run: node --check scripts/freeze-v38-slate-decision-bundle.mjs
       - name: Decision bundle contract
         run: node test-v38-slate-decision-bundle.mjs
+      - name: Prospective slate lock workflow contract
+        run: node test-v38-prospective-slate-lock-workflow.mjs
