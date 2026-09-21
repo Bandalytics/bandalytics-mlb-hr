@@ -1,0 +1,28 @@
+name: v38 Locked Policy Test
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'v38-locked-policy-core.mjs'
+      - 'test-v38-locked-policy.mjs'
+      - 'scripts/evaluate-v38-locked-policy.mjs'
+      - '.github/workflows/v38-locked-policy-test.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax check
+        run: |
+          node --check v38-locked-policy-core.mjs
+          node --check scripts/evaluate-v38-locked-policy.mjs
+          node --check test-v38-locked-policy.mjs
+      - name: Locked policy contract test
+        run: node test-v38-locked-policy.mjs
