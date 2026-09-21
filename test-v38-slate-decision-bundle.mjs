@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 
 const seal=body=>({...body,sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')});
+const reseal=(obj,patch={})=>{const {sha256,...body}=obj;return seal({...body,...patch})};
 const date='2026-09-21';
 const profile=seal({snapshot_protocol:'V38_PREGAME_SNAPSHOT_V1',date,captured_at:'2026-09-21T17:00:00.000Z',point_in_time:true,research_only:true,pregame_games:[{gamePk:1,start_time:'2026-09-21T23:00:00.000Z'}],profile_complete:10});
 const context=seal({context_protocol:'V38_CONTEXT_SNAPSHOT_V1',date,captured_at:'2026-09-21T17:30:00.000Z',point_in_time:true,research_only:true,pregame_games:[{gamePk:1,start_time:'2026-09-21T23:00:00.000Z'}],confirmed_lineups:2,market_ok:false});
@@ -13,17 +14,17 @@ let r=spawnSync(process.execPath,['scripts/freeze-v38-slate-decision-bundle.mjs'
 assert.equal(r.status,0,r.stderr);
 assert.match(r.stdout,/V38_SLATE_DECISION_BUNDLE=/);
 
-const badPlan=seal({...plan,captured_at:'2026-09-21T16:00:00.000Z'});
+const badPlan=reseal(plan,{captured_at:'2026-09-21T16:00:00.000Z'});
 await fs.writeFile('/tmp/bad-plan.json',JSON.stringify(badPlan));
 r=spawnSync(process.execPath,['scripts/freeze-v38-slate-decision-bundle.mjs','/tmp/profile.json','/tmp/context.json','/tmp/bad-plan.json'],{encoding:'utf8'});
 assert.notEqual(r.status,0);assert.match(r.stderr,/cannot predate its evidence snapshots/);
 
-const latePlan=seal({...plan,captured_at:'2026-09-21T23:00:00.000Z'});
+const latePlan=reseal(plan,{captured_at:'2026-09-21T23:00:00.000Z'});
 await fs.writeFile('/tmp/late-plan.json',JSON.stringify(latePlan));
 r=spawnSync(process.execPath,['scripts/freeze-v38-slate-decision-bundle.mjs','/tmp/profile.json','/tmp/context.json','/tmp/late-plan.json'],{encoding:'utf8'});
 assert.notEqual(r.status,0);assert.match(r.stderr,/before earliest included game start/);
 
-const mismatchContext=seal({...context,pregame_games:[{gamePk:2,start_time:'2026-09-21T23:00:00.000Z'}]});
+const mismatchContext=reseal(context,{pregame_games:[{gamePk:2,start_time:'2026-09-21T23:00:00.000Z'}]});
 await fs.writeFile('/tmp/mismatch-context.json',JSON.stringify(mismatchContext));
 r=spawnSync(process.execPath,['scripts/freeze-v38-slate-decision-bundle.mjs','/tmp/profile.json','/tmp/mismatch-context.json','/tmp/plan.json'],{encoding:'utf8'});
 assert.notEqual(r.status,0);assert.match(r.stderr,/game universe mismatch/);
