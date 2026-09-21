@@ -1,0 +1,115 @@
+name: v38 Prospective Slate Lock
+on:
+  workflow_dispatch:
+    inputs:
+      draft_path:
+        description: 'Repository path to execution-plan draft JSON'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate draft and derive slate date
+        id: draft
+        shell: bash
+        env:
+          DRAFT_PATH: ${{ inputs.draft_path }}
+        run: |
+          set -euo pipefail
+          test -f "$DRAFT_PATH" || { echo "Draft not found: $DRAFT_PATH" >&2; exit 1; }
+          DATE=$(node --input-type=module - "$DRAFT_PATH" <<'NODE'
+          import fs from 'node:fs';
+          const f=process.argv[2],z=JSON.parse(fs.readFileSync(f,'utf8'));
+          const d=String(z?.date||'');
+          if(!/^2026-\d\d-\d\d$/.test(d)) throw Error('draft requires valid 2026 date');
+          if(!Array.isArray(z?.rows)||!z.rows.length) throw Error('draft requires rows');
+          if(!Array.isArray(z?.tickets)) throw Error('draft requires tickets array');
+          console.log(d);
+          NODE
+          )
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+      - name: Syntax preflight
+        run: |
+          node --check scripts/capture-v38-pregame-snapshot.mjs
+          node --check scripts/capture-v38-context-snapshot.mjs
+          node --check scripts/freeze-v38-execution-plan.mjs
+          node --check scripts/diagnose-v38-execution-plan.mjs
+          node --check scripts/freeze-v38-slate-decision-bundle.mjs
+      - name: Capture fresh point-in-time profile evidence
+        run: node scripts/capture-v38-pregame-snapshot.mjs "${{ steps.draft.outputs.date }}"
+      - name: Capture fresh point-in-time context evidence
+        run: node scripts/capture-v38-context-snapshot.mjs "${{ steps.draft.outputs.date }}"
+      - name: Freeze exact execution plan
+        env:
+          DRAFT_PATH: ${{ inputs.draft_path }}
+        run: node scripts/freeze-v38-execution-plan.mjs "$DRAFT_PATH"
+      - name: Bind evidence and decision artifacts
+        id: files
+        shell: bash
+        env:
+          DATE: ${{ steps.draft.outputs.date }}
+        run: |
+          set -euo pipefail
+          PROFILE=$(find snapshots -type f -name "v38-pregame-${DATE}-*.json" | sort | tail -1)
+          CONTEXT=$(find snapshots -type f -name "v38-context-${DATE}-*.json" | sort | tail -1)
+          PLAN=$(find prospective-execution-plans -type f -name "${DATE}-*.json" | sort | tail -1)
+          test -n "$PROFILE" -a -f "$PROFILE"
+          test -n "$CONTEXT" -a -f "$CONTEXT"
+          test -n "$PLAN" -a -f "$PLAN"
+          node scripts/diagnose-v38-execution-plan.mjs "$PLAN" | tee execution-diagnostics.log
+          node scripts/freeze-v38-slate-decision-bundle.mjs "$PROFILE" "$CONTEXT" "$PLAN" | tee decision-bundle.log
+          BUNDLE=$(find prospective-decision-bundles -type f -name "${DATE}-*.json" | sort | tail -1)
+          test -n "$BUNDLE" -a -f "$BUNDLE"
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
+          echo "context=$CONTEXT" >> "$GITHUB_OUTPUT"
+          echo "plan=$PLAN" >> "$GITHUB_OUTPUT"
+          echo "bundle=$BUNDLE" >> "$GITHUB_OUTPUT"
+      - name: Verify final lock package
+        shell: bash
+        env:
+          PROFILE: ${{ steps.files.outputs.profile }}
+          CONTEXT: ${{ steps.files.outputs.context }}
+          PLAN: ${{ steps.files.outputs.plan }}
+          BUNDLE: ${{ steps.files.outputs.bundle }}
+        run: |
+          set -euo pipefail
+          node --input-type=module - "$PROFILE" "$CONTEXT" "$PLAN" "$BUNDLE" <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const [pf,cf,ef,bf]=process.argv.slice(2);
+          const files=[['profile',pf],['context',cf],['plan',ef],['bundle',bf]];
+          const z={};
+          for(const [k,f] of files){
+            z[k]=JSON.parse(fs.readFileSync(f,'utf8'));
+            const {sha256,...body}=z[k];
+            if(typeof sha256!=='string') throw Error(`${k} sha missing`);
+            const calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+            if(calc!==sha256) throw Error(`${k} sha mismatch`);
+          }
+          if(z.bundle.source_artifacts?.profile?.sha256!==z.profile.sha256) throw Error('bundle/profile mismatch');
+          if(z.bundle.source_artifacts?.context?.sha256!==z.context.sha256) throw Error('bundle/context mismatch');
+          if(z.bundle.source_artifacts?.execution_plan?.sha256!==z.plan.sha256) throw Error('bundle/plan mismatch');
+          if(z.bundle.coverage?.exact_game_set_match!==true) throw Error('game universe mismatch');
+          if(z.plan.point_in_time!==true||z.plan.prospective!==true||z.bundle.point_in_time!==true||z.bundle.prospective!==true) throw Error('unsafe prospective flags');
+          console.log('BANDALYTICS_PROSPECTIVE_SLATE_LOCK_OK='+JSON.stringify({date:z.plan.date,plan_sha256:z.plan.sha256,bundle_sha256:z.bundle.sha256,final_pool_n:z.plan.summary?.final_pool_n,tickets:z.plan.summary?.ticket_count,total_paths:z.plan.summary?.total_ticket_paths}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-prospective-slate-lock-${{ github.run_id }}
+          path: |
+            snapshots/v38-pregame-${{ steps.draft.outputs.date }}-*.json
+            snapshots/v38-context-${{ steps.draft.outputs.date }}-*.json
+            prospective-execution-plans/${{ steps.draft.outputs.date }}-*.json
+            prospective-decision-bundles/${{ steps.draft.outputs.date }}-*.json
+            execution-diagnostics.log
+            decision-bundle.log
+          if-no-files-found: error
+          retention-days: 90
