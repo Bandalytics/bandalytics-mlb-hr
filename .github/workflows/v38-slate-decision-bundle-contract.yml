@@ -7,7 +7,9 @@ on:
       - 'test-v38-slate-decision-bundle.mjs'
       - 'test-v38-prospective-slate-lock-workflow.mjs'
       - 'test-v38-execution-draft-hydrator.mjs'
+      - 'test-v38-prospective-postslate-workflow.mjs'
       - '.github/workflows/v38-prospective-slate-lock.yml'
+      - '.github/workflows/v38-prospective-postslate-audit.yml'
       - 'package.json'
       - '.github/workflows/v38-slate-decision-bundle-contract.yml'
   workflow_dispatch:
@@ -32,3 +34,5 @@ jobs:
         run: node test-v38-execution-draft-hydrator.mjs
       - name: Prospective slate lock workflow contract
         run: node test-v38-prospective-slate-lock-workflow.mjs
+      - name: Prospective post-slate workflow contract
+        run: node test-v38-prospective-postslate-workflow.mjs
