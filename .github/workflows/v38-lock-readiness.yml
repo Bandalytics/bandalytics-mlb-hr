@@ -59,11 +59,14 @@ jobs:
           node --input-type=module - "$F" <<'NODE'
           import fs from 'node:fs';import crypto from 'node:crypto';
           const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          if(z.protocol!=='BANDALYTICS_LOCK_READINESS_V1'||z.point_in_time!==true||z.research_only!==true||z.scoring_enabled!==false||z.production_rule_changed!==false||z.final_cut_promoted!==false)throw Error('unsafe readiness artifact');
+          if(z.protocol!=='BANDALYTICS_LOCK_READINESS_V2'||z.point_in_time!==true||z.research_only!==true||z.scoring_enabled!==false||z.production_rule_changed!==false||z.final_cut_promoted!==false)throw Error('unsafe readiness artifact');
           const {sha256,...body}=z,calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');if(calc!==sha256)throw Error('readiness sha mismatch');
           for(const r of z.rows){
             if(r.readiness_state==='ACTIONABLE_REVIEW'&&(!r.locked_policy?.qualified||r.lineup_verified!==true))throw Error(`invalid actionable row ${r.player}`);
             if(r.locked_policy?.gate_count===4&&r.readiness_state==='ACTIONABLE_REVIEW'&&!(Number(r.american_odds)>=700))throw Error(`unprotected 4/6 actionable row ${r.player}`);
+            const e=r.evidence_lane_inputs;if(!e||!e.PROFILE||!e.HEAT||!e.MATCHUP||!e.VALUE||!e.opportunity||!e.park_context)throw Error(`evidence inputs missing for ${r.player}`);
+            if(e.VALUE.support!==null)throw Error(`VALUE must not auto-confirm from price for ${r.player}`);
+            if(e.park_context.not_an_evidence_lane!==true)throw Error(`park incorrectly promoted for ${r.player}`);
           }
           console.log('V38_LOCK_READINESS_OK='+JSON.stringify({date:z.date,counts:z.counts}));
           NODE
