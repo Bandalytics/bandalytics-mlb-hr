@@ -8,7 +8,9 @@ on:
     branches: [main]
     paths:
       - 'scripts/build-v38-lock-readiness.mjs'
+      - 'scripts/build-v38-execution-draft-template.mjs'
       - 'test-v38-lock-readiness.mjs'
+      - 'test-v38-execution-draft-template.mjs'
       - 'v38-locked-policy-core.mjs'
       - '.github/workflows/v38-lock-readiness.yml'
   workflow_dispatch:
@@ -31,7 +33,9 @@ jobs:
       - name: Contract preflight
         run: |
           node --check scripts/build-v38-lock-readiness.mjs
+          node --check scripts/build-v38-execution-draft-template.mjs
           node test-v38-lock-readiness.mjs
+          node test-v38-execution-draft-template.mjs
       - name: Download triggering live board
         if: github.event_name == 'workflow_run'
         run: |
@@ -70,9 +74,23 @@ jobs:
           }
           console.log('V38_LOCK_READINESS_OK='+JSON.stringify({date:z.date,counts:z.counts}));
           NODE
+      - name: Build unresolved execution draft template
+        run: |
+          set -euo pipefail
+          F=$(find snapshots -type f -name 'v38-lock-readiness-*.json' | sort | tail -1)
+          node scripts/build-v38-execution-draft-template.mjs "$F"
+          T=$(find execution-draft-templates -type f -name '*.json' | sort | tail -1)
+          node --input-type=module - "$T" <<'NODE'
+          import fs from 'node:fs';const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(z.protocol!=='BANDALYTICS_EXECUTION_DRAFT_TEMPLATE_V1'||z.decision_state!=='UNRESOLVED'||z.point_in_time!==true||z.research_only!==true)throw Error('unsafe execution draft template');
+          if(z.rows.some(r=>r.final_cut!==null||r.exposure_state!=='UNCLASSIFIED'||!Array.isArray(r.evidence_lanes)||r.evidence_lanes.length))throw Error('template must not make final-cut/exposure decisions');
+          console.log('V38_EXECUTION_DRAFT_TEMPLATE_OK='+JSON.stringify({date:z.date,rows:z.rows.length,actionable:z.rows.filter(r=>r.eligible_for_final_cut).length}));
+          NODE
       - uses: actions/upload-artifact@v4
         with:
           name: v38-lock-readiness-${{ github.run_id }}
-          path: snapshots/v38-lock-readiness-*.json
+          path: |
+            snapshots/v38-lock-readiness-*.json
+            execution-draft-templates/*.json
           if-no-files-found: error
           retention-days: 90
