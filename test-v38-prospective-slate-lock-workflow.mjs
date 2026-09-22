@@ -6,6 +6,8 @@ for(const marker of [
   'name: v38 Prospective Slate Lock',
   'workflow_dispatch:',
   'draft_path:',
+  'validate-v38-final-cut-review.mjs',
+  'FINAL_CUT_REVIEW_VALIDATION_SKIPPED_LEGACY_DRAFT',
   'capture-v38-pregame-snapshot.mjs',
   'capture-v38-context-snapshot.mjs',
   'freeze-v38-execution-plan.mjs',
@@ -15,11 +17,13 @@ for(const marker of [
   'actions/upload-artifact@v4',
   'retention-days: 90'
 ])assert.ok(s.includes(marker),`missing workflow marker: ${marker}`);
+const validateReview=s.indexOf('validate-v38-final-cut-review.mjs');
 const captureProfile=s.indexOf('capture-v38-pregame-snapshot.mjs');
 const captureContext=s.indexOf('capture-v38-context-snapshot.mjs');
 const freezePlan=s.indexOf('freeze-v38-execution-plan.mjs');
 const diagnose=s.indexOf('diagnose-v38-execution-plan.mjs');
 const bundle=s.indexOf('freeze-v38-slate-decision-bundle.mjs');
+assert.ok(validateReview<captureProfile,'final-cut review validation must occur before fresh evidence capture/lock');
 assert.ok(captureProfile<freezePlan,'profile evidence must freeze before plan');
 assert.ok(captureContext<freezePlan,'context evidence must freeze before plan');
 assert.ok(freezePlan<diagnose,'plan must freeze before diagnostics');
