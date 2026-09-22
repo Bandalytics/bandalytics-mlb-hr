@@ -10,9 +10,13 @@ on:
       - 'scripts/build-v38-lock-readiness.mjs'
       - 'scripts/build-v38-execution-draft-template.mjs'
       - 'scripts/build-v38-compression-escape-watch.mjs'
+      - 'scripts/validate-v38-final-cut-review.mjs'
       - 'test-v38-lock-readiness.mjs'
       - 'test-v38-execution-draft-template.mjs'
       - 'test-v38-compression-escape-watch.mjs'
+      - 'test-v38-final-cut-review.mjs'
+      - 'test-v38-prospective-slate-lock-workflow.mjs'
+      - '.github/workflows/v38-prospective-slate-lock.yml'
       - 'v38-locked-policy-core.mjs'
       - '.github/workflows/v38-lock-readiness.yml'
   workflow_dispatch:
@@ -37,9 +41,12 @@ jobs:
           node --check scripts/build-v38-lock-readiness.mjs
           node --check scripts/build-v38-execution-draft-template.mjs
           node --check scripts/build-v38-compression-escape-watch.mjs
+          node --check scripts/validate-v38-final-cut-review.mjs
           node test-v38-lock-readiness.mjs
           node test-v38-execution-draft-template.mjs
           node test-v38-compression-escape-watch.mjs
+          node test-v38-final-cut-review.mjs
+          node test-v38-prospective-slate-lock-workflow.mjs
       - name: Download triggering live board
         if: github.event_name == 'workflow_run'
         run: |
