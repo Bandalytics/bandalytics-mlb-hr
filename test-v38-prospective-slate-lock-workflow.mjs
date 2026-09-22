@@ -17,13 +17,13 @@ for(const marker of [
   'actions/upload-artifact@v4',
   'retention-days: 90'
 ])assert.ok(s.includes(marker),`missing workflow marker: ${marker}`);
-const validateReview=s.indexOf('validate-v38-final-cut-review.mjs');
-const captureProfile=s.indexOf('capture-v38-pregame-snapshot.mjs');
-const captureContext=s.indexOf('capture-v38-context-snapshot.mjs');
-const freezePlan=s.indexOf('freeze-v38-execution-plan.mjs');
-const diagnose=s.indexOf('diagnose-v38-execution-plan.mjs');
-const bundle=s.indexOf('freeze-v38-slate-decision-bundle.mjs');
-assert.ok(validateReview<captureProfile,'final-cut review validation must occur before fresh evidence capture/lock');
+const validateReview=s.indexOf('- name: Validate explicit final cut review when using V2 template');
+const captureProfile=s.indexOf('- name: Capture fresh point-in-time profile evidence');
+const captureContext=s.indexOf('- name: Capture fresh point-in-time context evidence');
+const freezePlan=s.indexOf('- name: Freeze exact execution plan');
+const diagnose=s.indexOf('node scripts/diagnose-v38-execution-plan.mjs');
+const bundle=s.indexOf('node scripts/freeze-v38-slate-decision-bundle.mjs');
+assert.ok(validateReview>=0&&validateReview<captureProfile,'final-cut review validation must occur before fresh evidence capture/lock');
 assert.ok(captureProfile<freezePlan,'profile evidence must freeze before plan');
 assert.ok(captureContext<freezePlan,'context evidence must freeze before plan');
 assert.ok(freezePlan<diagnose,'plan must freeze before diagnostics');
