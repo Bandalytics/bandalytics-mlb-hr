@@ -44,6 +44,23 @@ jobs:
           node --check scripts/freeze-v38-execution-plan.mjs
           node --check scripts/diagnose-v38-execution-plan.mjs
           node --check scripts/freeze-v38-slate-decision-bundle.mjs
+          node --check scripts/validate-v38-final-cut-review.mjs
+          node test-v38-final-cut-review.mjs
+      - name: Validate explicit final cut review when using V2 template
+        shell: bash
+        env:
+          DRAFT_PATH: ${{ inputs.draft_path }}
+        run: |
+          set -euo pipefail
+          PROTOCOL=$(node --input-type=module - "$DRAFT_PATH" <<'NODE'
+          import fs from 'node:fs';const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));console.log(String(z?.protocol||''));
+          NODE
+          )
+          if [ "$PROTOCOL" = "BANDALYTICS_EXECUTION_DRAFT_TEMPLATE_V2" ]; then
+            node scripts/validate-v38-final-cut-review.mjs "$DRAFT_PATH" | tee final-cut-review.log
+          else
+            echo "FINAL_CUT_REVIEW_VALIDATION_SKIPPED_LEGACY_DRAFT protocol=$PROTOCOL" | tee final-cut-review.log
+          fi
       - name: Capture fresh point-in-time profile evidence
         run: node scripts/capture-v38-pregame-snapshot.mjs "${{ steps.draft.outputs.date }}"
       - name: Capture fresh point-in-time context evidence
@@ -129,6 +146,7 @@ jobs:
             hydrated-execution-drafts/${{ steps.draft.outputs.date }}-*.json
             prospective-execution-plans/${{ steps.draft.outputs.date }}-*.json
             prospective-decision-bundles/${{ steps.draft.outputs.date }}-*.json
+            final-cut-review.log
             hydration.log
             execution-diagnostics.log
             decision-bundle.log
