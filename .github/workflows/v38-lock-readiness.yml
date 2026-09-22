@@ -9,8 +9,10 @@ on:
     paths:
       - 'scripts/build-v38-lock-readiness.mjs'
       - 'scripts/build-v38-execution-draft-template.mjs'
+      - 'scripts/build-v38-compression-escape-watch.mjs'
       - 'test-v38-lock-readiness.mjs'
       - 'test-v38-execution-draft-template.mjs'
+      - 'test-v38-compression-escape-watch.mjs'
       - 'v38-locked-policy-core.mjs'
       - '.github/workflows/v38-lock-readiness.yml'
   workflow_dispatch:
@@ -34,8 +36,10 @@ jobs:
         run: |
           node --check scripts/build-v38-lock-readiness.mjs
           node --check scripts/build-v38-execution-draft-template.mjs
+          node --check scripts/build-v38-compression-escape-watch.mjs
           node test-v38-lock-readiness.mjs
           node test-v38-execution-draft-template.mjs
+          node test-v38-compression-escape-watch.mjs
       - name: Download triggering live board
         if: github.event_name == 'workflow_run'
         run: |
@@ -51,11 +55,14 @@ jobs:
           RID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-live-research-board.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id')
           gh run download "$RID" --repo "$GH_REPO" --name "v38-live-research-board-${RID}" --dir incoming/live-board
       - name: Build prospective lock readiness
+        id: build
         run: |
           set -euo pipefail
           BOARD=$(find incoming/live-board -type f -name 'v38-live-research-board-*.json' | sort | tail -1)
           test -n "$BOARD"
           node scripts/build-v38-lock-readiness.mjs "$BOARD"
+          node scripts/build-v38-compression-escape-watch.mjs "$BOARD"
+          echo "board=$BOARD" >> "$GITHUB_OUTPUT"
       - name: Verify readiness artifact
         run: |
           set -euo pipefail
@@ -72,7 +79,20 @@ jobs:
             if(e.VALUE.support!==null)throw Error(`VALUE must not auto-confirm from price for ${r.player}`);
             if(e.park_context.not_an_evidence_lane!==true)throw Error(`park incorrectly promoted for ${r.player}`);
           }
-          console.log('V38_LOCK_READINESS_OK='+JSON.stringify({date:z.date,counts:z.counts}));
+          console.log('V38_LOCK_READINESS_OK='+JSON.stringify({date:z.date,counts:z.counts,compression:z.compression_diagnostics}));
+          NODE
+      - name: Verify compression escape watch
+        run: |
+          set -euo pipefail
+          F=$(find snapshots -type f -name 'v38-compression-escape-watch-*.json' | sort | tail -1)
+          node --input-type=module - "$F" <<'NODE'
+          import fs from 'node:fs';import crypto from 'node:crypto';
+          const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(z.protocol!=='BANDALYTICS_COMPRESSION_ESCAPE_WATCH_V1'||z.point_in_time!==true||z.research_only!==true||z.scoring_enabled!==false||z.production_rule_changed!==false||z.auto_promote!==false)throw Error('unsafe compression escape watch');
+          const {sha256,...body}=z,calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');if(calc!==sha256)throw Error('compression escape watch sha mismatch');
+          if(z.rows.some(r=>!r.locked_policy?.qualified))throw Error('non-qualified row in compression escape watch');
+          if(z.rows.some(r=>r.evidence?.VALUE?.support!==null))throw Error('VALUE auto-confirmed in compression escape watch');
+          console.log('V38_COMPRESSION_ESCAPE_WATCH_OK='+JSON.stringify({date:z.date,summary:z.summary}));
           NODE
       - name: Build unresolved execution draft template
         run: |
@@ -91,6 +111,7 @@ jobs:
           name: v38-lock-readiness-${{ github.run_id }}
           path: |
             snapshots/v38-lock-readiness-*.json
+            snapshots/v38-compression-escape-watch-*.json
             execution-draft-templates/*.json
           if-no-files-found: error
           retention-days: 90
