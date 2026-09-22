@@ -14,6 +14,7 @@ export const V38_POOL_SHORTLIST_V3=Object.freeze({
   notes:Object.freeze([
     'CORE_ALWAYS_RETAINED_FOR_RESEARCH_REVIEW',
     'NONCORE_REQUIRES_MULTIPLE_INDEPENDENT_SUPPORT_SIGNALS',
+    'PITCHFIT_IS_PRIMARY_NIGHTLY_MATCHUP_SUPPORT',
     'PARK_IS_SUPPORT_ONLY_AND_NEVER_STANDALONE',
     'MISSING_EVIDENCE_IS_PENDING_NOT_AUTOMATIC_NEGATIVE',
     'TWENTY_TO_TWENTY_FIVE_IS_A_PREFERRED_RANGE_NOT_A_REQUIRED_COUNT',
@@ -35,10 +36,12 @@ export function snapshotSlateGameCount(snapshot={}){
 }
 
 function preferredMarket(o){const n=Number(o);return Number.isFinite(n)&&n>=500&&n<=1500}
+function pitchfitSupport(row){return row?.pitchfit?.fit_status==='TRUE'}
 function bbeSupport(b){return['TOP_QUARTILE','TOP_DECILE'].includes(b?.hrshape_band)}
 function supportFlags(row={}){return{
   preferred_market:preferredMarket(row.american_odds),
   confirmed_lineup:row.context?.confirmed_lineup===true,
+  pitchfit_support:pitchfitSupport(row),
   bbe_support:bbeSupport(row.bbe_band),
   exact_side_park:!!(row.park_factor&&Number.isFinite(Number(row.park_factor.hr_factor)))
 }}
@@ -74,7 +77,7 @@ export function dynamicReviewPolicy(slateGameCount){
 function boolRank(v){return v?0:1}
 export function compareFinalReviewRowsV3(a,b){
   const af=a?.shortlist?.flags||{},bf=b?.shortlist?.flags||{};
-  for(const k of ['preferred_market','confirmed_lineup','bbe_support','exact_side_park']){const d=boolRank(af[k])-boolRank(bf[k]);if(d)return d}
+  for(const k of ['preferred_market','confirmed_lineup','pitchfit_support','bbe_support','exact_side_park']){const d=boolRank(af[k])-boolRank(bf[k]);if(d)return d}
   const sc=(Number(b?.shortlist?.support_count)||0)-(Number(a?.shortlist?.support_count)||0);if(sc)return sc;
   const gc=(Number(b?.gate_count)||0)-(Number(a?.gate_count)||0);if(gc)return gc;
   return(Number(a?.player_id)||0)-(Number(b?.player_id)||0);
