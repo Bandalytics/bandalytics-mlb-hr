@@ -55,14 +55,12 @@ jobs:
           RID=$(gh api "repos/${GH_REPO}/actions/workflows/v38-live-research-board.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id')
           gh run download "$RID" --repo "$GH_REPO" --name "v38-live-research-board-${RID}" --dir incoming/live-board
       - name: Build prospective lock readiness
-        id: build
         run: |
           set -euo pipefail
           BOARD=$(find incoming/live-board -type f -name 'v38-live-research-board-*.json' | sort | tail -1)
           test -n "$BOARD"
           node scripts/build-v38-lock-readiness.mjs "$BOARD"
           node scripts/build-v38-compression-escape-watch.mjs "$BOARD"
-          echo "board=$BOARD" >> "$GITHUB_OUTPUT"
       - name: Verify readiness artifact
         run: |
           set -euo pipefail
@@ -98,13 +96,16 @@ jobs:
         run: |
           set -euo pipefail
           F=$(find snapshots -type f -name 'v38-lock-readiness-*.json' | sort | tail -1)
-          node scripts/build-v38-execution-draft-template.mjs "$F"
+          W=$(find snapshots -type f -name 'v38-compression-escape-watch-*.json' | sort | tail -1)
+          node scripts/build-v38-execution-draft-template.mjs "$F" "$W"
           T=$(find execution-draft-templates -type f -name '*.json' | sort | tail -1)
-          node --input-type=module - "$T" <<'NODE'
-          import fs from 'node:fs';const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
-          if(z.protocol!=='BANDALYTICS_EXECUTION_DRAFT_TEMPLATE_V1'||z.decision_state!=='UNRESOLVED'||z.point_in_time!==true||z.research_only!==true)throw Error('unsafe execution draft template');
+          node --input-type=module - "$T" "$W" <<'NODE'
+          import fs from 'node:fs';const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8')),w=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+          if(z.protocol!=='BANDALYTICS_EXECUTION_DRAFT_TEMPLATE_V2'||z.decision_state!=='UNRESOLVED'||z.point_in_time!==true||z.research_only!==true)throw Error('unsafe execution draft template');
           if(z.rows.some(r=>r.final_cut!==null||r.exposure_state!=='UNCLASSIFIED'||!Array.isArray(r.evidence_lanes)||r.evidence_lanes.length))throw Error('template must not make final-cut/exposure decisions');
-          console.log('V38_EXECUTION_DRAFT_TEMPLATE_OK='+JSON.stringify({date:z.date,rows:z.rows.length,actionable:z.rows.filter(r=>r.eligible_for_final_cut).length}));
+          const expected=w.rows.filter(r=>r.watch_state==='MULTI_LANE_OUTSIDE_REVIEW').length;
+          if(z.compression_watch.length!==expected||z.compression_watch.some(r=>r.review_disposition!==null||r.auto_promote!==false))throw Error('compression watch not preserved unresolved');
+          console.log('V38_EXECUTION_DRAFT_TEMPLATE_OK='+JSON.stringify({date:z.date,rows:z.rows.length,actionable:z.rows.filter(r=>r.eligible_for_final_cut).length,compression_watch:z.compression_watch.length}));
           NODE
       - uses: actions/upload-artifact@v4
         with:
