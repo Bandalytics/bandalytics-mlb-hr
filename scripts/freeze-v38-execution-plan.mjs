@@ -21,24 +21,29 @@ const normState=s=>String(s||'UNCLASSIFIED').trim().toUpperCase().replace(/[ -]+
 const normLane=s=>String(s||'').trim().toUpperCase().replace(/[ -]+/g,'_');
 const normCut=s=>String(s||'').trim().toUpperCase().replace(/[ -]+/g,'_');
 const names=new Set();
-let finalPool=0,baseballCuts=0,comfortCuts=0;
+let finalPool=0,baseballCuts=0,comfortCuts=0,decisionEligibleRows=0,ineligibleRows=0;
 for(const r of rows){
   const player=norm(r?.player);if(!player)throw Error('every row requires player');
   const k=key(player);if(names.has(k))throw Error(`duplicate player ${player}`);names.add(k);
   if(typeof r?.final_cut!=='boolean')throw Error(`resolved final_cut boolean required for ${player}`);
-  const isFinal=r.final_cut===true,state=normState(r?.exposure_state),cutType=normCut(r?.cut_type),cutReason=norm(r?.cut_reason);
+  const isFinal=r.final_cut===true,state=normState(r?.exposure_state),cutType=normCut(r?.cut_type),cutReason=norm(r?.cut_reason),decisionEligible=r?.eligible_for_final_cut!==false;
+  if(decisionEligible)decisionEligibleRows++;else ineligibleRows++;
   if(!allowedStates.has(state))throw Error(`bad exposure_state for ${player}`);
   const lanes=(Array.isArray(r?.evidence_lanes)?r.evidence_lanes:[]).map(normLane).filter(Boolean);
   if(new Set(lanes).size!==lanes.length)throw Error(`duplicate evidence lane for ${player}`);
   for(const lane of lanes)if(!allowedLanes.has(lane))throw Error(`bad evidence lane ${lane} for ${player}`);
   if(isFinal){
+    if(!decisionEligible)throw Error(`FINAL CUT cannot include eligibility-blocked row: ${player}`);
     if(cutType||cutReason)throw Error(`FINAL CUT row cannot retain cut label/reason: ${player}`);
     finalPool++;
-  }else{
-    if(!allowedCutTypes.has(cutType))throw Error(`non-final row requires BASEBALL_CUT or COMFORT_CUT: ${player}`);
-    if(!cutReason)throw Error(`non-final row requires cut_reason: ${player}`);
+  }else if(decisionEligible){
+    if(!allowedCutTypes.has(cutType))throw Error(`non-final actionable row requires BASEBALL_CUT or COMFORT_CUT: ${player}`);
+    if(!cutReason)throw Error(`non-final actionable row requires cut_reason: ${player}`);
     if(state!=='UNCLASSIFIED')throw Error(`cut row must remain UNCLASSIFIED exposure: ${player}`);
     if(cutType==='BASEBALL_CUT')baseballCuts++;else comfortCuts++;
+  }else{
+    if(state!=='UNCLASSIFIED')throw Error(`eligibility-blocked row must remain UNCLASSIFIED exposure: ${player}`);
+    if(cutType||cutReason)throw Error(`eligibility-blocked row must not be mislabeled as a decision cut: ${player}`);
   }
 }
 let compressionReviewedKeep=0,compressionReviewedCut=0,compressionComfortCut=0;
@@ -70,7 +75,7 @@ const frozenRows=[];
 const exposureCounts={PRIORITY_PLUS:0,PRIORITY:0,ONE_PATH:0,INTENTIONAL_ZERO:0,UNCLASSIFIED:0};
 const laneCounts={PROFILE:0,HEAT:0,MATCHUP:0,VALUE:0};
 for(const r of rows){
-  const player=norm(r.player),k=key(player);
+  const player=norm(r.player),k=key(player),decisionEligible=r?.eligible_for_final_cut!==false;
   const state=normState(r?.exposure_state);
   const lanes=(Array.isArray(r?.evidence_lanes)?r.evidence_lanes:[]).map(normLane).filter(Boolean);
   const declaredRaw=r?.ticket_paths;
@@ -92,7 +97,7 @@ for(const r of rows){
   if(isFinal&&paths===0)intentionalZero++;
   if(isFinal)exposureCounts[state]=(exposureCounts[state]||0)+1;
   for(const lane of lanes)if(isFinal)laneCounts[lane]=(laneCounts[lane]||0)+1;
-  frozenRows.push({...r,cut_type:r.final_cut===true?null:normCut(r.cut_type),cut_reason:r.final_cut===true?null:norm(r.cut_reason),exposure_state:state,evidence_lanes:lanes,ticket_paths:paths,ticket_ids:tickets.map((t,i)=>t.some(x=>key(x)===k)?`T${i+1}`:null).filter(Boolean)});
+  frozenRows.push({...r,cut_type:isFinal||!decisionEligible?null:normCut(r.cut_type),cut_reason:isFinal||!decisionEligible?null:norm(r.cut_reason),exposure_state:state,evidence_lanes:lanes,ticket_paths:paths,ticket_ids:tickets.map((t,i)=>t.some(x=>key(x)===k)?`T${i+1}`:null).filter(Boolean)});
 }
 const frozenCompressionWatch=compressionWatch.map(c=>({...c,review_disposition:normCut(c.review_disposition),review_cut_type:normCut(c.review_cut_type)||null,review_reason:norm(c.review_reason)}));
 const usage=frozenRows.filter(r=>r.final_cut===true).map(r=>r.ticket_paths).sort((a,b)=>b-a);
@@ -108,11 +113,12 @@ const body={
     evidence_lanes:['PROFILE','HEAT','MATCHUP','VALUE'],
     exposure_states:['PRIORITY_PLUS','PRIORITY','ONE_PATH','INTENTIONAL_ZERO','UNCLASSIFIED'],
     cut_labels:['BASEBALL_CUT','COMFORT_CUT'],
+    eligibility_block:'Rows already blocked by policy/lineup readiness are not labeled BASEBALL_CUT or COMFORT_CUT; those labels audit discretionary cuts from the actionable review universe only.',
     compression_watch:'Every multi-lane qualified hitter outside the review queue must be explicitly dispositioned before freeze; no auto-promotion.',
     no_auto_scoring:true
   },
   summary:{
-    review_universe_n:rows.length,final_pool_n:finalPool,baseball_cut_n:baseballCuts,comfort_cut_n:comfortCuts,
+    readiness_rows_n:rows.length,review_universe_n:decisionEligibleRows,ineligible_n:ineligibleRows,final_pool_n:finalPool,baseball_cut_n:baseballCuts,comfort_cut_n:comfortCuts,
     ticketed_n:ticketed,intentional_zero_n:intentionalZero,zero_path_n:intentionalZero,
     pool_coverage_pct:finalPool?+(100*ticketed/finalPool).toFixed(2):null,total_ticket_paths:totalPaths,ticket_count:tickets.length,
     top3_leg_concentration_pct:totalPaths?+(100*top3/totalPaths).toFixed(2):null,
