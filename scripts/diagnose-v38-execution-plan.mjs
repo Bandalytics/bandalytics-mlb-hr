@@ -13,6 +13,8 @@ const {sha256,...body}=plan;
 const calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
 if(calc!==sha256)throw Error('execution plan sha256 mismatch');
 
+const norm=s=>String(s||'').trim();
+const key=s=>norm(s).toLowerCase();
 const laneCount=r=>new Set(Array.isArray(r?.evidence_lanes)?r.evidence_lanes:[]).size;
 const paths=r=>Math.max(0,Math.trunc(Number(r?.ticket_paths)||0));
 const odds=r=>{const x=Number(r?.hr_odds??r?.odds??r?.american_odds);return Number.isFinite(x)?x:null};
@@ -23,6 +25,12 @@ function priceBucket(v){
   if(v<700)return '500_699';
   if(v<=1500)return '700_1500';
   return '1501_PLUS';
+}
+function gameIdentity(r){
+  const gp=Number(r?.gamePk);
+  if(Number.isInteger(gp))return `GAMEPK:${gp}`;
+  const matchup=norm(r?.matchup).toUpperCase();
+  return matchup?`MATCHUP:${matchup}`:null;
 }
 const final=plan.rows.filter(r=>r?.final_cut===true);
 const ineligible=plan.rows.filter(r=>r?.final_cut===false&&r?.eligible_for_final_cut===false);
@@ -66,10 +74,36 @@ const preferredLegs=(byPrice['500_699'].ticket_legs||0)+(byPrice['700_1500'].tic
 const comfortCuts=cutAudit.filter(r=>r.cut_type==='COMFORT_CUT');
 const baseballCuts=cutAudit.filter(r=>r.cut_type==='BASEBALL_CUT');
 const compressionComfortCuts=compressionAudit.filter(r=>r.review_cut_type==='COMFORT_CUT');
+
+const rowByPlayer=new Map(plan.rows.map(r=>[key(r?.player),r]));
+const pairUse=new Map();
+const pairingAudit=[];
+let sameGamePairCount=0,crossGamePairCount=0,unknownGamePairCount=0,ticketsWithSameGamePair=0;
+for(const [i,ticket] of plan.tickets.entries()){
+  const players=Array.isArray(ticket)?ticket.map(norm).filter(Boolean):[];
+  let same=0,cross=0,unknown=0;
+  for(let a=0;a<players.length;a++)for(let b=a+1;b<players.length;b++){
+    const pa=players[a],pb=players[b],ra=rowByPlayer.get(key(pa)),rb=rowByPlayer.get(key(pb));
+    const ga=gameIdentity(ra),gb=gameIdentity(rb);
+    let relation='UNKNOWN_GAME';
+    if(ga&&gb){relation=ga===gb?'SAME_GAME':'CROSS_GAME';if(relation==='SAME_GAME')same++;else cross++}else unknown++;
+    const pairKey=[key(pa),key(pb)].sort().join('||');
+    const existing=pairUse.get(pairKey)||{players:[pa,pb].sort((x,y)=>key(x).localeCompare(key(y))),ticket_count:0,same_game_uses:0,cross_game_uses:0,unknown_game_uses:0,ticket_ids:[]};
+    existing.ticket_count++;
+    existing.ticket_ids.push(`T${i+1}`);
+    if(relation==='SAME_GAME')existing.same_game_uses++;else if(relation==='CROSS_GAME')existing.cross_game_uses++;else existing.unknown_game_uses++;
+    pairUse.set(pairKey,existing);
+  }
+  sameGamePairCount+=same;crossGamePairCount+=cross;unknownGamePairCount+=unknown;
+  if(same>0)ticketsWithSameGamePair++;
+  pairingAudit.push({ticket_id:`T${i+1}`,players,same_game_pairs:same,cross_game_pairs:cross,unknown_game_pairs:unknown,all_pairs_cross_game:same===0&&unknown===0});
+}
+const repeatedPairs=[...pairUse.values()].filter(x=>x.ticket_count>=2).sort((a,b)=>b.ticket_count-a.ticket_count||a.players.join('|').localeCompare(b.players.join('|')));
+const maxPairReuse=repeatedPairs.length?Math.max(...repeatedPairs.map(x=>x.ticket_count)):0;
 const out={
   protocol:'BANDALYTICS_EXECUTION_DIAGNOSTICS_V2',date:plan.date,captured_at:plan.captured_at,source_plan_protocol:plan.protocol,source_plan_sha256:sha256,research_only:true,scoring_enabled:false,production_rule_changed:false,thresholds_locked:false,
-  summary:{final_pool_n:final.length,cut_n:cuts.length,ineligible_n:ineligible.length,baseball_cut_n:baseballCuts.length,comfort_cut_n:comfortCuts.length,ticketed_n:ticketed.length,zero_path_n:zeros.length,total_ticket_legs:totalLegs,repeated_exposure_players:repeated.length,evidence_inversion_count:inversions.length,short_price_leg_share_pct:totalLegs?+(100*shortLegs/totalLegs).toFixed(2):null,preferred_500_1500_leg_share_pct:totalLegs?+(100*preferredLegs/totalLegs).toFixed(2):null,compression_watch_n:compressionAudit.length,compression_comfort_cut_n:compressionComfortCuts.length},
-  by_price_bucket:byPrice,by_evidence_lane_count:byLaneCount,repeated_exposure:repeated,zero_path:zeroPath,evidence_inversions:inversions,cut_audit:cutAudit,eligibility_blocks:eligibilityBlocks,compression_watch_audit:compressionAudit,
-  semantics:{evidence_inversion:'Diagnostic only: a 2+ lane zero-path hitter had more independent evidence lanes than a hitter repeated on 2+ tickets.',price_buckets:'Descriptive only; no automatic exposure cap or promotion.',market_chalk_not_process_chalk:'Short price share measures market chalk. Evidence inversions and repeated exposure measure process allocation.',comfort_cut:'Descriptive audit label for a cut made primarily for safety/familiarity rather than materially weaker baseball evidence. It never auto-promotes a hitter.',eligibility_block:'Policy/lineup-blocked rows are tracked separately and are not counted as BASEBALL_CUT or COMFORT_CUT decisions.'}
+  summary:{final_pool_n:final.length,cut_n:cuts.length,ineligible_n:ineligible.length,baseball_cut_n:baseballCuts.length,comfort_cut_n:comfortCuts.length,ticketed_n:ticketed.length,zero_path_n:zeros.length,total_ticket_legs:totalLegs,repeated_exposure_players:repeated.length,evidence_inversion_count:inversions.length,short_price_leg_share_pct:totalLegs?+(100*shortLegs/totalLegs).toFixed(2):null,preferred_500_1500_leg_share_pct:totalLegs?+(100*preferredLegs/totalLegs).toFixed(2):null,compression_watch_n:compressionAudit.length,compression_comfort_cut_n:compressionComfortCuts.length,ticket_count:plan.tickets.length,same_game_pair_count:sameGamePairCount,cross_game_pair_count:crossGamePairCount,unknown_game_pair_count:unknownGamePairCount,tickets_with_same_game_pair_n:ticketsWithSameGamePair,repeated_pair_n:repeatedPairs.length,max_pair_reuse:maxPairReuse},
+  by_price_bucket:byPrice,by_evidence_lane_count:byLaneCount,repeated_exposure:repeated,zero_path:zeroPath,evidence_inversions:inversions,cut_audit:cutAudit,eligibility_blocks:eligibilityBlocks,compression_watch_audit:compressionAudit,pairing_audit:pairingAudit,repeated_pairs:repeatedPairs,
+  semantics:{evidence_inversion:'Diagnostic only: a 2+ lane zero-path hitter had more independent evidence lanes than a hitter repeated on 2+ tickets.',price_buckets:'Descriptive only; no automatic exposure cap or promotion.',market_chalk_not_process_chalk:'Short price share measures market chalk. Evidence inversions and repeated exposure measure process allocation.',comfort_cut:'Descriptive audit label for a cut made primarily for safety/familiarity rather than materially weaker baseball evidence. It never auto-promotes a hitter.',eligibility_block:'Policy/lineup-blocked rows are tracked separately and are not counted as BASEBALL_CUT or COMFORT_CUT decisions.',pairing_audit:'Shadow-only description of ticket pair structure. Cross-game remains the default construction preference, but no same-game count, pair-reuse count, or concentration threshold is a locked rule.',repeated_pair:'A player pair appearing together on 2+ tickets. Descriptive only; does not auto-reject or cap the pair.'}
 };
 console.log('V38_EXECUTION_DIAGNOSTICS='+JSON.stringify(out));
