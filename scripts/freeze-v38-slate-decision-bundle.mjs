@@ -21,7 +21,8 @@ const csha=verifySha(context,'context snapshot');
 const esha=verifySha(plan,'execution plan');
 requireFlags(profile,'profile snapshot');
 requireFlags(context,'context snapshot');
-if(plan?.protocol!=='BANDALYTICS_EXECUTION_PLAN_PROSPECTIVE_V2'||plan?.prospective!==true||plan?.point_in_time!==true||plan?.research_only!==true)throw Error('prospective V2 execution plan required');
+const allowedPlanProtocols=new Set(['BANDALYTICS_EXECUTION_PLAN_PROSPECTIVE_V2','BANDALYTICS_EXECUTION_PLAN_PROSPECTIVE_V3']);
+if(!allowedPlanProtocols.has(plan?.protocol)||plan?.prospective!==true||plan?.point_in_time!==true||plan?.research_only!==true)throw Error('prospective V2/V3 execution plan required');
 if(profile?.snapshot_protocol!=='V38_PREGAME_SNAPSHOT_V1')throw Error('unexpected profile snapshot protocol');
 if(context?.context_protocol!=='V38_CONTEXT_SNAPSHOT_V1')throw Error('unexpected context snapshot protocol');
 const date=String(plan.date||'');
@@ -43,7 +44,7 @@ const body={
   source_artifacts:{
     profile:{protocol:profile.snapshot_protocol,captured_at:profile.captured_at,sha256:psha,file:path.basename(profileFile),pregame_games:profileGames.size,profile_complete:profile.profile_complete??null},
     context:{protocol:context.context_protocol,captured_at:context.captured_at,sha256:csha,file:path.basename(contextFile),pregame_games:contextGames.size,confirmed_lineups:context.confirmed_lineups??null,market_ok:context.market_ok===true},
-    execution_plan:{protocol:plan.protocol,captured_at:plan.captured_at,sha256:esha,file:path.basename(planFile),final_pool_n:plan.summary?.final_pool_n??null,ticket_count:plan.summary?.ticket_count??null,total_ticket_paths:plan.summary?.total_ticket_paths??null}
+    execution_plan:{protocol:plan.protocol,captured_at:plan.captured_at,sha256:esha,file:path.basename(planFile),final_pool_n:plan.summary?.final_pool_n??null,ticket_count:plan.summary?.ticket_count??null,total_ticket_paths:plan.summary?.total_ticket_paths??null,baseball_cut_n:plan.summary?.baseball_cut_n??null,comfort_cut_n:plan.summary?.comfort_cut_n??null,compression_watch_n:plan.summary?.compression_watch_n??null}
   },
   chronology:{profile_before_execution:pt<=et,context_before_execution:ct<=et,execution_before_earliest_game:et<earliest,earliest_included_game_start:new Date(earliest).toISOString()},
   coverage:{profile_game_count:profileGames.size,context_game_count:contextGames.size,missing_context_gamePks:missingContext,missing_profile_gamePks:missingProfile,exact_game_set_match:missingContext.length===0&&missingProfile.length===0},
