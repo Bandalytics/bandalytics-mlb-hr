@@ -6,6 +6,7 @@ on:
       - '.github/workflows/v38-workflow-revalidation.yml'
       - 'scripts/evaluate-v38-workflow-revalidation.mjs'
       - 'scripts/evaluate-v38-exposure-revalidation.mjs'
+      - 'scripts/evaluate-v38-exposure-share-revalidation.mjs'
       - 'scripts/run-v38-point-in-time-replay.mjs'
       - 'scripts/analyze-v38-pitchfit-slate.mjs'
       - 'scripts/analyze-v38-recent-bbe-slate.mjs'
@@ -14,6 +15,7 @@ on:
       - 'v38-historical-profile-core.mjs'
       - 'test-v38-workflow-revalidation.mjs'
       - 'test-v38-exposure-revalidation.mjs'
+      - 'test-v38-exposure-share-revalidation.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -36,9 +38,11 @@ jobs:
           node --check v38-workflow-revalidation-core.mjs
           node --check scripts/evaluate-v38-workflow-revalidation.mjs
           node --check scripts/evaluate-v38-exposure-revalidation.mjs
+          node --check scripts/evaluate-v38-exposure-share-revalidation.mjs
           node --check scripts/run-v38-point-in-time-replay.mjs
           node test-v38-workflow-revalidation.mjs
           node test-v38-exposure-revalidation.mjs
+          node test-v38-exposure-share-revalidation.mjs
       - name: Rebuild pregame profile
         run: node scripts/run-v38-point-in-time-replay.mjs "${{ matrix.replay_date }}"
       - name: Rebuild as-of pitch fit
@@ -51,6 +55,8 @@ jobs:
         run: node scripts/evaluate-v38-workflow-revalidation.mjs "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json" "snapshots/v38-pitchfit-${{ matrix.replay_date }}.json" "snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json" "snapshots/v38-starter-damage-${{ matrix.replay_date }}.json"
       - name: Compare exposure-ranking strategies
         run: node scripts/evaluate-v38-exposure-revalidation.mjs "snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json"
+      - name: Compare percentage-based exposure boards
+        run: node scripts/evaluate-v38-exposure-share-revalidation.mjs "snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json"
       - uses: actions/upload-artifact@v4
         with:
           name: v38-workflow-revalidation-${{ matrix.replay_date }}-${{ github.run_id }}
@@ -61,5 +67,6 @@ jobs:
             snapshots/v38-starter-damage-${{ matrix.replay_date }}.json
             snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json
             snapshots/v38-exposure-revalidation-${{ matrix.replay_date }}.json
+            snapshots/v38-exposure-share-revalidation-${{ matrix.replay_date }}.json
           if-no-files-found: error
           retention-days: 90
