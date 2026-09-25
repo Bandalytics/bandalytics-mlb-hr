@@ -1,0 +1,1 @@
+BANDALYTICS workflow revalidation batch 2: expands the hidden-outcome walk-forward sample by 30 consecutive historical slates (2026-07-24 through 2026-08-22). Research-only. Core rules remain frozen. ROI and protected 4/6 remain fail-closed without verified historical price provenance.

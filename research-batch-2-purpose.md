@@ -1,0 +1,1 @@
+Purpose: stress-test anti-overcompression across a larger historical sample without changing Core 6, archetype, starter, or ticket rules. The 30-slate batch is strictly research-only and extends the existing 10-slate validation to 40 total slates.
