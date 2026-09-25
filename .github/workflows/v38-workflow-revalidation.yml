@@ -1,0 +1,57 @@
+name: v38 Workflow Revalidation
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v38-workflow-revalidation.yml'
+      - 'scripts/evaluate-v38-workflow-revalidation.mjs'
+      - 'scripts/run-v38-point-in-time-replay.mjs'
+      - 'scripts/analyze-v38-pitchfit-slate.mjs'
+      - 'scripts/analyze-v38-recent-bbe-slate.mjs'
+      - 'scripts/analyze-v38-starter-damage-slate.mjs'
+      - 'v38-workflow-revalidation-core.mjs'
+      - 'v38-historical-profile-core.mjs'
+      - 'test-v38-workflow-revalidation.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  revalidate:
+    strategy:
+      fail-fast: false
+      matrix:
+        replay_date: ['2026-08-23','2026-08-24','2026-08-25','2026-08-26','2026-08-27','2026-08-28','2026-08-29','2026-08-30','2026-08-31','2026-09-01']
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax and leakage contract
+        run: |
+          node --check v38-workflow-revalidation-core.mjs
+          node --check scripts/evaluate-v38-workflow-revalidation.mjs
+          node --check scripts/run-v38-point-in-time-replay.mjs
+          node test-v38-workflow-revalidation.mjs
+      - name: Rebuild pregame profile
+        run: node scripts/run-v38-point-in-time-replay.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild as-of pitch fit
+        run: node scripts/analyze-v38-pitchfit-slate.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild as-of recent BBE
+        run: node scripts/analyze-v38-recent-bbe-slate.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild as-of starter damage
+        run: node scripts/analyze-v38-starter-damage-slate.mjs "${{ matrix.replay_date }}" "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
+      - name: Compare compression cohorts
+        run: node scripts/evaluate-v38-workflow-revalidation.mjs "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json" "snapshots/v38-pitchfit-${{ matrix.replay_date }}.json" "snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json" "snapshots/v38-starter-damage-${{ matrix.replay_date }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-workflow-revalidation-${{ matrix.replay_date }}-${{ github.run_id }}
+          path: |
+            snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json
+            snapshots/v38-pitchfit-${{ matrix.replay_date }}.json
+            snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json
+            snapshots/v38-starter-damage-${{ matrix.replay_date }}.json
+            snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json
+          if-no-files-found: error
+          retention-days: 90
