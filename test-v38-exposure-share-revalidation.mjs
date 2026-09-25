@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 
+fs.mkdirSync('snapshots',{recursive:true});
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'v38-share-'));
 const inputPath=path.join(tmp,'input.json');
 const rows=[];
