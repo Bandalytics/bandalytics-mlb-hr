@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {execFileSync} from 'node:child_process';
+
+const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'v38-share-'));
+const inputPath=path.join(tmp,'input.json');
+const rows=[];
+for(let i=1;i<=10;i++) rows.push({player_id:i,gate_count:i<=5?6:5,starter_hr9_band:i%3===0?'HIGH_GE_1_5':'MID_1_2_TO_1_5',pitchfit_band:i%2===0?'TOP_DECILE':'BASE_TRUE',lineup_slot:i,bbe_hrshape_band:i%4===0?'TOP_QUARTILE':'BASE',homer:i===2||i===7,revalidation:{anti_overcompression:true}});
+const input={protocol:'V38_WORKFLOW_REVALIDATION_V1',date:'2026-08-01',point_in_time:true,as_of_verified:true,forward_leakage_days:0,rows};
+fs.writeFileSync(inputPath,JSON.stringify(input));
+execFileSync(process.execPath,['scripts/evaluate-v38-exposure-share-revalidation.mjs',inputPath],{cwd:process.cwd(),stdio:'pipe'});
+const out=JSON.parse(fs.readFileSync('snapshots/v38-exposure-share-revalidation-2026-08-01.json','utf8'));
+assert.equal(out.protocol,'V38_EXPOSURE_SHARE_REVALIDATION_V1');
+assert.equal(out.slate_band,'SMALL_LE_50');
+assert.equal(out.strategies.PROFILE_FIRST.TOP_20_PCT.selected_n,2);
+assert.equal(out.strategies.PROFILE_FIRST.TOP_25_PCT.selected_n,3);
+assert.equal(out.strategies.PROFILE_FIRST.TOP_40_PCT.selected_n,4);
+assert.deepEqual(out.shares_pct,[20,25,30,35,40]);
+const altered={...input,rows:rows.map(r=>({...r,homer:!r.homer}))};
+fs.writeFileSync(inputPath,JSON.stringify(altered));
+execFileSync(process.execPath,['scripts/evaluate-v38-exposure-share-revalidation.mjs',inputPath],{cwd:process.cwd(),stdio:'pipe'});
+const out2=JSON.parse(fs.readFileSync('snapshots/v38-exposure-share-revalidation-2026-08-01.json','utf8'));
+for(const s of Object.keys(out.strategies)) for(const k of Object.keys(out.strategies[s])) assert.equal(out.strategies[s][k].selected_n,out2.strategies[s][k].selected_n);
+fs.unlinkSync('snapshots/v38-exposure-share-revalidation-2026-08-01.json');
+console.log('v38 exposure share revalidation tests passed');
