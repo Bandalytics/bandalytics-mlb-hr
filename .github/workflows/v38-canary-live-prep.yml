@@ -14,6 +14,12 @@ on:
       - 'v38-starter-damage-selector.mjs'
       - 'test-v38-canary-plan-builder.mjs'
       - '.github/workflows/v38-canary-live-prep.yml'
+  pull_request:
+    paths:
+      - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'v38-starter-damage-selector.mjs'
+      - 'test-v38-canary-plan-builder.mjs'
+      - '.github/workflows/v38-canary-live-prep.yml'
 permissions:
   contents: read
   actions: read
@@ -33,7 +39,7 @@ jobs:
           node test-v38-canary-plan-builder.mjs
 
   prep:
-    if: github.event_name != 'push' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    if: github.event_name != 'push' && github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -71,35 +77,57 @@ jobs:
           def choose(pattern,time_keys):
               out=[]
               for p in glob.glob(pattern,recursive=True):
-                  try:
-                      z=json.load(open(p))
-                  except Exception:
-                      continue
+                  try: z=json.load(open(p))
+                  except Exception: continue
                   if z.get('date')!=date: continue
-                  stamp=None
-                  for k in time_keys:
-                      if z.get(k): stamp=z[k]; break
-                  out.append((stamp or '',p))
-              if not out: return None
-              return sorted(out)[-1][1]
+                  stamp=next((z.get(k) for k in time_keys if z.get(k)), '')
+                  out.append((stamp,p))
+              return sorted(out)[-1][1] if out else None
           board=choose('incoming/boards/**/*.json',['generated_at','captured_at'])
           starter=choose('incoming/starters/**/*.json',['captured_at'])
           if not board: raise SystemExit('NO_SAME_DAY_DAILY_RESEARCH_BOARD')
           if not starter: raise SystemExit('NO_SAME_DAY_STARTER_DAMAGE_SNAPSHOT')
           with open(os.environ['GITHUB_ENV'],'a') as f:
               f.write(f'BOARD_PATH={board}\nSTARTER_PATH={starter}\n')
-          print('BOARD_PATH='+board)
-          print('STARTER_PATH='+starter)
+          print('BOARD_PATH='+board); print('STARTER_PATH='+starter)
           PY
-      - name: Build immutable full-slate canary plan
+      - name: Build immutable full-slate canary plan or record expected ineligibility
+        id: build
         shell: bash
         run: |
           set -euo pipefail
           DATE='${{ steps.date.outputs.date }}'
           FROZEN_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           echo "CANARY_FROZEN_AT=$FROZEN_AT" >> "$GITHUB_ENV"
-          node scripts/build-v38-canary-execution-plan.mjs "$BOARD_PATH" "$STARTER_PATH" "$FROZEN_AT" 1 "snapshots/v38-canary-execution-plan-${DATE}.json"
+          set +e
+          OUT=$(node scripts/build-v38-canary-execution-plan.mjs "$BOARD_PATH" "$STARTER_PATH" "$FROZEN_AT" 1 "snapshots/v38-canary-execution-plan-${DATE}.json" 2>&1)
+          RC=$?
+          set -e
+          printf '%s\n' "$OUT"
+          if [ "$RC" -eq 0 ]; then
+            echo "eligible=true" >> "$GITHUB_OUTPUT"
+            REASON=ELIGIBLE_FULL_SLATE_CANARY_PLAN_BUILT
+          elif grep -q 'FULL_SLATE_CANARY_FREEZE_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START' <<< "$OUT"; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            REASON=INELIGIBLE_FREEZE_AFTER_EARLIEST_STANDARD_CANDIDATE_START
+          elif grep -q 'FULL_SLATE_STARTER_SNAPSHOT_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START' <<< "$OUT"; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            REASON=INELIGIBLE_STARTER_SNAPSHOT_NOT_FULL_SLATE_PREGAME
+          else
+            echo "Unexpected canary builder failure; refusing to classify as normal ineligibility."
+            exit "$RC"
+          fi
+          python3 - "$DATE" "$FROZEN_AT" "$REASON" "${{ github.run_id }}" <<'PY'
+          import json,sys,os,hashlib
+          date,frozen,reason,run_id=sys.argv[1:]
+          body={'protocol':'V38_CANARY_LIVE_PREP_STATUS_V1','date':date,'checked_at':frozen,'eligible':reason.startswith('ELIGIBLE_'),'reason':reason,'workflow_run_id':int(run_id),'canary_sample_count_increment':1 if reason.startswith('ELIGIBLE_') else 0,'production_normal_volume':False,'outcome_input':False}
+          body['sha256']=hashlib.sha256(json.dumps(body,separators=(',',':')).encode()).hexdigest()
+          p=f'snapshots/v38-canary-live-prep-status-{date}.json'
+          json.dump(body,open(p,'w'),indent=2); open(p,'a').write('\n')
+          print('V38_CANARY_LIVE_PREP_STATUS='+json.dumps(body))
+          PY
       - name: Verify live canary comparability
+        if: steps.build.outputs.eligible == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -119,6 +147,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: v38-canary-live-prep-${{ steps.date.outputs.date }}-${{ github.run_id }}
-          path: snapshots/v38-canary-execution-plan-*.json
+          path: |
+            snapshots/v38-canary-live-prep-status-*.json
+            snapshots/v38-canary-execution-plan-*.json
           if-no-files-found: error
           retention-days: 90
