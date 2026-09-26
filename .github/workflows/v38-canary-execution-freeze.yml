@@ -6,6 +6,7 @@ on:
       - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
+      - 'scripts/capture-v38-canary-outcomes.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
@@ -19,6 +20,7 @@ on:
       - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
+      - 'scripts/capture-v38-canary-outcomes.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
@@ -43,6 +45,7 @@ jobs:
           node --check v38-starter-damage-selector.mjs
           node --check scripts/freeze-v38-canary-execution.mjs
           node --check scripts/capture-v38-manual-price-snapshot.mjs
+          node --check scripts/capture-v38-canary-outcomes.mjs
           node --check scripts/settle-v38-canary-execution.mjs
       - name: Canary plan builder contract
         run: node test-v38-canary-plan-builder.mjs
