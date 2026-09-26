@@ -11,7 +11,8 @@ const rows=[
   {player_id:6,player:'F',gamePk:106,start_time:start,profile_gate_count:4,longshot_700_rule:{eligible:true}}
 ];
 const board={protocol:'V38_DAILY_RESEARCH_BOARD_V2',date,generated_at:'2026-09-26T18:00:00Z',point_in_time:true,rows};
-const plan={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:frozen,serious_board_player_ids:rows.map(r=>r.player_id),tickets:[{player_ids:[1,2],stake_units:1},{player_ids:[3,6],stake_units:.5}],intentional_zeros:[{player_id:4,reason:'coverage choice'},{player_id:5,reason:'coverage choice'}]};
+const candidateIds=[1,2,6,3,4,5];
+const plan={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:frozen,candidate_pool_player_ids:candidateIds,candidate_pool_ranking_strategy:'PROFILE_FIRST',serious_board_player_ids:candidateIds.slice(0,3),tickets:[{player_ids:[1,6],stake_units:1}],intentional_zeros:[{player_id:2,reason:'one-path coverage choice'}]};
 const manual={protocol:'V38_MANUAL_PRICE_INPUT_V1',date,captured_at:captured,rows:rows.map(r=>({player_id:r.player_id,player:r.player,american_odds:r.player_id===6?800:500,book:'USER_BOOK',source_note:'pregame screenshot transcription'}))};
 fs.writeFileSync(`${dir}/board.json`,JSON.stringify(board));
 fs.writeFileSync(`${dir}/plan.json`,JSON.stringify(plan));
