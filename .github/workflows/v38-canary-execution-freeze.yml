@@ -2,9 +2,12 @@ name: v38 Canary Execution + Settlement Contract
 on:
   pull_request:
     paths:
+      - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
+      - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
       - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
@@ -12,9 +15,12 @@ on:
   push:
     branches: [main]
     paths:
+      - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
+      - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
       - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
@@ -33,9 +39,13 @@ jobs:
           node-version: '24'
       - name: Syntax
         run: |
+          node --check scripts/build-v38-canary-execution-plan.mjs
+          node --check v38-starter-damage-selector.mjs
           node --check scripts/freeze-v38-canary-execution.mjs
           node --check scripts/capture-v38-manual-price-snapshot.mjs
           node --check scripts/settle-v38-canary-execution.mjs
+      - name: Canary plan builder contract
+        run: node test-v38-canary-plan-builder.mjs
       - name: Canary freeze contract
         run: node test-v38-canary-execution-freeze.mjs
       - name: Manual price fallback contract
