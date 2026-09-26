@@ -1,0 +1,42 @@
+name: CFB research source probe
+
+on:
+  push:
+    branches:
+      - research/cfb-market-model-v1
+    paths:
+      - 'research/cfb/**'
+      - '.github/workflows/cfb-research-source-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install analysis deps
+        run: pip install pandas pyarrow
+      - name: Download public source snapshots
+        run: |
+          mkdir -p /tmp/cfb-source /tmp/cfb-report
+          curl -fL https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/games.parquet -o /tmp/cfb-source/games.parquet
+          curl -fL https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/lines.parquet -o /tmp/cfb-source/lines.parquet
+          curl -fL https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/line_snapshots.parquet -o /tmp/cfb-source/line_snapshots.parquet
+      - name: Probe source without opening 2025 holdout outcomes
+        run: |
+          python research/cfb/probe-public-market-source.py \
+            /tmp/cfb-source/games.parquet \
+            /tmp/cfb-source/lines.parquet \
+            /tmp/cfb-source/line_snapshots.parquet \
+            | tee /tmp/cfb-report/source-probe.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-source-probe
+          path: /tmp/cfb-report/source-probe.json
+          retention-days: 30
