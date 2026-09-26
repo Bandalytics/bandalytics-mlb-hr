@@ -1,5 +1,18 @@
 name: v38 Daily Research Board
 on:
+  pull_request:
+    paths:
+      - 'scripts/build-v38-daily-research-board.mjs'
+      - 'v38-profile-snapshot-selector.mjs'
+      - 'v38-context-selector.mjs'
+      - 'v38-modifier-artifacts.mjs'
+      - 'v38-prospective-modifier-selector.mjs'
+      - 'test-v38-modifier-artifacts.mjs'
+      - 'test-v38-modifier-row-fallback.mjs'
+      - 'v38-park-factor-policy.mjs'
+      - 'v38-pool-shortlist-v3.mjs'
+      - 'test-v38-pool-shortlist-v3.mjs'
+      - '.github/workflows/v38-daily-research-board.yml'
   push:
     branches: [main]
     paths:
@@ -9,6 +22,7 @@ on:
       - 'v38-modifier-artifacts.mjs'
       - 'v38-prospective-modifier-selector.mjs'
       - 'test-v38-modifier-artifacts.mjs'
+      - 'test-v38-modifier-row-fallback.mjs'
       - 'v38-park-factor-policy.mjs'
       - 'v38-pool-shortlist-v3.mjs'
       - 'test-v38-pool-shortlist-v3.mjs'
@@ -37,6 +51,7 @@ jobs:
           node --check v38-profile-snapshot-selector.mjs
           node --check v38-context-selector.mjs
           node test-v38-modifier-artifacts.mjs
+          node test-v38-modifier-row-fallback.mjs
           node test-v38-pool-shortlist-v3.mjs
       - name: Resolve current ET slate
         id: date
