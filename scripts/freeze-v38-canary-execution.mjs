@@ -1,23 +1,38 @@
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 
-const [boardPath, planPath, marketPath, outPathArg] = process.argv.slice(2);
-if (!boardPath || !planPath) throw Error('Usage: node scripts/freeze-v38-canary-execution.mjs <daily-board.json> <execution-plan.json> [market-snapshot.json] [output.json]');
+const [boardPath, planPath, priceSnapshotPath, outPathArg] = process.argv.slice(2);
+if (!boardPath || !planPath) throw Error('Usage: node scripts/freeze-v38-canary-execution.mjs <daily-board.json> <execution-plan.json> [price-snapshot.json] [output.json]');
 const board = JSON.parse(fs.readFileSync(boardPath,'utf8'));
 const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
-const market = marketPath ? JSON.parse(fs.readFileSync(marketPath,'utf8')) : null;
+const priceSnapshot = priceSnapshotPath ? JSON.parse(fs.readFileSync(priceSnapshotPath,'utf8')) : null;
 
 if (board.protocol !== 'V38_DAILY_RESEARCH_BOARD_V2' || board.point_in_time !== true) throw Error('invalid daily research board');
 if (plan.protocol !== 'V38_CANARY_EXECUTION_PLAN_V1') throw Error('invalid canary plan');
 if (plan.date !== board.date) throw Error('date mismatch');
 if (!plan.frozen_at || !Number.isFinite(Date.parse(plan.frozen_at))) throw Error('missing frozen_at');
 if (!Array.isArray(plan.serious_board_player_ids) || !Array.isArray(plan.tickets)) throw Error('plan arrays missing');
-if (market && (market.schema !== 'BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1' || market.point_in_time !== true || market.date !== board.date)) throw Error('invalid market snapshot');
-if (market && Date.parse(market.captured_at) > Date.parse(plan.frozen_at)) throw Error('market snapshot after execution freeze');
+
+let snapshotKind=null;
+if(priceSnapshot){
+  if(priceSnapshot.schema==='BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1') snapshotKind='MARKET_SNAPSHOT';
+  else if(priceSnapshot.schema==='BANDALYTICS_MANUAL_PRICE_SNAPSHOT_V1') snapshotKind='MANUAL_PRICE_SNAPSHOT';
+  else throw Error('invalid price snapshot schema');
+  if(priceSnapshot.point_in_time!==true||priceSnapshot.date!==board.date) throw Error('invalid price snapshot');
+  if(!priceSnapshot.captured_at||!Number.isFinite(Date.parse(priceSnapshot.captured_at))) throw Error('price snapshot missing captured_at');
+  if(Date.parse(priceSnapshot.captured_at)>Date.parse(plan.frozen_at)) throw Error('price snapshot after execution freeze');
+  if(snapshotKind==='MANUAL_PRICE_SNAPSHOT'){
+    if(priceSnapshot.canary_only!==true||priceSnapshot.production_normal_volume!==false) throw Error('unsafe manual price snapshot flags');
+    if(!priceSnapshot.sha256) throw Error('manual price snapshot missing sha256');
+    const {sha256:claimed,...body}=priceSnapshot;
+    const calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+    if(calc!==claimed) throw Error('manual price snapshot sha256 mismatch');
+  }
+}
 
 const rows = new Map((board.rows||[]).map(r=>[Number(r.player_id),r]));
-const marketRows = new Map((market?.rows||[]).map(r=>[Number(r.player_id),r]));
-const manual = new Map((plan.manual_prices||[]).map(r=>[Number(r.player_id),r]));
+const snapshotRows = new Map((priceSnapshot?.rows||[]).map(r=>[Number(r.player_id),r]));
+const planManual = new Map((plan.manual_prices||[]).map(r=>[Number(r.player_id),r]));
 const serious = plan.serious_board_player_ids.map((id,i)=>{
   const r=rows.get(Number(id));
   if(!r) throw Error(`serious board player missing from board: ${id}`);
@@ -27,9 +42,10 @@ const serious = plan.serious_board_player_ids.map((id,i)=>{
 if(new Set(serious.map(r=>r.player_id)).size!==serious.length) throw Error('duplicate serious board player');
 
 function priceFor(id){
-  const m=marketRows.get(Number(id));
-  if(m && Number.isFinite(Number(m.best_odds))) return {american_odds:Number(m.best_odds),book:m.best_book||null,captured_at:market.captured_at,source:'MARKET_SNAPSHOT'};
-  const x=manual.get(Number(id));
+  const s=snapshotRows.get(Number(id));
+  if(snapshotKind==='MARKET_SNAPSHOT' && s && Number.isFinite(Number(s.best_odds))) return {american_odds:Number(s.best_odds),book:s.best_book||null,captured_at:priceSnapshot.captured_at,source:'MARKET_SNAPSHOT'};
+  if(snapshotKind==='MANUAL_PRICE_SNAPSHOT' && s && Number.isFinite(Number(s.american_odds))) return {american_odds:Number(s.american_odds),book:s.book||null,captured_at:s.captured_at||priceSnapshot.captured_at,source:'MANUAL_PRICE_SNAPSHOT',snapshot_sha256:priceSnapshot.sha256};
+  const x=planManual.get(Number(id));
   if(x && Number.isFinite(Number(x.american_odds)) && x.captured_at && Date.parse(x.captured_at)<=Date.parse(plan.frozen_at)) return {american_odds:Number(x.american_odds),book:x.book||null,captured_at:x.captured_at,source:'MANUAL_FROZEN'};
   return null;
 }
@@ -81,7 +97,8 @@ const totalStake=+tickets.reduce((s,t)=>s+t.stake_units,0).toFixed(4);
 const output={
   protocol:'V38_CANARY_EXECUTION_FREEZE_V2',date:plan.date,frozen_at:plan.frozen_at,canary_only:true,production_normal_volume:false,
   source_board_protocol:board.protocol,source_board_generated_at:board.generated_at,source_board_sha256:crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex'),
-  market_snapshot_used:!!market,market_snapshot_captured_at:market?.captured_at||null,market_snapshot_sha256:market?.sha256||null,
+  price_snapshot_used:!!priceSnapshot,price_snapshot_kind:snapshotKind,price_snapshot_captured_at:priceSnapshot?.captured_at||null,price_snapshot_sha256:priceSnapshot?.sha256||null,
+  market_snapshot_used:snapshotKind==='MARKET_SNAPSHOT',market_snapshot_captured_at:snapshotKind==='MARKET_SNAPSHOT'?priceSnapshot?.captured_at||null:null,market_snapshot_sha256:snapshotKind==='MARKET_SNAPSHOT'?priceSnapshot?.sha256||null:null,
   serious_board_contract:'HUMAN_REVIEWED_POOL_FIRST_40_PCT_TICKET_BUDGET',ticket_contract:'CROSS_GAME_TWO_LEG_SMALL_MEDIUM_ONE_PATH_LARGE_TOP25_SECOND_PATH',
   ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,serious_board_rows:n,slate_band:slateBand,max_ticket_budget:maxTickets,tickets:tickets.length,total_stake_units:totalStake,
   unique_ticketed_hitters:ticketedIds.size,board_coverage_pct:n?+(100*ticketedIds.size/n).toFixed(2):0,priced_legs:pricedLegs,total_legs:totalLegs,price_coverage_pct:totalLegs?+(100*pricedLegs/totalLegs).toFixed(2):0,
@@ -89,10 +106,10 @@ const output={
   tickets_detail:tickets,
   readiness:{all_ticket_legs_priced:totalLegs>0&&pricedLegs===totalLegs,all_ticket_stakes_frozen:tickets.length>0&&tickets.every(t=>t.stake_units>0),all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},
   roi_status:pricedLegs===totalLegs&&totalLegs>0&&tickets.every(t=>t.stake_units>0)?'READY_FOR_POST_SLATE_SETTLEMENT':'BLOCKED_INCOMPLETE_FROZEN_PRICE_OR_STAKE',
-  notes:['No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','Every played canary ticket must freeze a positive stake_units value before first pitch so realized ROI cannot be backfilled.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
+  notes:['No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','Every played canary ticket must freeze a positive stake_units value before first pitch so realized ROI cannot be backfilled.','A hashed manual price snapshot is an allowed temporary fallback when the automated market provider is unavailable; missing prices are never inferred.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
 };
 const {sha256:_,...without}=output; output.sha256=crypto.createHash('sha256').update(JSON.stringify(without)).digest('hex');
 const outPath=outPathArg||`snapshots/v38-canary-execution-freeze-${plan.date}.json`;
 fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true}); fs.writeFileSync(outPath,JSON.stringify(output,null,2)+'\n');
 console.log(`V38_CANARY_EXECUTION_FREEZE_PATH=${outPath}`);
-console.log(`V38_CANARY_EXECUTION_FREEZE_SUMMARY=${JSON.stringify({date:output.date,serious_board_rows:n,slate_band:slateBand,tickets:output.tickets,max_ticket_budget:maxTickets,total_stake_units:totalStake,price_coverage_pct:output.price_coverage_pct,roi_status:output.roi_status})}`);
+console.log(`V38_CANARY_EXECUTION_FREEZE_SUMMARY=${JSON.stringify({date:output.date,serious_board_rows:n,slate_band:slateBand,tickets:output.tickets,max_ticket_budget:maxTickets,total_stake_units:totalStake,price_snapshot_kind:snapshotKind,price_coverage_pct:output.price_coverage_pct,roi_status:output.roi_status})}`);
