@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+const path=process.argv[2];
+if(!path) throw Error('Usage: node scripts/evaluate-v38-exposure-share-no-lineup.mjs <workflow-revalidation.json>');
+const input=JSON.parse(fs.readFileSync(path,'utf8'));
+if(input.protocol!=='V38_WORKFLOW_REVALIDATION_V1'||input.point_in_time!==true||input.as_of_verified!==true||Number(input.forward_leakage_days)!==0) throw Error('Invalid workflow revalidation artifact');
+const pitch={INELIGIBLE:0,BASE_TRUE:1,TOP_QUARTILE:2,TOP_DECILE:3},bbe={INELIGIBLE:0,BASE:1,TOP_QUARTILE:2,TOP_DECILE:3},starter={LOW_LT_1_2:0,SMALL_SAMPLE:1,UNAVAILABLE:1,MID_1_2_TO_1_5:2,HIGH_GE_1_5:3};
+const value=(map,key)=>map[key]??0,eligible=(input.rows||[]).filter(r=>r?.revalidation?.anti_overcompression===true),slateBand=n=>n<=50?'SMALL_LE_50':n<=75?'MEDIUM_51_75':'LARGE_GE_76';
+const strategies={PROFILE_FIRST:r=>[Number(r.gate_count)||0,value(starter,r.starter_hr9_band),value(pitch,r.pitchfit_band),value(bbe,r.bbe_hrshape_band)],PITCHFIT_FIRST:r=>[value(pitch,r.pitchfit_band),value(starter,r.starter_hr9_band),Number(r.gate_count)||0,value(bbe,r.bbe_hrshape_band)],MATCHUP_FIRST:r=>[value(starter,r.starter_hr9_band),value(pitch,r.pitchfit_band),Number(r.gate_count)||0,value(bbe,r.bbe_hrshape_band)]};
+const shares=[20,25,30,35,40,45,50],cmp=(a,b)=>{for(let i=0;i<a.length;i++){if(a[i]!==b[i])return b[i]-a[i]}return 0};
+const cohort=rows=>{const outcome=rows.filter(r=>typeof r.homer==='boolean'),hr=outcome.filter(r=>r.homer===true).length;return{rows:rows.length,outcome_rows:outcome.length,hr,hr_rate:outcome.length?+(100*hr/outcome.length).toFixed(2):null}};
+const totalHr=eligible.filter(r=>r.homer===true).length,results={};
+for(const [name,keyFn] of Object.entries(strategies)){const ranked=[...eligible].sort((a,b)=>cmp(keyFn(a),keyFn(b))||Number(a.player_id)-Number(b.player_id));results[name]={};for(const pct of shares){const n=eligible.length?Math.max(1,Math.ceil(eligible.length*pct/100)):0,selected=ranked.slice(0,n);results[name][`TOP_${pct}_PCT`]={...cohort(selected),selected_n:n,share_pct:pct,qualified_hr_capture_pct:totalHr?+(100*selected.filter(r=>r.homer===true).length/totalHr).toFixed(2):null}}}
+const sample=input.date>='2026-06-01'&&input.date<='2026-07-10'?'FRESH_HOLDOUT_2026_06_01_TO_07_10':input.date>='2026-07-24'&&input.date<='2026-09-01'?'DEVELOPMENT_2026_07_24_TO_09_01':'OUTSIDE_DECLARED_WINDOWS';
+const out={protocol:'V38_EXPOSURE_SHARE_NO_LINEUP_V1',date:input.date,sample,point_in_time:true,as_of_verified:true,forward_leakage_days:0,research_only:true,scoring_enabled:false,ranking_contract:'LEXICOGRAPHIC_NO_LINEUP_SLOT_NO_OUTCOME_INPUT',candidate_source:'ANTI_OVERCOMPRESSION',share_contract:'CEIL_ELIGIBLE_X_SHARE',shares_pct:shares,slate_band:slateBand(eligible.length),eligible:cohort(eligible),strategies:results,roi_status:'UNAVAILABLE_NOT_FABRICATED'};
+fs.mkdirSync('snapshots',{recursive:true});const outPath=`snapshots/v38-exposure-share-no-lineup-${input.date}.json`;fs.writeFileSync(outPath,JSON.stringify(out,null,2)+'\n');console.log(`V38_EXPOSURE_SHARE_NO_LINEUP_PATH=${outPath}`);
