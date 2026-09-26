@@ -1,1 +1,124 @@
-temp
+name: v38 Canary Live Prep
+on:
+  workflow_run:
+    workflows: ['v38 Daily Research Board', 'v38 Starter Damage Snapshot']
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '55 16 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'v38-starter-damage-selector.mjs'
+      - 'test-v38-canary-plan-builder.mjs'
+      - '.github/workflows/v38-canary-live-prep.yml'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax and canary builder contract
+        run: |
+          node --check scripts/build-v38-canary-execution-plan.mjs
+          node --check v38-starter-damage-selector.mjs
+          node test-v38-canary-plan-builder.mjs
+
+  prep:
+    if: github.event_name != 'push' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Resolve current ET slate
+        id: date
+        run: echo "date=$(TZ=America/New_York date +%F)" >> "$GITHUB_OUTPUT"
+      - name: Download recent board and starter artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE='${{ steps.date.outputs.date }}'
+          mkdir -p incoming/boards incoming/starters snapshots
+          mapfile -t BOARD_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-daily-research-board.yml/runs?status=success&per_page=20" --jq '.workflow_runs[].id' || true)
+          for ID in "${BOARD_IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mkdir -p "incoming/boards/$ID"
+            gh run download "$ID" --repo "$GH_REPO" --name "v38-daily-research-board-${DATE}-${ID}" --dir "incoming/boards/$ID" >/dev/null 2>&1 || true
+          done
+          mapfile -t STARTER_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-starter-damage-snapshot.yml/runs?status=success&per_page=20" --jq '.workflow_runs[].id' || true)
+          for ID in "${STARTER_IDS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            mkdir -p "incoming/starters/$ID"
+            gh run download "$ID" --repo "$GH_REPO" --name "v38-starter-damage-${ID}" --dir "incoming/starters/$ID" >/dev/null 2>&1 || true
+          done
+          python3 - "$DATE" <<'PY'
+          import glob,json,sys,os
+          date=sys.argv[1]
+          def choose(pattern,time_keys):
+              out=[]
+              for p in glob.glob(pattern,recursive=True):
+                  try:
+                      z=json.load(open(p))
+                  except Exception:
+                      continue
+                  if z.get('date')!=date: continue
+                  stamp=None
+                  for k in time_keys:
+                      if z.get(k): stamp=z[k]; break
+                  out.append((stamp or '',p))
+              if not out: return None
+              return sorted(out)[-1][1]
+          board=choose('incoming/boards/**/*.json',['generated_at','captured_at'])
+          starter=choose('incoming/starters/**/*.json',['captured_at'])
+          if not board: raise SystemExit('NO_SAME_DAY_DAILY_RESEARCH_BOARD')
+          if not starter: raise SystemExit('NO_SAME_DAY_STARTER_DAMAGE_SNAPSHOT')
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write(f'BOARD_PATH={board}\nSTARTER_PATH={starter}\n')
+          print('BOARD_PATH='+board)
+          print('STARTER_PATH='+starter)
+          PY
+      - name: Build immutable full-slate canary plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE='${{ steps.date.outputs.date }}'
+          FROZEN_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "CANARY_FROZEN_AT=$FROZEN_AT" >> "$GITHUB_ENV"
+          node scripts/build-v38-canary-execution-plan.mjs "$BOARD_PATH" "$STARTER_PATH" "$FROZEN_AT" 1 "snapshots/v38-canary-execution-plan-${DATE}.json"
+      - name: Verify live canary comparability
+        shell: bash
+        run: |
+          set -euo pipefail
+          P="snapshots/v38-canary-execution-plan-${{ steps.date.outputs.date }}.json"
+          node --input-type=module - "$P" <<'NODE'
+          import fs from 'node:fs';
+          const z=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const m=z.research_metadata||{};
+          if(z.protocol!=='V38_CANARY_EXECUTION_PLAN_V1') throw Error('bad canary plan protocol');
+          if(m.point_in_time!==true||m.outcome_input!==false) throw Error('unsafe canary flags');
+          if(m.freeze_scope!=='FULL_STANDARD_5OF6_PLUS_SLATE_BEFORE_EARLIEST_CANDIDATE_START') throw Error('partial-slate canary not allowed');
+          if(m.serious_board_share_pct!==40||m.ticket_budget_share_pct!==40||m.large_priority_repeat_share_pct!==25) throw Error('holdout architecture mismatch');
+          if(m.opportunity_guard!=='TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9') throw Error('lineup guard mismatch');
+          if(!Array.isArray(z.tickets)||!z.tickets.length) throw Error('no executable canary tickets');
+          console.log('V38_LIVE_CANARY_PREP_OK='+JSON.stringify({date:z.date,frozen_at:z.frozen_at,candidate_pool_rows:m.candidate_pool_rows,serious_board_rows:m.serious_board_rows,slate_band:m.slate_band,confirmed_lineup_serious_rows:m.confirmed_lineup_serious_rows,unconfirmed_lineup_serious_rows:m.unconfirmed_lineup_serious_rows,requested_ticket_budget:m.requested_ticket_budget,actual_tickets:m.actual_tickets,budget_underfill_due_to_opportunity:m.budget_underfill_due_to_opportunity,plan_sha256:z.plan_sha256}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-canary-live-prep-${{ steps.date.outputs.date }}-${{ github.run_id }}
+          path: snapshots/v38-canary-execution-plan-*.json
+          if-no-files-found: error
+          retention-days: 90
