@@ -16,6 +16,7 @@ const pitch={INELIGIBLE:0,BASE_TRUE:1,TOP_QUARTILE:2,TOP_DECILE:3};
 const bbe={INELIGIBLE:0,BASE:1,TOP_QUARTILE:2,TOP_DECILE:3};
 const starterRank={LOW_LT_1_2:0,SMALL_SAMPLE:1,UNAVAILABLE:1,MID_1_2_TO_1_5:2,HIGH_GE_1_5:3};
 const opp=x=>Number.isFinite(Number(x))?(Number(x)<=5?3:Number(x)===6?2:Number(x)<=9?1:0):0;
+const confirmedLineup=r=>Number.isInteger(Number(r.lineup))&&Number(r.lineup)>=1&&Number(r.lineup)<=9;
 const val=(map,key)=>map[key]??0;
 const cmp=(a,b)=>{for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return b[i]-a[i]; return 0};
 const bbeBand=r=>typeof r.bbe_band==='string'?r.bbe_band:(r.bbe_band?.hrshape_band||r.bbe?.hrshape_band||'INELIGIBLE');
@@ -25,7 +26,7 @@ const enriched=(board.rows||[]).filter(r=>Number(r.profile_gate_count)>=5).filte
   const s=starterFor(r); const sb=s?.row?.starter_hr9_band||'UNAVAILABLE';
   const pb=pitchBand(r), bb=bbeBand(r);
   const pitchPositive=val(pitch,pb)>0, bbePositive=val(bbe,bb)>0, suppressive=sb==='LOW_LT_1_2';
-  return {...r,starter_hr9_band:sb,starter_damage_captured_at:s?.captured_at||null,starter_damage_sha256:s?.sha256||null,bbe_hrshape_band:bb,pitchfit_positive:pitchPositive,bbe_positive:bbePositive,starter_suppressive:suppressive,anti_overcompression:!(suppressive&&!pitchPositive&&!bbePositive)};
+  return {...r,starter_hr9_band:sb,starter_damage_captured_at:s?.captured_at||null,starter_damage_sha256:s?.sha256||null,bbe_hrshape_band:bb,pitchfit_positive:pitchPositive,bbe_positive:bbePositive,starter_suppressive:suppressive,anti_overcompression:!(suppressive&&!pitchPositive&&!bbePositive),lineup_confirmed:confirmedLineup(r)};
 });
 const candidate=enriched.filter(r=>r.anti_overcompression===true);
 if(!candidate.length) throw Error('no anti-overcompression candidates before freeze');
@@ -43,21 +44,22 @@ const cap=r=>band==='LARGE_GE_76'&&priorityIds.has(Number(r.player_id))?2:1;
 const budget=Math.max(1,Math.ceil(seriousN*0.40));
 const uses=new Map(serious.map(r=>[Number(r.player_id),0])), seen=new Set(), tickets=[];
 const pairKey=(a,b)=>[Number(a.player_id),Number(b.player_id)].sort((x,y)=>x-y).join(':');
+const ticketEligible=serious.filter(confirmedLineup);
 let guard=0;
 while(tickets.length<budget&&guard++<10000){
   let made=false;
-  for(const a of serious){
+  for(const a of ticketEligible){
     const aid=Number(a.player_id); if((uses.get(aid)||0)>=cap(a)) continue;
-    const b=serious.find(x=>{const bid=Number(x.player_id);return bid!==aid&&String(x.gamePk)!==String(a.gamePk)&&(uses.get(bid)||0)<cap(x)&&!seen.has(pairKey(a,x));});
+    const b=ticketEligible.find(x=>{const bid=Number(x.player_id);return bid!==aid&&String(x.gamePk)!==String(a.gamePk)&&(uses.get(bid)||0)<cap(x)&&!seen.has(pairKey(a,x));});
     if(!b) continue;
     const bid=Number(b.player_id); seen.add(pairKey(a,b)); uses.set(aid,(uses.get(aid)||0)+1); uses.set(bid,(uses.get(bid)||0)+1);
     tickets.push({player_ids:[aid,bid],stake_units:+stake.toFixed(4)}); made=true; break;
   }
   if(!made) break;
 }
-if(!tickets.length) throw Error('unable to build any cross-game tickets');
-const intentional_zeros=serious.filter(r=>(uses.get(Number(r.player_id))||0)===0).map(r=>({player_id:Number(r.player_id),reason:'DETERMINISTIC_40PCT_TICKET_BUDGET_BROAD_COVERAGE_ZERO'}));
-const body={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date:board.date,frozen_at,candidate_pool_player_ids:ranked.map(r=>Number(r.player_id)),candidate_pool_ranking_strategy:strategy,serious_board_player_ids:serious.map(r=>Number(r.player_id)),tickets,intentional_zeros,research_metadata:{protocol:'V38_CANARY_PLAN_BUILDER_V1',point_in_time:true,outcome_input:false,candidate_source:'STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION',protected_4of6_status:'SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY',candidate_pool_rows:ranked.length,serious_board_rows:seriousN,slate_band:band,serious_board_share_pct:40,ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,priority_rows:priorityN,requested_ticket_budget:budget,actual_tickets:tickets.length,excluded_concrete_negative:enriched.length-ranked.length,source_board_sha256:crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex'),source_starter_snapshot_sha256:starter.sha256}};
+if(!tickets.length) throw Error('unable to build any cross-game tickets from confirmed lineups');
+const intentional_zeros=serious.filter(r=>(uses.get(Number(r.player_id))||0)===0).map(r=>({player_id:Number(r.player_id),reason:confirmedLineup(r)?'DETERMINISTIC_40PCT_TICKET_BUDGET_BROAD_COVERAGE_ZERO':'LINEUP_NOT_CONFIRMED_AT_FREEZE'}));
+const body={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date:board.date,frozen_at,candidate_pool_player_ids:ranked.map(r=>Number(r.player_id)),candidate_pool_ranking_strategy:strategy,serious_board_player_ids:serious.map(r=>Number(r.player_id)),tickets,intentional_zeros,research_metadata:{protocol:'V38_CANARY_PLAN_BUILDER_V1',point_in_time:true,outcome_input:false,candidate_source:'STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION',protected_4of6_status:'SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY',opportunity_guard:'TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9',candidate_pool_rows:ranked.length,serious_board_rows:seriousN,confirmed_lineup_serious_rows:serious.filter(confirmedLineup).length,unconfirmed_lineup_serious_rows:serious.filter(r=>!confirmedLineup(r)).length,slate_band:band,serious_board_share_pct:40,ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,priority_rows:priorityN,requested_ticket_budget:budget,actual_tickets:tickets.length,budget_underfill_due_to_opportunity:tickets.length<budget,excluded_concrete_negative:enriched.length-ranked.length,source_board_sha256:crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex'),source_starter_snapshot_sha256:starter.sha256}};
 const output={...body,plan_sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')};
 const outPath=outPathArg||`snapshots/v38-canary-execution-plan-${board.date}.json`;
 fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true});
