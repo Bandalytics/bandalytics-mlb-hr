@@ -14,9 +14,22 @@ const z=JSON.parse(fs.readFileSync('tmp/canary-plan/plan.json','utf8'));
 if(z.protocol!=='V38_CANARY_EXECUTION_PLAN_V1'||!z.plan_sha256) throw Error('bad plan protocol/hash');
 const m=z.research_metadata;
 if(m.candidate_source!=='STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION'||m.protected_4of6_status!=='SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY') throw Error('bad candidate contract');
+if(m.opportunity_guard!=='TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9') throw Error('lineup guard missing');
 if(m.candidate_pool_rows!==79||m.excluded_concrete_negative!==1||m.slate_band!=='LARGE_GE_76'||z.candidate_pool_ranking_strategy!=='PITCHFIT_FIRST') throw Error('bad anti-overcompression/slate band');
 if(m.serious_board_rows!==32||z.serious_board_player_ids.length!==32||m.requested_ticket_budget!==13||z.tickets.length!==13) throw Error('bad 40% board/ticket budget');
 const uses=new Map(); for(const t of z.tickets) for(const id of t.player_ids) uses.set(id,(uses.get(id)||0)+1);
 if(Math.max(...uses.values())!==2) throw Error('large-slate priority repetition missing');
 if(z.candidate_pool_player_ids.includes(80)) throw Error('concrete negative not removed');
+
+// Remove lineup confirmation from a serious-board hitter: it must remain on the board but cannot appear on a ticket.
+const target=z.serious_board_player_ids[0];
+const board2=JSON.parse(JSON.stringify(board)); board2.rows.find(r=>r.player_id===target).lineup=null;
+fs.writeFileSync('tmp/canary-plan/board-unconfirmed.json',JSON.stringify(board2));
+execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board-unconfirmed.json','tmp/canary-plan/starter.json',frozen,'1','tmp/canary-plan/plan-unconfirmed.json'],{stdio:'inherit'});
+const u=JSON.parse(fs.readFileSync('tmp/canary-plan/plan-unconfirmed.json','utf8'));
+const ticketed=new Set(u.tickets.flatMap(t=>t.player_ids));
+if(ticketed.has(target)) throw Error('unconfirmed lineup hitter was ticketed');
+const zero=u.intentional_zeros.find(x=>x.player_id===target);
+if(!zero||zero.reason!=='LINEUP_NOT_CONFIRMED_AT_FREEZE') throw Error('unconfirmed lineup zero reason missing');
+if(u.research_metadata.unconfirmed_lineup_serious_rows<1) throw Error('unconfirmed lineup count missing');
 console.log('V38_CANARY_PLAN_BUILDER_TEST_OK');
