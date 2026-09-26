@@ -1,0 +1,58 @@
+name: v38 Ticket Adaptive Holdout
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v38-ticket-adaptive-holdout.yml'
+      - 'scripts/evaluate-v38-ticket-adaptive-holdout.mjs'
+      - 'test-v38-ticket-adaptive-holdout.mjs'
+      - 'scripts/evaluate-v38-workflow-revalidation.mjs'
+      - 'scripts/run-v38-point-in-time-replay.mjs'
+      - 'scripts/analyze-v38-pitchfit-slate.mjs'
+      - 'scripts/analyze-v38-recent-bbe-slate.mjs'
+      - 'scripts/analyze-v38-starter-damage-slate.mjs'
+      - 'v38-workflow-revalidation-core.mjs'
+      - 'v38-historical-profile-core.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  holdout:
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        replay_date: ['2026-06-01','2026-06-02','2026-06-03','2026-06-04','2026-06-05','2026-06-06','2026-06-07','2026-06-08','2026-06-09','2026-06-10','2026-06-11','2026-06-12','2026-06-13','2026-06-14','2026-06-15','2026-06-16','2026-06-17','2026-06-18','2026-06-19','2026-06-20','2026-06-21','2026-06-22','2026-06-23','2026-06-24','2026-06-25','2026-06-26','2026-06-27','2026-06-28','2026-06-29','2026-06-30','2026-07-01','2026-07-02','2026-07-03','2026-07-04','2026-07-05','2026-07-06','2026-07-07','2026-07-08','2026-07-09','2026-07-10']
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax and holdout contract
+        run: |
+          node --check scripts/evaluate-v38-ticket-adaptive-holdout.mjs
+          node --check scripts/evaluate-v38-workflow-revalidation.mjs
+          node --check scripts/run-v38-point-in-time-replay.mjs
+          node test-v38-ticket-adaptive-holdout.mjs
+      - name: Rebuild pregame profile
+        run: node scripts/run-v38-point-in-time-replay.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild as-of pitch fit
+        run: node scripts/analyze-v38-pitchfit-slate.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild recent BBE
+        run: node scripts/analyze-v38-recent-bbe-slate.mjs "${{ matrix.replay_date }}"
+      - name: Rebuild starter damage
+        run: node scripts/analyze-v38-starter-damage-slate.mjs "${{ matrix.replay_date }}" "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
+      - name: Rebuild anti-overcompression universe
+        run: node scripts/evaluate-v38-workflow-revalidation.mjs "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json" "snapshots/v38-pitchfit-${{ matrix.replay_date }}.json" "snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json" "snapshots/v38-starter-damage-${{ matrix.replay_date }}.json"
+      - name: Evaluate adaptive ticket holdout
+        run: node scripts/evaluate-v38-ticket-adaptive-holdout.mjs "snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-ticket-adaptive-holdout-${{ matrix.replay_date }}-${{ github.run_id }}
+          path: |
+            snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json
+            snapshots/v38-ticket-adaptive-holdout-${{ matrix.replay_date }}.json
+          if-no-files-found: error
+          retention-days: 90
