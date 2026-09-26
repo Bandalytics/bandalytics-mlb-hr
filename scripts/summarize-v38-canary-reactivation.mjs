@@ -10,6 +10,7 @@ for(let i=0;i<args.length;i++){
   else files.push(args[i]);
 }
 if(!files.length) throw Error('no settlement files');
+const round4=n=>+Number(n).toFixed(4);
 const seenDates=new Set();
 const settlements=files.map(f=>{
   const z=JSON.parse(fs.readFileSync(f,'utf8'));
@@ -21,6 +22,31 @@ const settlements=files.map(f=>{
   const {sha256,...body}=z;
   const calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
   if(calc!==sha256) throw Error(`settlement sha256 mismatch ${f}`);
+
+  // Fail closed on internally inconsistent settlement totals even when the outer hash is valid.
+  if(!Array.isArray(z.tickets_detail)||z.tickets_detail.length!==Number(z.tickets)) throw Error(`ticket detail mismatch ${f}`);
+  const playerResults=new Map();
+  let detailStake=0, detailNet=0, detailWins=0;
+  for(const t of z.tickets_detail){
+    if(!Array.isArray(t.player_ids)||t.player_ids.length!==2||!Array.isArray(t.hrs)||t.hrs.length!==2) throw Error(`bad ticket detail ${f}`);
+    const stake=Number(t.stake_units), net=Number(t.net_units);
+    if(!Number.isFinite(stake)||stake<=0||!Number.isFinite(net)) throw Error(`bad ticket financials ${f}`);
+    const computedWin=t.hrs.every(x=>Number(x)===1);
+    if(Boolean(t.win)!==computedWin) throw Error(`ticket win mismatch ${f}`);
+    detailStake+=stake; detailNet+=net; if(computedWin) detailWins++;
+    for(let i=0;i<2;i++){
+      const id=Number(t.player_ids[i]), hr=Number(t.hrs[i]);
+      if(!Number.isInteger(id)||(hr!==0&&hr!==1)) throw Error(`bad ticket outcome detail ${f}`);
+      if(playerResults.has(id)&&playerResults.get(id)!==hr) throw Error(`conflicting repeated hitter outcome ${f}`);
+      playerResults.set(id,hr);
+    }
+  }
+  const detailHr=[...playerResults.values()].reduce((s,x)=>s+x,0);
+  if(detailWins!==Number(z.winning_tickets)) throw Error(`winning ticket total mismatch ${f}`);
+  if(round4(detailStake)!==round4(z.total_stake_units)||round4(detailNet)!==round4(z.net_units)) throw Error(`financial total mismatch ${f}`);
+  if(playerResults.size!==Number(z.unique_ticketed_hitters)||detailHr!==Number(z.ticketed_hr)) throw Error(`ticketed hitter total mismatch ${f}`);
+  const expectedRoi=detailStake?+(100*detailNet/detailStake).toFixed(2):null;
+  if(expectedRoi!==z.realized_roi_pct) throw Error(`settlement ROI mismatch ${f}`);
   return z;
 }).sort((a,b)=>a.date.localeCompare(b.date));
 const slates=settlements.length;
@@ -39,9 +65,9 @@ const output={
   total_stake_units:stake,net_units:net,realized_roi_pct:realizedRoi,
   ticketed_hitter_opportunities:uniqueHitters,ticketed_hr:ticketedHr,ticketed_hr_rate_pct:uniqueHitters?+(100*ticketedHr/uniqueHitters).toFixed(2):0,
   readiness_status:status,
-  evidence_gate:{minimum_initial_review_slates:5,preferred_full_review_slates:10,all_settlements_verified:true,automatic_production_enable:false},
+  evidence_gate:{minimum_initial_review_slates:5,preferred_full_review_slates:10,all_settlements_verified:true,internal_settlement_totals_verified:true,automatic_production_enable:false},
   slate_rows:settlements.map(z=>({date:z.date,tickets:z.tickets,winning_tickets:z.winning_tickets,total_stake_units:z.total_stake_units,net_units:z.net_units,realized_roi_pct:z.realized_roi_pct,settlement_sha256:z.sha256})),
-  notes:['This is a forward canary evidence summary, not an automatic production switch.','Portfolio ROI is recomputed from raw frozen-stake totals across slates, never by averaging per-slate ROI percentages.','Five slates permits an initial review; ten slates is the preferred full reactivation review point.','No Core/profile or ticket rule is changed by this summary.']
+  notes:['This is a forward canary evidence summary, not an automatic production switch.','Portfolio ROI is recomputed from raw frozen-stake totals across slates, never by averaging per-slate ROI percentages.','Each settlement hash and its ticket-level financial/outcome totals are revalidated before aggregation.','Five slates permits an initial review; ten slates is the preferred full reactivation review point.','No Core/profile or ticket rule is changed by this summary.']
 };
 const {sha256:_,...body}=output; output.sha256=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
 fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true});
