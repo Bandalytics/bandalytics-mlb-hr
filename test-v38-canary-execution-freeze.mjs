@@ -1,0 +1,17 @@
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+fs.mkdirSync('tmp',{recursive:true});
+const date='2026-09-26', start='2026-09-26T23:00:00Z';
+const rows=Array.from({length:8},(_,i)=>({player_id:i+1,player:`P${i+1}`,gamePk:100+Math.floor(i/2),start_time:start,profile_gate_count:i===7?4:5,longshot_700_rule:i===7?{eligible:true}:{applies:false}}));
+const board={protocol:'V38_DAILY_RESEARCH_BOARD_V2',date,generated_at:'2026-09-26T18:00:00Z',point_in_time:true,rows};
+const plan={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:'2026-09-26T20:00:00Z',serious_board_player_ids:rows.map(r=>r.player_id),tickets:[{player_ids:[1,3]},{player_ids:[2,5]},{player_ids:[4,7]}],intentional_zeros:[{player_id:6,reason:'one-path coverage choice'},{player_id:8,reason:'protected longshot held off tickets'}]};
+const market={schema:'BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1',date,captured_at:'2026-09-26T19:55:00Z',point_in_time:true,sha256:'x',rows:rows.map(r=>({player_id:r.player_id,best_odds:r.player_id===8?800:500,best_book:'BOOK'}))};
+fs.writeFileSync('tmp/board.json',JSON.stringify(board)); fs.writeFileSync('tmp/plan.json',JSON.stringify(plan)); fs.writeFileSync('tmp/market.json',JSON.stringify(market));
+execFileSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/board.json','tmp/plan.json','tmp/market.json','tmp/out.json'],{stdio:'inherit'});
+const out=JSON.parse(fs.readFileSync('tmp/out.json','utf8'));
+if(out.protocol!=='V38_CANARY_EXECUTION_FREEZE_V1'||out.canary_only!==true||out.production_normal_volume!==false) throw Error('bad protocol flags');
+if(out.tickets!==3||out.max_ticket_budget!==4) throw Error('bad budget');
+if(out.readiness.all_ticket_legs_priced!==true||out.roi_status!=='READY_FOR_POST_SLATE_SETTLEMENT') throw Error('price freeze failed');
+if(out.serious_board.find(r=>r.player_id===8)?.profile_gate_count!==4) throw Error('4/6 longshot missing');
+if(!out.serious_board.find(r=>r.player_id===6)?.intentional_zero_reason) throw Error('zero reason missing');
+console.log('V38_CANARY_EXECUTION_FREEZE_TEST_OK');
