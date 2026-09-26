@@ -8,6 +8,7 @@ on:
       - 'scripts/evaluate-v38-exposure-revalidation.mjs'
       - 'scripts/evaluate-v38-exposure-share-revalidation.mjs'
       - 'scripts/evaluate-v38-ticket-architecture-revalidation.mjs'
+      - 'scripts/evaluate-v38-ticket-budget-revalidation.mjs'
       - 'scripts/run-v38-point-in-time-replay.mjs'
       - 'scripts/analyze-v38-pitchfit-slate.mjs'
       - 'scripts/analyze-v38-recent-bbe-slate.mjs'
@@ -18,6 +19,7 @@ on:
       - 'test-v38-exposure-revalidation.mjs'
       - 'test-v38-exposure-share-revalidation.mjs'
       - 'test-v38-ticket-architecture-revalidation.mjs'
+      - 'test-v38-ticket-budget-revalidation.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,18 +44,20 @@ jobs:
           node --check scripts/evaluate-v38-exposure-revalidation.mjs
           node --check scripts/evaluate-v38-exposure-share-revalidation.mjs
           node --check scripts/evaluate-v38-ticket-architecture-revalidation.mjs
+          node --check scripts/evaluate-v38-ticket-budget-revalidation.mjs
           node --check scripts/run-v38-point-in-time-replay.mjs
           node test-v38-workflow-revalidation.mjs
           node test-v38-exposure-revalidation.mjs
           node test-v38-exposure-share-revalidation.mjs
           node test-v38-ticket-architecture-revalidation.mjs
+          node test-v38-ticket-budget-revalidation.mjs
       - name: Rebuild pregame profile
         run: node scripts/run-v38-point-in-time-replay.mjs "${{ matrix.replay_date }}"
       - name: Rebuild as-of pitch fit
         run: node scripts/analyze-v38-pitchfit-slate.mjs "${{ matrix.replay_date }}"
       - name: Rebuild as-of recent BBE
         run: node scripts/analyze-v38-recent-bbe-slate.mjs "${{ matrix.replay_date }}"
-      - name: Rebuild as-of starter damage
+      - name: Rebuild starter damage
         run: node scripts/analyze-v38-starter-damage-slate.mjs "${{ matrix.replay_date }}" "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json"
       - name: Compare compression cohorts
         run: node scripts/evaluate-v38-workflow-revalidation.mjs "snapshots/v38-point-in-time-replay-${{ matrix.replay_date }}.json" "snapshots/v38-pitchfit-${{ matrix.replay_date }}.json" "snapshots/v38-recent-bbe-${{ matrix.replay_date }}.json" "snapshots/v38-starter-damage-${{ matrix.replay_date }}.json"
@@ -63,6 +67,8 @@ jobs:
         run: node scripts/evaluate-v38-exposure-share-revalidation.mjs "snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json"
       - name: Compare ticket architecture
         run: node scripts/evaluate-v38-ticket-architecture-revalidation.mjs "snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json"
+      - name: Compare equal-budget ticket allocation
+        run: node scripts/evaluate-v38-ticket-budget-revalidation.mjs "snapshots/v38-workflow-revalidation-${{ matrix.replay_date }}.json"
       - uses: actions/upload-artifact@v4
         with:
           name: v38-workflow-revalidation-${{ matrix.replay_date }}-${{ github.run_id }}
@@ -75,5 +81,6 @@ jobs:
             snapshots/v38-exposure-revalidation-${{ matrix.replay_date }}.json
             snapshots/v38-exposure-share-revalidation-${{ matrix.replay_date }}.json
             snapshots/v38-ticket-architecture-revalidation-${{ matrix.replay_date }}.json
+            snapshots/v38-ticket-budget-revalidation-${{ matrix.replay_date }}.json
           if-no-files-found: error
           retention-days: 90
