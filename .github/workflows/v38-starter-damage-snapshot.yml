@@ -1,0 +1,52 @@
+name: v38 Starter Damage Snapshot
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/capture-v38-starter-damage-snapshot.mjs'
+      - 'starter-native-core.mjs'
+      - 'native-feed-core.mjs'
+      - '.github/workflows/v38-starter-damage-snapshot.yml'
+  schedule:
+    - cron: '25 16,19,21,23 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Resolve current ET slate
+        id: date
+        run: echo "date=$(TZ=America/New_York date +%F)" >> "$GITHUB_OUTPUT"
+      - name: Syntax
+        run: node --check scripts/capture-v38-starter-damage-snapshot.mjs
+      - name: Capture immutable starter damage snapshot
+        run: node scripts/capture-v38-starter-damage-snapshot.mjs '${{ steps.date.outputs.date }}'
+      - name: Verify snapshot contract
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob,json,re
+          p=glob.glob('snapshots/v38-starter-damage-snapshot-*.json')[0]
+          z=json.load(open(p))
+          assert z['protocol']=='V38_STARTER_DAMAGE_SNAPSHOT_V1'
+          assert z['point_in_time'] is True and z['as_of_verified'] is True
+          assert z['research_only'] is True and z['scoring_enabled'] is False and z['scoring_eligible'] is False
+          assert re.fullmatch(r'[a-f0-9]{64}',z['sha256'])
+          assert isinstance(z['rows'],list)
+          for r in z['rows']:
+            assert r['starter_hr9_band'] in ['LOW_LT_1_2','MID_1_2_TO_1_5','HIGH_GE_1_5','SMALL_SAMPLE','UNAVAILABLE']
+          print('V38_STARTER_DAMAGE_SNAPSHOT_OK='+json.dumps({'date':z['date'],'captured_at':z['captured_at'],'rows':len(z['rows']),'pitchers':z['pitchers'],'fetch_error':z['fetch_error']}))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-starter-damage-${{ github.run_id }}
+          path: snapshots/v38-starter-damage-snapshot-*.json
+          if-no-files-found: error
+          retention-days: 30
