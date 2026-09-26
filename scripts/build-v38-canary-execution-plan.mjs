@@ -11,6 +11,11 @@ const stake=stakeArg==null?1:Number(stakeArg);
 if(board.protocol!=='V38_DAILY_RESEARCH_BOARD_V2'||board.point_in_time!==true) throw Error('invalid daily board');
 if(!validStarterDamageSnapshot(starter)||starter.date!==board.date) throw Error('invalid starter snapshot');
 if(!Number.isFinite(Date.parse(frozen_at))||!Number.isFinite(stake)||stake<=0) throw Error('invalid freeze time/stake');
+const standardRows=(board.rows||[]).filter(r=>Number(r.profile_gate_count)>=5&&Number.isFinite(Date.parse(r.start_time)));
+if(!standardRows.length) throw Error('no standard 5of6+ rows on daily board');
+const earliestStandardStart=Math.min(...standardRows.map(r=>Date.parse(r.start_time)));
+if(Date.parse(frozen_at)>=earliestStandardStart) throw Error('FULL_SLATE_CANARY_FREEZE_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');
+if(Date.parse(starter.captured_at)>=earliestStandardStart) throw Error('FULL_SLATE_STARTER_SNAPSHOT_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');
 
 const pitch={INELIGIBLE:0,BASE_TRUE:1,TOP_QUARTILE:2,TOP_DECILE:3};
 const bbe={INELIGIBLE:0,BASE:1,TOP_QUARTILE:2,TOP_DECILE:3};
@@ -22,7 +27,7 @@ const cmp=(a,b)=>{for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return b[i]-a[i]; 
 const bbeBand=r=>typeof r.bbe_band==='string'?r.bbe_band:(r.bbe_band?.hrshape_band||r.bbe?.hrshape_band||'INELIGIBLE');
 const pitchBand=r=>r.pitchfit_band||'INELIGIBLE';
 const starterFor=r=>selectLatestStarterDamage([starter],r.player_id,r.gamePk,r.start_time);
-const enriched=(board.rows||[]).filter(r=>Number(r.profile_gate_count)>=5).filter(r=>Date.parse(r.start_time)>Date.parse(frozen_at)).map(r=>{
+const enriched=standardRows.map(r=>{
   const s=starterFor(r); const sb=s?.row?.starter_hr9_band||'UNAVAILABLE';
   const pb=pitchBand(r), bb=bbeBand(r);
   const pitchPositive=val(pitch,pb)>0, bbePositive=val(bbe,bb)>0, suppressive=sb==='LOW_LT_1_2';
@@ -59,7 +64,7 @@ while(tickets.length<budget&&guard++<10000){
 }
 if(!tickets.length) throw Error('unable to build any cross-game tickets from confirmed lineups');
 const intentional_zeros=serious.filter(r=>(uses.get(Number(r.player_id))||0)===0).map(r=>({player_id:Number(r.player_id),reason:confirmedLineup(r)?'DETERMINISTIC_40PCT_TICKET_BUDGET_BROAD_COVERAGE_ZERO':'LINEUP_NOT_CONFIRMED_AT_FREEZE'}));
-const body={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date:board.date,frozen_at,candidate_pool_player_ids:ranked.map(r=>Number(r.player_id)),candidate_pool_ranking_strategy:strategy,serious_board_player_ids:serious.map(r=>Number(r.player_id)),tickets,intentional_zeros,research_metadata:{protocol:'V38_CANARY_PLAN_BUILDER_V1',point_in_time:true,outcome_input:false,candidate_source:'STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION',protected_4of6_status:'SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY',opportunity_guard:'TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9',candidate_pool_rows:ranked.length,serious_board_rows:seriousN,confirmed_lineup_serious_rows:serious.filter(confirmedLineup).length,unconfirmed_lineup_serious_rows:serious.filter(r=>!confirmedLineup(r)).length,slate_band:band,serious_board_share_pct:40,ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,priority_rows:priorityN,requested_ticket_budget:budget,actual_tickets:tickets.length,budget_underfill_due_to_opportunity:tickets.length<budget,excluded_concrete_negative:enriched.length-ranked.length,source_board_sha256:crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex'),source_starter_snapshot_sha256:starter.sha256}};
+const body={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date:board.date,frozen_at,candidate_pool_player_ids:ranked.map(r=>Number(r.player_id)),candidate_pool_ranking_strategy:strategy,serious_board_player_ids:serious.map(r=>Number(r.player_id)),tickets,intentional_zeros,research_metadata:{protocol:'V38_CANARY_PLAN_BUILDER_V1',point_in_time:true,outcome_input:false,candidate_source:'STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION',protected_4of6_status:'SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY',opportunity_guard:'TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9',freeze_scope:'FULL_STANDARD_5OF6_PLUS_SLATE_BEFORE_EARLIEST_CANDIDATE_START',candidate_pool_rows:ranked.length,serious_board_rows:seriousN,confirmed_lineup_serious_rows:serious.filter(confirmedLineup).length,unconfirmed_lineup_serious_rows:serious.filter(r=>!confirmedLineup(r)).length,slate_band:band,serious_board_share_pct:40,ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,priority_rows:priorityN,requested_ticket_budget:budget,actual_tickets:tickets.length,budget_underfill_due_to_opportunity:tickets.length<budget,excluded_concrete_negative:enriched.length-ranked.length,earliest_standard_candidate_start:new Date(earliestStandardStart).toISOString(),source_board_sha256:crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex'),source_starter_snapshot_sha256:starter.sha256}};
 const output={...body,plan_sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')};
 const outPath=outPathArg||`snapshots/v38-canary-execution-plan-${board.date}.json`;
 fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true});
