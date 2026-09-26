@@ -1,0 +1,29 @@
+name: CFB public discovery replay
+on:
+  push:
+    branches: [research/cfb-market-model-v1]
+    paths:
+      - 'research/cfb/run-public-discovery-replay.py'
+      - '.github/workflows/cfb-public-discovery-replay.yml'
+  workflow_dispatch:
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas pyarrow
+      - name: Download public discovery data
+        run: |
+          curl -L --fail --retry 3 -o /tmp/games.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/games.parquet
+          curl -L --fail --retry 3 -o /tmp/lines.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/lines.parquet
+      - name: Run discovery replay
+        run: python research/cfb/run-public-discovery-replay.py /tmp/games.parquet /tmp/lines.parquet cfb-discovery-replay.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-public-discovery-replay
+          path: cfb-discovery-replay.json
+          retention-days: 30
