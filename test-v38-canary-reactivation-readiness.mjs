@@ -14,6 +14,8 @@ const z=JSON.parse(fs.readFileSync(out,'utf8'));
 if(z.protocol!=='V38_CANARY_REACTIVATION_READINESS_V1'||z.forward_slates!==5) throw Error('bad protocol/slates');
 if(z.readiness_status!=='INITIAL_REACTIVATION_REVIEW') throw Error('bad readiness status');
 if(z.total_tickets!==20||z.winning_tickets!==3) throw Error('bad ticket aggregation');
-if(z.total_stake_units!==20||z.net_units!==20||z.realized_roi_pct!==100) throw Error('bad raw ROI aggregation');
+// Raw totals: winning slates are i=1,3,5 => +8 each; losing slates i=2,4 => -4 each.
+// Net = 24 - 8 = 16 units on 20 staked units => 80% realized ROI.
+if(z.total_stake_units!==20||z.net_units!==16||z.realized_roi_pct!==80) throw Error('bad raw ROI aggregation');
 if(z.evidence_gate.automatic_production_enable!==false||z.production_normal_volume!==false) throw Error('unsafe production flag');
 console.log('V38_CANARY_REACTIVATION_READINESS_TEST_OK');
