@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/v38-ticket-no-lineup-summary.yml'
       - 'scripts/summarize-v38-ticket-no-lineup-revalidation.mjs'
+      - 'scripts/evaluate-v38-exposure-share-no-lineup.mjs'
+      - 'scripts/summarize-v38-exposure-share-no-lineup.mjs'
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +24,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Syntax
+        run: |
+          node --check scripts/summarize-v38-ticket-no-lineup-revalidation.mjs
+          node --check scripts/evaluate-v38-exposure-share-no-lineup.mjs
+          node --check scripts/summarize-v38-exposure-share-no-lineup.mjs
       - name: Wait for source revalidation
         shell: bash
         run: |
@@ -41,11 +48,22 @@ jobs:
         run: |
           mkdir -p incoming snapshots
           gh run download "$SOURCE_RUN_ID" --repo "$GH_REPO" --dir incoming
-      - name: Build aggregate contamination-check summary
-        run: node scripts/summarize-v38-ticket-no-lineup-revalidation.mjs incoming snapshots/v38-ticket-no-lineup-revalidation-summary.json
+      - name: Re-evaluate exposure shares without lineup rank evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(find incoming -type f -name 'v38-workflow-revalidation-*.json' | sort)
+          [ "${#FILES[@]}" -eq 80 ] || { echo "expected 80 workflow artifacts, found ${#FILES[@]}"; exit 1; }
+          for F in "${FILES[@]}"; do node scripts/evaluate-v38-exposure-share-no-lineup.mjs "$F"; done
+      - name: Build aggregate contamination-check summaries
+        run: |
+          node scripts/summarize-v38-ticket-no-lineup-revalidation.mjs incoming snapshots/v38-ticket-no-lineup-revalidation-summary.json
+          node scripts/summarize-v38-exposure-share-no-lineup.mjs snapshots snapshots/v38-exposure-share-no-lineup-summary.json
       - uses: actions/upload-artifact@v4
         with:
-          name: v38-ticket-no-lineup-summary-${{ github.run_id }}
-          path: snapshots/v38-ticket-no-lineup-revalidation-summary.json
+          name: v38-no-lineup-summary-${{ github.run_id }}
+          path: |
+            snapshots/v38-ticket-no-lineup-revalidation-summary.json
+            snapshots/v38-exposure-share-no-lineup-summary.json
           if-no-files-found: error
           retention-days: 90
