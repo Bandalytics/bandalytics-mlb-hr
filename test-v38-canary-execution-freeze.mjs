@@ -10,7 +10,7 @@ fs.writeFileSync('tmp/board.json',JSON.stringify(board)); fs.writeFileSync('tmp/
 execFileSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/board.json','tmp/plan.json','tmp/market.json','tmp/out.json'],{stdio:'inherit'});
 const out=JSON.parse(fs.readFileSync('tmp/out.json','utf8'));
 if(out.protocol!=='V38_CANARY_EXECUTION_FREEZE_V1'||out.canary_only!==true||out.production_normal_volume!==false) throw Error('bad protocol flags');
-if(out.tickets!==3||out.max_ticket_budget!==4) throw Error('bad budget');
+if(out.tickets.length!==3||out.max_ticket_budget!==4) throw Error('bad budget');
 if(out.readiness.all_ticket_legs_priced!==true||out.roi_status!=='READY_FOR_POST_SLATE_SETTLEMENT') throw Error('price freeze failed');
 if(out.serious_board.find(r=>r.player_id===8)?.profile_gate_count!==4) throw Error('4/6 longshot missing');
 if(!out.serious_board.find(r=>r.player_id===6)?.intentional_zero_reason) throw Error('zero reason missing');
