@@ -1,7 +1,7 @@
 name: v38 Canary Live Prep
 on:
   workflow_run:
-    workflows: ['v38 Daily Research Board', 'v38 Starter Damage Snapshot']
+    workflows: ['v38 Daily Research Board']
     types: [completed]
     branches: [main]
   schedule:
