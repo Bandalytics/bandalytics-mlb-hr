@@ -18,4 +18,16 @@ if(out.serious_board.find(r=>r.player_id===8)?.profile_gate_count!==4) throw Err
 const bad={...plan,serious_board_player_ids:[1,2,3,4]}; fs.writeFileSync('tmp/plan-bad.json',JSON.stringify(bad));
 const run=spawnSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/board.json','tmp/plan-bad.json','tmp/market.json','tmp/bad.json'],{encoding:'utf8'});
 if(run.status===0||!String(run.stderr).includes('top 40%')) throw Error('non-top-40 serious board was not rejected');
+
+// Large-slate regression: band must come from 80-candidate pool, not 32-row serious board.
+const largeRows=Array.from({length:80},(_,i)=>({player_id:1000+i,player:`L${i+1}`,gamePk:1000+i,start_time:start,profile_gate_count:5,longshot_700_rule:{applies:false}}));
+const largeBoard={...board,rows:largeRows};
+const largeIds=largeRows.map(r=>r.player_id), largeSerious=largeIds.slice(0,32);
+const largePlan={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:'2026-09-26T20:00:00Z',candidate_pool_player_ids:largeIds,candidate_pool_ranking_strategy:'PITCHFIT_FIRST',serious_board_player_ids:largeSerious,tickets:[{player_ids:[largeIds[0],largeIds[8]],stake_units:1},{player_ids:[largeIds[0],largeIds[9]],stake_units:1}],intentional_zeros:largeSerious.slice(1).filter(id=>![largeIds[8],largeIds[9]].includes(id)).map(id=>({player_id:id,reason:'synthetic coverage choice'}))};
+const largeMarket={...market,rows:largeRows.map(r=>({player_id:r.player_id,best_odds:500,best_book:'BOOK'}))};
+fs.writeFileSync('tmp/large-board.json',JSON.stringify(largeBoard)); fs.writeFileSync('tmp/large-plan.json',JSON.stringify(largePlan)); fs.writeFileSync('tmp/large-market.json',JSON.stringify(largeMarket));
+execFileSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/large-board.json','tmp/large-plan.json','tmp/large-market.json','tmp/large-out.json'],{stdio:'inherit'});
+const largeOut=JSON.parse(fs.readFileSync('tmp/large-out.json','utf8'));
+if(largeOut.candidate_pool_rows!==80||largeOut.serious_board_rows!==32||largeOut.slate_band!=='LARGE_GE_76'||largeOut.candidate_pool_ranking_strategy!=='PITCHFIT_FIRST') throw Error('large slate band regression');
+if(largeOut.serious_board.find(r=>r.player_id===largeIds[0])?.paths!==2) throw Error('large top-25 repeat path not allowed');
 console.log('V38_CANARY_EXECUTION_FREEZE_TEST_OK');
