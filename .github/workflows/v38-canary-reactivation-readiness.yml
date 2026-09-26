@@ -1,0 +1,29 @@
+name: v38 Canary Reactivation Readiness Contract
+on:
+  pull_request:
+    paths:
+      - 'scripts/summarize-v38-canary-reactivation.mjs'
+      - 'test-v38-canary-reactivation-readiness.mjs'
+      - '.github/workflows/v38-canary-reactivation-readiness.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/summarize-v38-canary-reactivation.mjs'
+      - 'test-v38-canary-reactivation-readiness.mjs'
+      - '.github/workflows/v38-canary-reactivation-readiness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax
+        run: node --check scripts/summarize-v38-canary-reactivation.mjs
+      - name: Readiness summary contract
+        run: node test-v38-canary-reactivation-readiness.mjs
