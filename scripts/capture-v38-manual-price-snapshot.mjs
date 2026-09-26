@@ -1,0 +1,29 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+
+const [inputPath,outPathArg]=process.argv.slice(2);
+if(!inputPath) throw Error('Usage: node scripts/capture-v38-manual-price-snapshot.mjs <manual-price-input.json> [output.json]');
+const input=JSON.parse(fs.readFileSync(inputPath,'utf8'));
+if(input.protocol!=='V38_MANUAL_PRICE_INPUT_V1') throw Error('invalid manual price input protocol');
+if(!/^\d{4}-\d{2}-\d{2}$/.test(String(input.date||''))) throw Error('invalid date');
+if(!input.captured_at||!Number.isFinite(Date.parse(input.captured_at))) throw Error('invalid captured_at');
+if(!Array.isArray(input.rows)||!input.rows.length) throw Error('manual price rows missing');
+const seen=new Set();
+const rows=input.rows.map((r,i)=>{
+  const player_id=Number(r.player_id);
+  const american_odds=Number(r.american_odds);
+  const book=String(r.book||'').trim();
+  if(!Number.isInteger(player_id)||player_id<=0) throw Error(`invalid player_id row ${i+1}`);
+  if(seen.has(player_id)) throw Error(`duplicate player_id ${player_id}`); seen.add(player_id);
+  if(!Number.isInteger(american_odds)||american_odds===0||Math.abs(american_odds)<100) throw Error(`invalid american_odds for ${player_id}`);
+  if(!book) throw Error(`missing book for ${player_id}`);
+  return {player_id,player:r.player?String(r.player):null,american_odds,book,captured_at:input.captured_at,source_note:r.source_note?String(r.source_note):null};
+});
+const output={schema:'BANDALYTICS_MANUAL_PRICE_SNAPSHOT_V1',date:input.date,captured_at:input.captured_at,point_in_time:true,append_only:true,canary_only:true,production_normal_volume:false,row_count:rows.length,rows,notes:['Prices are manually transcribed from a sportsbook or user-supplied screenshot before execution freeze.','This snapshot does not infer, interpolate, or backfill missing prices.','Book and capture timestamp are required for every row.']};
+const {sha256:_,...body}=output;
+output.sha256=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
+const outPath=outPathArg||`snapshots/v38-manual-price-snapshot-${input.date}.json`;
+fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true});
+fs.writeFileSync(outPath,JSON.stringify(output,null,2)+'\n');
+console.log(`V38_MANUAL_PRICE_SNAPSHOT_PATH=${outPath}`);
+console.log(`V38_MANUAL_PRICE_SNAPSHOT=${JSON.stringify({date:output.date,captured_at:output.captured_at,rows:output.row_count,sha256:output.sha256})}`);

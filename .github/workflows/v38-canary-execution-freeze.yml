@@ -3,16 +3,20 @@ on:
   pull_request:
     paths:
       - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
   workflow_dispatch:
@@ -30,8 +34,11 @@ jobs:
       - name: Syntax
         run: |
           node --check scripts/freeze-v38-canary-execution.mjs
+          node --check scripts/capture-v38-manual-price-snapshot.mjs
           node --check scripts/settle-v38-canary-execution.mjs
       - name: Canary freeze contract
         run: node test-v38-canary-execution-freeze.mjs
+      - name: Manual price fallback contract
+        run: node test-v38-manual-price-fallback.mjs
       - name: Canary settlement contract
         run: node test-v38-canary-settlement.mjs
