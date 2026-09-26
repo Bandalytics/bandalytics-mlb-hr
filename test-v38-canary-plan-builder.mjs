@@ -15,7 +15,7 @@ if(z.protocol!=='V38_CANARY_EXECUTION_PLAN_V1'||!z.plan_sha256) throw Error('bad
 const m=z.research_metadata;
 if(m.candidate_source!=='STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION'||m.protected_4of6_status!=='SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY') throw Error('bad candidate contract');
 if(m.opportunity_guard!=='TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9') throw Error('lineup guard missing');
-if(m.freeze_scope!=='FULL_STANDARD_5OF6_PLUS_SLATE_BEFORE_EARLIEST_CANDIDATE_START'||m.earliest_standard_candidate_start!==start) throw Error('full-slate freeze metadata missing');
+if(m.freeze_scope!=='FULL_STANDARD_5OF6_PLUS_SLATE_BEFORE_EARLIEST_CANDIDATE_START'||m.earliest_standard_candidate_start!==new Date(start).toISOString()) throw Error('full-slate freeze metadata missing');
 if(m.candidate_pool_rows!==79||m.excluded_concrete_negative!==1||m.slate_band!=='LARGE_GE_76'||z.candidate_pool_ranking_strategy!=='PITCHFIT_FIRST') throw Error('bad anti-overcompression/slate band');
 if(m.serious_board_rows!==32||z.serious_board_player_ids.length!==32||m.requested_ticket_budget!==13||z.tickets.length!==13) throw Error('bad 40% board/ticket budget');
 const uses=new Map(); for(const t of z.tickets) for(const id of t.player_ids) uses.set(id,(uses.get(id)||0)+1);
