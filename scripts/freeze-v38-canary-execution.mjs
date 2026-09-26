@@ -33,7 +33,6 @@ function priceFor(id){
   if(x && Number.isFinite(Number(x.american_odds)) && x.captured_at && Date.parse(x.captured_at)<=Date.parse(plan.frozen_at)) return {american_odds:Number(x.american_odds),book:x.book||null,captured_at:x.captured_at,source:'MANUAL_FROZEN'};
   return null;
 }
-function implied(o){return o>0?100/(o+100):(-o)/((-o)+100)}
 function decimal(o){return o>0?1+o/100:1+100/(-o)}
 function americanFromDecimal(d){if(!Number.isFinite(d)||d<=1)return null;const x=d>=2?(d-1)*100:-100/(d-1);return Math.round(x)}
 
@@ -44,7 +43,6 @@ for(const r of serious){
   if(!protected4) throw Error(`unqualified serious board player: ${r.player_id}`);
 }
 
-const seriousIds=new Set(serious.map(r=>r.player_id));
 const seenPairs=new Set(), uses=new Map(serious.map(r=>[r.player_id,0]));
 const tickets=[];
 for(const [idx,t] of plan.tickets.entries()){
@@ -58,7 +56,9 @@ for(const [idx,t] of plan.tickets.entries()){
   const pa=priceFor(a.player_id), pb=priceFor(b.player_id);
   const priced=!!pa&&!!pb;
   const dec=priced?decimal(pa.american_odds)*decimal(pb.american_odds):null;
-  tickets.push({ticket_index:idx+1,player_ids:ids,players:[a.player,b.player],gamePks:[a.gamePk,b.gamePk],legs:[{player_id:a.player_id,player:a.player,price:pa},{player_id:b.player_id,player:b.player,price:pb}],fully_priced:priced,combined_decimal:dec?+dec.toFixed(4):null,combined_american:dec?americanFromDecimal(dec):null});
+  const stake=Number(t.stake_units);
+  if(!Number.isFinite(stake)||stake<=0) throw Error(`ticket ${idx+1} missing positive stake_units`);
+  tickets.push({ticket_index:idx+1,player_ids:ids,players:[a.player,b.player],gamePks:[a.gamePk,b.gamePk],stake_units:+stake.toFixed(4),legs:[{player_id:a.player_id,player:a.player,price:pa},{player_id:b.player_id,player:b.player,price:pb}],fully_priced:priced,combined_decimal:dec?+dec.toFixed(4):null,combined_american:dec?americanFromDecimal(dec):null});
 }
 
 const n=serious.length;
@@ -77,21 +77,22 @@ for(const r of serious){if((uses.get(r.player_id)||0)===0 && !zeroReasons.get(r.
 const ticketedIds=new Set(tickets.flatMap(t=>t.player_ids));
 const pricedLegs=tickets.flatMap(t=>t.legs).filter(l=>l.price).length;
 const totalLegs=tickets.length*2;
+const totalStake=+tickets.reduce((s,t)=>s+t.stake_units,0).toFixed(4);
 const output={
-  protocol:'V38_CANARY_EXECUTION_FREEZE_V1',date:plan.date,frozen_at:plan.frozen_at,canary_only:true,production_normal_volume:false,
+  protocol:'V38_CANARY_EXECUTION_FREEZE_V2',date:plan.date,frozen_at:plan.frozen_at,canary_only:true,production_normal_volume:false,
   source_board_protocol:board.protocol,source_board_generated_at:board.generated_at,source_board_sha256:crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex'),
   market_snapshot_used:!!market,market_snapshot_captured_at:market?.captured_at||null,market_snapshot_sha256:market?.sha256||null,
   serious_board_contract:'HUMAN_REVIEWED_POOL_FIRST_40_PCT_TICKET_BUDGET',ticket_contract:'CROSS_GAME_TWO_LEG_SMALL_MEDIUM_ONE_PATH_LARGE_TOP25_SECOND_PATH',
-  ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,serious_board_rows:n,slate_band:slateBand,max_ticket_budget:maxTickets,tickets:tickets.length,
+  ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,serious_board_rows:n,slate_band:slateBand,max_ticket_budget:maxTickets,tickets:tickets.length,total_stake_units:totalStake,
   unique_ticketed_hitters:ticketedIds.size,board_coverage_pct:n?+(100*ticketedIds.size/n).toFixed(2):0,priced_legs:pricedLegs,total_legs:totalLegs,price_coverage_pct:totalLegs?+(100*pricedLegs/totalLegs).toFixed(2):0,
   serious_board:serious.map(r=>({serious_rank:r.serious_rank,player_id:r.player_id,player:r.player,gamePk:r.gamePk,start_time:r.start_time,profile_gate_count:r.profile_gate_count,price:priceFor(r.player_id),paths:uses.get(r.player_id)||0,intentional_zero_reason:(uses.get(r.player_id)||0)===0?zeroReasons.get(r.player_id):null})),
-  tickets,
-  readiness:{all_ticket_legs_priced:totalLegs>0&&pricedLegs===totalLegs,all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},
-  roi_status:pricedLegs===totalLegs&&totalLegs>0?'READY_FOR_POST_SLATE_SETTLEMENT':'BLOCKED_INCOMPLETE_FROZEN_PRICES',
-  notes:['No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
+  tickets_detail:tickets,
+  readiness:{all_ticket_legs_priced:totalLegs>0&&pricedLegs===totalLegs,all_ticket_stakes_frozen:tickets.length>0&&tickets.every(t=>t.stake_units>0),all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},
+  roi_status:pricedLegs===totalLegs&&totalLegs>0&&tickets.every(t=>t.stake_units>0)?'READY_FOR_POST_SLATE_SETTLEMENT':'BLOCKED_INCOMPLETE_FROZEN_PRICE_OR_STAKE',
+  notes:['No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','Every played canary ticket must freeze a positive stake_units value before first pitch so realized ROI cannot be backfilled.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
 };
 const {sha256:_,...without}=output; output.sha256=crypto.createHash('sha256').update(JSON.stringify(without)).digest('hex');
 const outPath=outPathArg||`snapshots/v38-canary-execution-freeze-${plan.date}.json`;
 fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true}); fs.writeFileSync(outPath,JSON.stringify(output,null,2)+'\n');
 console.log(`V38_CANARY_EXECUTION_FREEZE_PATH=${outPath}`);
-console.log(`V38_CANARY_EXECUTION_FREEZE_SUMMARY=${JSON.stringify({date:output.date,serious_board_rows:n,slate_band:slateBand,tickets:output.tickets,max_ticket_budget:maxTickets,price_coverage_pct:output.price_coverage_pct,roi_status:output.roi_status})}`);
+console.log(`V38_CANARY_EXECUTION_FREEZE_SUMMARY=${JSON.stringify({date:output.date,serious_board_rows:n,slate_band:slateBand,tickets:output.tickets,max_ticket_budget:maxTickets,total_stake_units:totalStake,price_coverage_pct:output.price_coverage_pct,roi_status:output.roi_status})}`);

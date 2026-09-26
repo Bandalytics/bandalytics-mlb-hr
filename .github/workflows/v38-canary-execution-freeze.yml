@@ -1,15 +1,19 @@
-name: v38 Canary Execution Freeze Contract
+name: v38 Canary Execution + Settlement Contract
 on:
   pull_request:
     paths:
       - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-canary-settlement.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
   push:
     branches: [main]
     paths:
       - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-canary-settlement.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
   workflow_dispatch:
 permissions:
@@ -24,6 +28,10 @@ jobs:
         with:
           node-version: '24'
       - name: Syntax
-        run: node --check scripts/freeze-v38-canary-execution.mjs
+        run: |
+          node --check scripts/freeze-v38-canary-execution.mjs
+          node --check scripts/settle-v38-canary-execution.mjs
       - name: Canary freeze contract
         run: node test-v38-canary-execution-freeze.mjs
+      - name: Canary settlement contract
+        run: node test-v38-canary-settlement.mjs
