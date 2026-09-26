@@ -11,12 +11,20 @@ for(let i=0;i<args.length;i++){
 }
 if(!files.length) throw Error('no settlement files');
 const round4=n=>+Number(n).toFixed(4);
+const bandFor=n=>n<=50?'SMALL_LE_50':n<=75?'MEDIUM_51_75':'LARGE_GE_76';
+const expectedBudgetFor=n=>Math.max(1,Math.ceil(Math.max(1,Math.ceil(n*0.40))*0.40));
 const seenDates=new Set();
 const settlements=files.map(f=>{
   const z=JSON.parse(fs.readFileSync(f,'utf8'));
   if(z.protocol!=='V38_CANARY_SETTLEMENT_V1'||z.canary_only!==true||z.production_normal_volume!==false) throw Error(`invalid settlement ${f}`);
   if(z.source_architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1') throw Error(`non-holdout-aligned settlement ${f}`);
   if(z.roi_status!=='REALIZED_FROM_VERIFIED_FROZEN_PRICE_AND_STAKE') throw Error(`unverified ROI ${f}`);
+  const candidateN=Number(z.source_candidate_pool_rows);
+  if(!Number.isInteger(candidateN)||candidateN<1) throw Error(`invalid candidate pool size ${f}`);
+  const expectedBand=bandFor(candidateN);
+  if(z.source_slate_band!==expectedBand) throw Error(`slate-band mismatch ${f}: expected ${expectedBand}`);
+  const expectedTickets=expectedBudgetFor(candidateN);
+  if(Number(z.tickets)!==expectedTickets) throw Error(`budget-underfilled canary settlement ${f}: ${z.tickets} != ${expectedTickets}`);
   if(!z.date||seenDates.has(z.date)) throw Error(`duplicate/missing date ${z.date||f}`);
   seenDates.add(z.date);
   if(!z.sha256) throw Error(`missing sha256 ${f}`);
@@ -46,7 +54,7 @@ const settlements=files.map(f=>{
   if(playerResults.size!==Number(z.unique_ticketed_hitters)||detailHr!==Number(z.ticketed_hr)) throw Error(`ticketed hitter total mismatch ${f}`);
   const expectedRoi=detailStake?+(100*detailNet/detailStake).toFixed(2):null;
   if(expectedRoi!==z.realized_roi_pct) throw Error(`settlement ROI mismatch ${f}`);
-  return z;
+  return {...z,expected_ticket_budget:expectedTickets};
 }).sort((a,b)=>a.date.localeCompare(b.date));
 const slates=settlements.length;
 const tickets=settlements.reduce((s,z)=>s+Number(z.tickets||0),0);
@@ -65,9 +73,9 @@ const output={
   total_stake_units:stake,net_units:net,realized_roi_pct:realizedRoi,
   ticketed_hitter_opportunities:uniqueHitters,ticketed_hr:ticketedHr,ticketed_hr_rate_pct:uniqueHitters?+(100*ticketedHr/uniqueHitters).toFixed(2):0,
   readiness_status:status,
-  evidence_gate:{minimum_initial_review_slates:5,preferred_full_review_slates:10,all_settlements_verified:true,all_settlements_holdout_aligned:true,internal_settlement_totals_verified:true,automatic_production_enable:false},
-  slate_rows:settlements.map(z=>({date:z.date,slate_band:z.source_slate_band,candidate_pool_rows:z.source_candidate_pool_rows,tickets:z.tickets,winning_tickets:z.winning_tickets,total_stake_units:z.total_stake_units,net_units:z.net_units,realized_roi_pct:z.realized_roi_pct,settlement_sha256:z.sha256})),
-  notes:['This is a forward canary evidence summary, not an automatic production switch.','Only settlements sourced from the holdout-aligned candidate-pool slate bands and top-40% serious-board contract are accepted.','Portfolio ROI is recomputed from raw frozen-stake totals across slates, never by averaging per-slate ROI percentages.','Each settlement hash and its ticket-level financial/outcome totals are revalidated before aggregation.','Five slates permits an initial review; ten slates is the preferred full reactivation review point.','No Core/profile or ticket rule is changed by this summary.']
+  evidence_gate:{minimum_initial_review_slates:5,preferred_full_review_slates:10,all_settlements_verified:true,all_settlements_holdout_aligned:true,all_settlements_full_ticket_budget:true,internal_settlement_totals_verified:true,automatic_production_enable:false},
+  slate_rows:settlements.map(z=>({date:z.date,slate_band:z.source_slate_band,candidate_pool_rows:z.source_candidate_pool_rows,expected_ticket_budget:z.expected_ticket_budget,tickets:z.tickets,winning_tickets:z.winning_tickets,total_stake_units:z.total_stake_units,net_units:z.net_units,realized_roi_pct:z.realized_roi_pct,settlement_sha256:z.sha256})),
+  notes:['This is a forward canary evidence summary, not an automatic production switch.','Only settlements sourced from the holdout-aligned candidate-pool slate bands and top-40% serious-board contract are accepted.','A forward slate counts toward reactivation only when it fills the same 40% requested ticket budget used by the holdout; opportunity-driven underfilled slates remain research observations but cannot advance the 5/10-slate readiness gate.','Portfolio ROI is recomputed from raw frozen-stake totals across slates, never by averaging per-slate ROI percentages.','Each settlement hash and its ticket-level financial/outcome totals are revalidated before aggregation.','Five comparable slates permits an initial review; ten comparable slates is the preferred full reactivation review point.','No Core/profile or ticket rule is changed by this summary.']
 };
 const {sha256:_,...body}=output; output.sha256=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
 fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true});
