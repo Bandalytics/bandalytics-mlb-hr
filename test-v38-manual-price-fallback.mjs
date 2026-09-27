@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 fs.mkdirSync('tmp/manual-price-fallback',{recursive:true});
 const dir='tmp/manual-price-fallback',date='2026-09-26',captured='2026-09-26T19:50:00Z',frozen='2026-09-26T20:00:00Z',start='2026-09-26T23:00:00Z';
@@ -12,7 +13,9 @@ const rows=[
 ];
 const board={protocol:'V38_DAILY_RESEARCH_BOARD_V2',date,generated_at:'2026-09-26T18:00:00Z',point_in_time:true,rows};
 const candidateIds=[1,2,6,3,4,5];
-const plan={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:frozen,candidate_pool_player_ids:candidateIds,candidate_pool_ranking_strategy:'PROFILE_FIRST',serious_board_player_ids:candidateIds.slice(0,3),tickets:[{player_ids:[1,6],stake_units:1}],intentional_zeros:[{player_id:2,reason:'one-path coverage choice'}]};
+const boardSha=crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex');
+const planBody={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:frozen,candidate_pool_player_ids:candidateIds,candidate_pool_ranking_strategy:'PROFILE_FIRST',serious_board_player_ids:candidateIds.slice(0,3),tickets:[{player_ids:[1,6],stake_units:1}],intentional_zeros:[{player_id:2,reason:'one-path coverage choice'}],research_metadata:{source_board_sha256:boardSha}};
+const plan={...planBody,plan_sha256:crypto.createHash('sha256').update(JSON.stringify(planBody)).digest('hex')};
 const manual={protocol:'V38_MANUAL_PRICE_INPUT_V1',date,captured_at:captured,rows:rows.map(r=>({player_id:r.player_id,player:r.player,american_odds:r.player_id===6?800:500,book:'USER_BOOK',source_note:'pregame screenshot transcription'}))};
 fs.writeFileSync(`${dir}/board.json`,JSON.stringify(board));
 fs.writeFileSync(`${dir}/plan.json`,JSON.stringify(plan));
