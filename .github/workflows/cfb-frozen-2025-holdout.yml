@@ -1,0 +1,30 @@
+name: CFB frozen 2025 holdout
+on:
+  push:
+    branches: [research/cfb-market-model-v1]
+    paths:
+      - 'research/cfb/CFB_DISCOVERY_FREEZE_V1.json'
+      - 'research/cfb/evaluate-frozen-2025-holdout.py'
+      - '.github/workflows/cfb-frozen-2025-holdout.yml'
+  workflow_dispatch:
+
+jobs:
+  holdout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas pyarrow
+      - name: Download public holdout data
+        run: |
+          curl -L --fail --retry 3 -o /tmp/games.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/games.parquet
+          curl -L --fail --retry 3 -o /tmp/lines.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/lines.parquet
+      - name: Evaluate exact frozen 2025 screens
+        run: python research/cfb/evaluate-frozen-2025-holdout.py /tmp/games.parquet /tmp/lines.parquet research/cfb/CFB_DISCOVERY_FREEZE_V1.json cfb-2025-holdout.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-2025-holdout
+          path: cfb-2025-holdout.json
+          retention-days: 90
