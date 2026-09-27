@@ -28,12 +28,12 @@ if(priceSnapshot){
   if(priceSnapshot.point_in_time!==true||priceSnapshot.date!==board.date) throw Error('invalid price snapshot');
   if(!priceSnapshot.captured_at||!Number.isFinite(Date.parse(priceSnapshot.captured_at))) throw Error('price snapshot missing captured_at');
   if(Date.parse(priceSnapshot.captured_at)>Date.parse(plan.frozen_at)) throw Error('price snapshot after execution freeze');
+  if(!priceSnapshot.sha256) throw Error('price snapshot missing sha256');
+  const {sha256:claimedPriceSha,...priceBody}=priceSnapshot;
+  const computedPriceSha=crypto.createHash('sha256').update(JSON.stringify(priceBody)).digest('hex');
+  if(computedPriceSha!==claimedPriceSha) throw Error('price snapshot sha256 mismatch');
   if(snapshotKind==='MANUAL_PRICE_SNAPSHOT'){
     if(priceSnapshot.canary_only!==true||priceSnapshot.production_normal_volume!==false) throw Error('unsafe manual price snapshot flags');
-    if(!priceSnapshot.sha256) throw Error('manual price snapshot missing sha256');
-    const {sha256:claimed,...body}=priceSnapshot;
-    const calc=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
-    if(calc!==claimed) throw Error('manual price snapshot sha256 mismatch');
   }
 }
 
@@ -42,7 +42,7 @@ const snapshotRows = new Map((priceSnapshot?.rows||[]).map(r=>[Number(r.player_i
 const planManual = new Map((plan.manual_prices||[]).map(r=>[Number(r.player_id),r]));
 function priceFor(id){
   const s=snapshotRows.get(Number(id));
-  if(snapshotKind==='MARKET_SNAPSHOT' && s && Number.isFinite(Number(s.best_odds))) return {american_odds:Number(s.best_odds),book:s.best_book||null,captured_at:priceSnapshot.captured_at,source:'MARKET_SNAPSHOT'};
+  if(snapshotKind==='MARKET_SNAPSHOT' && s && Number.isFinite(Number(s.best_odds))) return {american_odds:Number(s.best_odds),book:s.best_book||null,captured_at:priceSnapshot.captured_at,source:'MARKET_SNAPSHOT',snapshot_sha256:priceSnapshot.sha256};
   if(snapshotKind==='MANUAL_PRICE_SNAPSHOT' && s && Number.isFinite(Number(s.american_odds))) return {american_odds:Number(s.american_odds),book:s.book||null,captured_at:s.captured_at||priceSnapshot.captured_at,source:'MANUAL_PRICE_SNAPSHOT',snapshot_sha256:priceSnapshot.sha256};
   const x=planManual.get(Number(id));
   if(x && Number.isFinite(Number(x.american_odds)) && x.captured_at && Date.parse(x.captured_at)<=Date.parse(plan.frozen_at)) return {american_odds:Number(x.american_odds),book:x.book||null,captured_at:x.captured_at,source:'MANUAL_FROZEN'};
@@ -119,9 +119,9 @@ const output={
   candidate_pool:candidatePool.map(r=>({candidate_rank:r.candidate_rank,player_id:r.player_id,player:r.player,gamePk:r.gamePk,start_time:r.start_time,profile_gate_count:r.profile_gate_count})),
   serious_board:serious.map(r=>({serious_rank:r.serious_rank,player_id:r.player_id,player:r.player,gamePk:r.gamePk,start_time:r.start_time,profile_gate_count:r.profile_gate_count,price:priceFor(r.player_id),paths:uses.get(r.player_id)||0,intentional_zero_reason:(uses.get(r.player_id)||0)===0?zeroReasons.get(r.player_id):null})),
   tickets_detail:tickets,
-  readiness:{candidate_pool_frozen:true,serious_board_share_compliant:true,slate_band_holdout_aligned:true,plan_hash_verified:true,plan_board_provenance_verified:true,all_ticket_legs_priced:totalLegs>0&&pricedLegs===totalLegs,all_ticket_stakes_frozen:tickets.length>0&&tickets.every(t=>t.stake_units>0),all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},
+  readiness:{candidate_pool_frozen:true,serious_board_share_compliant:true,slate_band_holdout_aligned:true,plan_hash_verified:true,plan_board_provenance_verified:true,price_snapshot_hash_verified:!priceSnapshot||!!priceSnapshot.sha256,all_ticket_legs_priced:totalLegs>0&&pricedLegs===totalLegs,all_ticket_stakes_frozen:tickets.length>0&&tickets.every(t=>t.stake_units>0),all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},
   roi_status:pricedLegs===totalLegs&&totalLegs>0&&tickets.every(t=>t.stake_units>0)?'READY_FOR_POST_SLATE_SETTLEMENT':'BLOCKED_INCOMPLETE_FROZEN_PRICE_OR_STAKE',
-  notes:['The execution plan SHA-256 is verified before any ticket membership or stake is accepted, and the plan must point to the exact daily-board hash used by this freeze.','Slate band is derived from the candidate pool count using the validated <=50 / 51-75 / >=76 holdout bands, not from serious-board size.','The serious board is exactly the top 40% of the frozen ordered candidate pool, matching the holdout architecture.','No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','Every played canary ticket must freeze a positive stake_units value before first pitch so realized ROI cannot be backfilled.','A hashed manual price snapshot is an allowed temporary fallback when the automated market provider is unavailable; missing prices are never inferred.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
+  notes:['The execution plan SHA-256 is verified before any ticket membership or stake is accepted, and the plan must point to the exact daily-board hash used by this freeze.','Any automated or manual price snapshot is SHA-256 verified before frozen odds are accepted.','Slate band is derived from the candidate pool count using the validated <=50 / 51-75 / >=76 holdout bands, not from serious-board size.','The serious board is exactly the top 40% of the frozen ordered candidate pool, matching the holdout architecture.','No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','Every played canary ticket must freeze a positive stake_units value before first pitch so realized ROI cannot be backfilled.','A hashed manual price snapshot is an allowed temporary fallback when the automated market provider is unavailable; missing prices are never inferred.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
 };
 const {sha256:_,...without}=output; output.sha256=crypto.createHash('sha256').update(JSON.stringify(without)).digest('hex');
 const outPath=outPathArg||`snapshots/v38-canary-execution-freeze-${plan.date}.json`;
