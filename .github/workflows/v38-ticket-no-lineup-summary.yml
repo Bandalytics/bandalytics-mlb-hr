@@ -1,0 +1,69 @@
+name: v38 Ticket No-Lineup Summary
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v38-ticket-no-lineup-summary.yml'
+      - 'scripts/summarize-v38-ticket-no-lineup-revalidation.mjs'
+      - 'scripts/evaluate-v38-exposure-share-no-lineup.mjs'
+      - 'scripts/summarize-v38-exposure-share-no-lineup.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_RUN_ID: '36280958479'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax
+        run: |
+          node --check scripts/summarize-v38-ticket-no-lineup-revalidation.mjs
+          node --check scripts/evaluate-v38-exposure-share-no-lineup.mjs
+          node --check scripts/summarize-v38-exposure-share-no-lineup.mjs
+      - name: Wait for source revalidation
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 220); do
+            STATUS=$(gh api "repos/${GH_REPO}/actions/runs/${SOURCE_RUN_ID}" --jq '.status')
+            CONCLUSION=$(gh api "repos/${GH_REPO}/actions/runs/${SOURCE_RUN_ID}" --jq '.conclusion // ""')
+            echo "source status=$STATUS conclusion=$CONCLUSION"
+            if [ "$STATUS" = "completed" ]; then
+              [ "$CONCLUSION" = "success" ] || { echo "source run did not succeed"; exit 1; }
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "source run did not finish in time"; exit 1
+      - name: Download all source artifacts
+        run: |
+          mkdir -p incoming snapshots
+          gh run download "$SOURCE_RUN_ID" --repo "$GH_REPO" --dir incoming
+      - name: Re-evaluate exposure shares without lineup rank evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(find incoming -type f -name 'v38-workflow-revalidation-*.json' | sort)
+          [ "${#FILES[@]}" -eq 80 ] || { echo "expected 80 workflow artifacts, found ${#FILES[@]}"; exit 1; }
+          for F in "${FILES[@]}"; do node scripts/evaluate-v38-exposure-share-no-lineup.mjs "$F"; done
+      - name: Build aggregate contamination-check summaries
+        run: |
+          node scripts/summarize-v38-ticket-no-lineup-revalidation.mjs incoming snapshots/v38-ticket-no-lineup-revalidation-summary.json
+          node scripts/summarize-v38-exposure-share-no-lineup.mjs snapshots snapshots/v38-exposure-share-no-lineup-summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-no-lineup-summary-${{ github.run_id }}
+          path: |
+            snapshots/v38-ticket-no-lineup-revalidation-summary.json
+            snapshots/v38-exposure-share-no-lineup-summary.json
+          if-no-files-found: error
+          retention-days: 90
