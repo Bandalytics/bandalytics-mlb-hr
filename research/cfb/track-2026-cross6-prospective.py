@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, math, sys
+import hashlib, json, math, sys
 import pandas as pd
 
 GAMES=sys.argv[1]
@@ -7,6 +7,13 @@ LINES=sys.argv[2]
 SNAPS=sys.argv[3]
 OUT=sys.argv[4] if len(sys.argv)>4 else 'cfb-2026-cross6-prospective.json'
 SEASON=2026
+
+def sha256_file(path):
+    h=hashlib.sha256()
+    with open(path,'rb') as f:
+        for chunk in iter(lambda:f.read(1024*1024),b''):
+            h.update(chunk)
+    return h.hexdigest()
 
 # Frozen forward candidates from the untouched 2025 holdout decision.
 ALLOWED_IDS=('CROSS6','BOOKS3PLUS_CROSS6')
@@ -94,6 +101,11 @@ books3=[r['result'] for r in frozen_rows if r['books3plus'] and r['result'] in (
 out={
     'protocol':'CFB_2026_CROSS6_PROSPECTIVE_V1','season':SEASON,'research_only':True,'production_enabled':False,
     'as_of_snapshot_utc':as_of.isoformat(),
+    'source_provenance':{
+        'games_sha256':sha256_file(GAMES),
+        'lines_sha256':sha256_file(LINES),
+        'line_snapshots_sha256':sha256_file(SNAPS)
+    },
     'roi_status':'NOT_COMPUTED_NO_VERIFIED_FROZEN_PRICE','public_ticket_signals_tested':False,
     'snapshot_contract':'For each sportsbook, final immutable non-live home-spread quote captured strictly before kickoff; cross-book current line is median of those quotes. Opening line is frozen market_spread_open from processed lines consensus. A qualifying event enters the frozen ledger only after kickoff is at or before the latest captured snapshot timestamp; future games remain provisional and cannot affect settled counts.',
     'signals':{
