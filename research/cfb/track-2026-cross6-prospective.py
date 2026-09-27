@@ -55,15 +55,18 @@ s=s[(s['market'].astype(str).str.lower()=='spread') & (s['side'].astype(str).str
 if 'is_live' in s.columns: s=s[~s['is_live'].fillna(False).astype(bool)].copy()
 s['line']=pd.to_numeric(s['line'],errors='coerce')
 s=s.dropna(subset=['game_id','sportsbook','captured_at','line'])
+if s.empty: raise SystemExit('no eligible forward snapshots')
+as_of=s['captured_at'].max()
 
 base=g[need_g].merge(l[need_l],on='game_id',how='left',validate='one_to_one')
 base['market_spread_open']=pd.to_numeric(base['market_spread_open'],errors='coerce')
-rows=[]
+frozen_rows=[]
+provisional_rows=[]
 for r in base.itertuples(index=False):
     if pd.isna(r.start_date) or pd.isna(r.market_spread_open): continue
     q=s[(s.game_id==r.game_id) & (s.captured_at<r.start_date)].copy()
     if q.empty: continue
-    # Immutable forward-only snapshots: take each book's final eligible pre-kickoff home-spread quote.
+    # For started games the final eligible pre-kickoff quote is frozen. Future games are provisional only.
     q=q.sort_values('captured_at').groupby('sportsbook',as_index=False).tail(1)
     current=float(q['line'].median()); books=int(q['sportsbook'].nunique())
     move=current-float(r.market_spread_open)
@@ -73,29 +76,36 @@ for r in base.itertuples(index=False):
     signal_time=q['captured_at'].max()
     settled=not (pd.isna(r.home_score) or pd.isna(r.away_score))
     result=follow_result(r.home_score,r.away_score,current,move) if settled else None
-    rows.append({
+    row={
         'game_id':int(r.game_id),'home_team':r.home_team,'away_team':r.away_team,
         'kickoff_utc':r.start_date.isoformat(),'signal_snapshot_utc':signal_time.isoformat(),
         'open_home_spread':float(r.market_spread_open),'snapshot_home_spread':current,
         'spread_move':move,'book_count':books,'key_group':kg,
         'signal_side':'HOME' if move<0 else 'AWAY','result':result,
         'books3plus':books>=3
-    })
+    }
+    if r.start_date<=as_of:
+        frozen_rows.append(row)
+    else:
+        provisional_rows.append(row)
 
-cross=[r['result'] for r in rows if r['result'] in ('W','L','P')]
-books3=[r['result'] for r in rows if r['books3plus'] and r['result'] in ('W','L','P')]
+cross=[r['result'] for r in frozen_rows if r['result'] in ('W','L','P')]
+books3=[r['result'] for r in frozen_rows if r['books3plus'] and r['result'] in ('W','L','P')]
 out={
     'protocol':'CFB_2026_CROSS6_PROSPECTIVE_V1','season':SEASON,'research_only':True,'production_enabled':False,
+    'as_of_snapshot_utc':as_of.isoformat(),
     'roi_status':'NOT_COMPUTED_NO_VERIFIED_FROZEN_PRICE','public_ticket_signals_tested':False,
-    'snapshot_contract':'For each sportsbook, final immutable non-live home-spread quote captured strictly before kickoff; cross-book current line is median of those quotes. Opening line is frozen market_spread_open from processed lines consensus.',
+    'snapshot_contract':'For each sportsbook, final immutable non-live home-spread quote captured strictly before kickoff; cross-book current line is median of those quotes. Opening line is frozen market_spread_open from processed lines consensus. A qualifying event enters the frozen ledger only after kickoff is at or before the latest captured snapshot timestamp; future games remain provisional and cannot affect settled counts.',
     'signals':{
         'CROSS6':stat(cross),
         'BOOKS3PLUS_CROSS6':stat(books3)
     },
-    'qualifying_events':rows,
+    'qualifying_events':frozen_rows,
+    'provisional_watch_events':provisional_rows,
     'notes':[
         'Definitions are unchanged from the 2025 surviving frozen screens.',
-        'Every qualifying event is retained; no losses may be dropped and no thresholds may be retuned from 2026 outcomes.',
+        'Every frozen qualifying event is retained; no losses may be dropped and no thresholds may be retuned from 2026 outcomes.',
+        'Future-game matches are provisional only because additional pre-kickoff quotes can change whether they qualify.',
         'This is timestamped shadow validation, not an execution or production-betting rule.',
         'No ROI is reported without verified frozen prices actually available at the signal timestamp.'
     ]
