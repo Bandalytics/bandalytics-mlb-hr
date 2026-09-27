@@ -19,10 +19,16 @@ if(!Number.isFinite(Number(settlement.total_stake_units))||Number(settlement.tot
 let prior={protocol:'V38_CANARY_LEDGER_V1',canary_only:true,production_normal_volume:false,rows:[]};
 if(ledgerPath&&ledgerPath!=='NONE'){
   prior=JSON.parse(fs.readFileSync(ledgerPath,'utf8'));
-  if(prior.protocol!=='V38_CANARY_LEDGER_V1'||prior.canary_only!==true||prior.production_normal_volume!==false||!Array.isArray(prior.rows)||!prior.sha256) throw Error('invalid existing ledger');
+  if(prior.protocol!=='V38_CANARY_LEDGER_V1'||prior.canary_only!==true||prior.production_normal_volume!==false||prior.architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1'||prior.automatic_production_enable!==false||!Array.isArray(prior.rows)||!prior.sha256) throw Error('invalid existing ledger');
   const {sha256:claimedLedgerSha,...ledgerBody}=prior;
   const computedLedgerSha=crypto.createHash('sha256').update(JSON.stringify(ledgerBody)).digest('hex');
   if(claimedLedgerSha!==computedLedgerSha) throw Error('existing ledger sha256 mismatch');
+  const priorStake=round4(prior.rows.reduce((s,r)=>s+Number(r.total_stake_units),0));
+  const priorNet=round4(prior.rows.reduce((s,r)=>s+Number(r.net_units),0));
+  const priorTickets=prior.rows.reduce((s,r)=>s+Number(r.tickets||0),0);
+  const priorWins=prior.rows.reduce((s,r)=>s+Number(r.winning_tickets||0),0);
+  const priorRoi=priorStake?+(100*priorNet/priorStake).toFixed(2):null;
+  if(prior.total_slates!==prior.rows.length||Number(prior.total_tickets)!==priorTickets||Number(prior.winning_tickets)!==priorWins||Number(prior.total_stake_units)!==priorStake||Number(prior.net_units)!==priorNet||prior.realized_roi_pct!==priorRoi) throw Error('existing ledger aggregate mismatch');
 }
 const rows=[...(prior.rows||[])];
 const existing=rows.find(r=>r.date===settlement.date);
