@@ -1,0 +1,31 @@
+name: CFB 2026 CROSS6 prospective tracking
+on:
+  push:
+    branches: [research/cfb-market-model-v1]
+    paths:
+      - 'research/cfb/track-2026-cross6-prospective.py'
+      - '.github/workflows/cfb-2026-cross6-prospective.yml'
+  workflow_dispatch:
+
+jobs:
+  prospective:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas pyarrow
+      - name: Download forward-validation data
+        run: |
+          curl -L --fail --retry 3 -o /tmp/games.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/games.parquet
+          curl -L --fail --retry 3 -o /tmp/lines.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/lines.parquet
+          curl -L --fail --retry 3 -o /tmp/line_snapshots.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/line_snapshots.parquet
+      - name: Track frozen 2026 CROSS6 signals
+        run: python research/cfb/track-2026-cross6-prospective.py /tmp/games.parquet /tmp/lines.parquet /tmp/line_snapshots.parquet cfb-2026-cross6-prospective.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-2026-cross6-prospective
+          path: cfb-2026-cross6-prospective.json
+          retention-days: 90
