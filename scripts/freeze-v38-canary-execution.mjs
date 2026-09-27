@@ -9,6 +9,12 @@ const priceSnapshot = priceSnapshotPath ? JSON.parse(fs.readFileSync(priceSnapsh
 
 if (board.protocol !== 'V38_DAILY_RESEARCH_BOARD_V2' || board.point_in_time !== true) throw Error('invalid daily research board');
 if (plan.protocol !== 'V38_CANARY_EXECUTION_PLAN_V1') throw Error('invalid canary plan');
+if (!plan.plan_sha256) throw Error('canary plan missing plan_sha256');
+const {plan_sha256:claimedPlanSha,...planBody}=plan;
+const computedPlanSha=crypto.createHash('sha256').update(JSON.stringify(planBody)).digest('hex');
+if(computedPlanSha!==claimedPlanSha) throw Error('canary plan sha256 mismatch');
+const boardSha=crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex');
+if(plan.research_metadata?.source_board_sha256!==boardSha) throw Error('canary plan board provenance mismatch');
 if (plan.date !== board.date) throw Error('date mismatch');
 if (!plan.frozen_at || !Number.isFinite(Date.parse(plan.frozen_at))) throw Error('missing frozen_at');
 if (!Array.isArray(plan.candidate_pool_player_ids) || !plan.candidate_pool_player_ids.length) throw Error('candidate pool missing');
@@ -103,7 +109,7 @@ const totalLegs=tickets.length*2;
 const totalStake=+tickets.reduce((s,t)=>s+t.stake_units,0).toFixed(4);
 const output={
   protocol:'V38_CANARY_EXECUTION_FREEZE_V2',architecture_contract:'HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1',date:plan.date,frozen_at:plan.frozen_at,canary_only:true,production_normal_volume:false,
-  source_board_protocol:board.protocol,source_board_generated_at:board.generated_at,source_board_sha256:crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex'),
+  source_plan_sha256:computedPlanSha,source_board_protocol:board.protocol,source_board_generated_at:board.generated_at,source_board_sha256:boardSha,
   price_snapshot_used:!!priceSnapshot,price_snapshot_kind:snapshotKind,price_snapshot_captured_at:priceSnapshot?.captured_at||null,price_snapshot_sha256:priceSnapshot?.sha256||null,
   market_snapshot_used:snapshotKind==='MARKET_SNAPSHOT',market_snapshot_captured_at:snapshotKind==='MARKET_SNAPSHOT'?priceSnapshot?.captured_at||null:null,market_snapshot_sha256:snapshotKind==='MARKET_SNAPSHOT'?priceSnapshot?.sha256||null:null,
   candidate_pool_contract:'ORDERED_OUTCOME_BLIND_POOL_WITH_SLATE_BAND_FROM_CANDIDATE_COUNT',candidate_pool_rows:candidateN,candidate_pool_ranking_strategy:seriousStrategy,
@@ -113,9 +119,9 @@ const output={
   candidate_pool:candidatePool.map(r=>({candidate_rank:r.candidate_rank,player_id:r.player_id,player:r.player,gamePk:r.gamePk,start_time:r.start_time,profile_gate_count:r.profile_gate_count})),
   serious_board:serious.map(r=>({serious_rank:r.serious_rank,player_id:r.player_id,player:r.player,gamePk:r.gamePk,start_time:r.start_time,profile_gate_count:r.profile_gate_count,price:priceFor(r.player_id),paths:uses.get(r.player_id)||0,intentional_zero_reason:(uses.get(r.player_id)||0)===0?zeroReasons.get(r.player_id):null})),
   tickets_detail:tickets,
-  readiness:{candidate_pool_frozen:true,serious_board_share_compliant:true,slate_band_holdout_aligned:true,all_ticket_legs_priced:totalLegs>0&&pricedLegs===totalLegs,all_ticket_stakes_frozen:tickets.length>0&&tickets.every(t=>t.stake_units>0),all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},
+  readiness:{candidate_pool_frozen:true,serious_board_share_compliant:true,slate_band_holdout_aligned:true,plan_hash_verified:true,plan_board_provenance_verified:true,all_ticket_legs_priced:totalLegs>0&&pricedLegs===totalLegs,all_ticket_stakes_frozen:tickets.length>0&&tickets.every(t=>t.stake_units>0),all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},
   roi_status:pricedLegs===totalLegs&&totalLegs>0&&tickets.every(t=>t.stake_units>0)?'READY_FOR_POST_SLATE_SETTLEMENT':'BLOCKED_INCOMPLETE_FROZEN_PRICE_OR_STAKE',
-  notes:['Slate band is derived from the candidate pool count using the validated <=50 / 51-75 / >=76 holdout bands, not from serious-board size.','The serious board is exactly the top 40% of the frozen ordered candidate pool, matching the holdout architecture.','No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','Every played canary ticket must freeze a positive stake_units value before first pitch so realized ROI cannot be backfilled.','A hashed manual price snapshot is an allowed temporary fallback when the automated market provider is unavailable; missing prices are never inferred.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
+  notes:['The execution plan SHA-256 is verified before any ticket membership or stake is accepted, and the plan must point to the exact daily-board hash used by this freeze.','Slate band is derived from the candidate pool count using the validated <=50 / 51-75 / >=76 holdout bands, not from serious-board size.','The serious board is exactly the top 40% of the frozen ordered candidate pool, matching the holdout architecture.','No outcome data are accepted by this freeze step.','A 4/6 hitter is permitted only when the live frozen price is +700 or longer and the daily board marks the longshot rule eligible.','Every played canary ticket must freeze a positive stake_units value before first pitch so realized ROI cannot be backfilled.','A hashed manual price snapshot is an allowed temporary fallback when the automated market provider is unavailable; missing prices are never inferred.','This artifact is for controlled canary use and does not enable normal-volume production betting.']
 };
 const {sha256:_,...without}=output; output.sha256=crypto.createHash('sha256').update(JSON.stringify(without)).digest('hex');
 const outPath=outPathArg||`snapshots/v38-canary-execution-freeze-${plan.date}.json`;
