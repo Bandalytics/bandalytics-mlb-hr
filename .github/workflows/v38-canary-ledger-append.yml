@@ -1,1 +1,94 @@
-temp
+name: v38 Canary Ledger Append
+on:
+  workflow_dispatch:
+    inputs:
+      settlement_run_id:
+        description: 'Workflow run ID containing one verified v38-canary-settlement artifact'
+        required: true
+        type: string
+      prior_ledger_run_id:
+        description: 'Optional prior Canary Ledger Append run ID. Leave blank for first ledger row.'
+        required: false
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  append:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ '${{ inputs.settlement_run_id }}' =~ ^[0-9]+$ ]] || { echo 'INVALID_SETTLEMENT_RUN_ID'; exit 1; }
+          if [ -n '${{ inputs.prior_ledger_run_id }}' ]; then
+            [[ '${{ inputs.prior_ledger_run_id }}' =~ ^[0-9]+$ ]] || { echo 'INVALID_PRIOR_LEDGER_RUN_ID'; exit 1; }
+            [ '${{ inputs.prior_ledger_run_id }}' != '${{ inputs.settlement_run_id }}' ] || { echo 'LEDGER_AND_SETTLEMENT_RUN_IDS_MUST_DIFFER'; exit 1; }
+          fi
+      - name: Download exactly one verified settlement artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/settlement snapshots
+          RID='${{ inputs.settlement_run_id }}'
+          gh api "repos/${GH_REPO}/actions/runs/${RID}" --jq '.conclusion' | grep -qx success || { echo 'SETTLEMENT_SOURCE_RUN_NOT_SUCCESSFUL'; exit 1; }
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/runs/${RID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-settlement-"))) | .id')
+          [ "${#IDS[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_SETTLEMENT_ARTIFACT_FOUND_${#IDS[@]}"; exit 1; }
+          gh api "repos/${GH_REPO}/actions/artifacts/${IDS[0]}/zip" > /tmp/settlement.zip
+          unzip -q /tmp/settlement.zip -d incoming/settlement
+          mapfile -t FILES < <(find incoming/settlement -type f -name 'v38-canary-settlement-*.json')
+          [ "${#FILES[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_SETTLEMENT_JSON_FOUND_${#FILES[@]}"; exit 1; }
+          echo "SETTLEMENT_PATH=${FILES[0]}" >> "$GITHUB_ENV"
+      - name: Download prior ledger when provided
+        shell: bash
+        run: |
+          set -euo pipefail
+          PRIOR='${{ inputs.prior_ledger_run_id }}'
+          if [ -z "$PRIOR" ]; then
+            echo 'LEDGER_PATH=NONE' >> "$GITHUB_ENV"
+            exit 0
+          fi
+          mkdir -p incoming/ledger
+          gh api "repos/${GH_REPO}/actions/runs/${PRIOR}" --jq '.conclusion' | grep -qx success || { echo 'PRIOR_LEDGER_SOURCE_RUN_NOT_SUCCESSFUL'; exit 1; }
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/runs/${PRIOR}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-ledger-"))) | .id')
+          [ "${#IDS[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_PRIOR_LEDGER_ARTIFACT_FOUND_${#IDS[@]}"; exit 1; }
+          gh api "repos/${GH_REPO}/actions/artifacts/${IDS[0]}/zip" > /tmp/ledger.zip
+          unzip -q /tmp/ledger.zip -d incoming/ledger
+          mapfile -t FILES < <(find incoming/ledger -type f -name 'v38-canary-ledger.json')
+          [ "${#FILES[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_PRIOR_LEDGER_JSON_FOUND_${#FILES[@]}"; exit 1; }
+          echo "LEDGER_PATH=${FILES[0]}" >> "$GITHUB_ENV"
+      - name: Append settlement to hash-verified ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/update-v38-canary-ledger.mjs "$LEDGER_PATH" "$SETTLEMENT_PATH" snapshots/v38-canary-ledger.json
+      - name: Verify output remains research-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          const z=JSON.parse(fs.readFileSync('snapshots/v38-canary-ledger.json','utf8'));
+          if(z.protocol!=='V38_CANARY_LEDGER_V1'||z.canary_only!==true||z.production_normal_volume!==false||z.automatic_production_enable!==false) throw Error('unsafe ledger output');
+          if(!Array.isArray(z.rows)||z.rows.length!==z.total_slates) throw Error('ledger count mismatch');
+          if(new Set(z.rows.map(r=>r.date)).size!==z.rows.length) throw Error('duplicate ledger date');
+          const {sha256,...body}=z;
+          if(crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')!==sha256) throw Error('ledger sha mismatch');
+          console.log('V38_CANARY_LEDGER_APPEND_OK='+JSON.stringify({total_slates:z.total_slates,total_tickets:z.total_tickets,total_stake_units:z.total_stake_units,net_units:z.net_units,realized_roi_pct:z.realized_roi_pct}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-canary-ledger-${{ github.run_id }}
+          path: snapshots/v38-canary-ledger.json
+          if-no-files-found: error
+          retention-days: 90
