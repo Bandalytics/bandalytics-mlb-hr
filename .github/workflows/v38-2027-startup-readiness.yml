@@ -1,0 +1,27 @@
+name: v38 2027 Startup Readiness
+on:
+  pull_request:
+    paths:
+      - 'research/v38-offseason-freeze-2026.json'
+      - 'scripts/verify-v38-2027-startup-readiness.mjs'
+      - '.github/workflows/v38-2027-startup-readiness.yml'
+      - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/verify-v38-canary-preflight.mjs'
+      - 'scripts/settle-v38-canary-preflight.mjs'
+      - 'scripts/update-v38-canary-ledger.mjs'
+      - 'scripts/capture-v38-canary-outcomes.mjs'
+      - 'scripts/capture-v38-manual-price-snapshot.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/verify-v38-2027-startup-readiness.mjs
