@@ -1,0 +1,16 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import {execFileSync,spawnSync} from 'node:child_process';
+fs.mkdirSync('tmp/canary-preflight',{recursive:true});
+const dir='tmp/canary-preflight';
+const body={protocol:'V38_CANARY_EXECUTION_FREEZE_V2',architecture_contract:'HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1',date:'2026-09-27',frozen_at:'2026-09-27T18:00:00Z',canary_only:true,production_normal_volume:false,candidate_pool_rows:20,serious_board_rows:8,max_ticket_budget:4,tickets:4,total_stake_units:4,roi_status:'READY_FOR_POST_SLATE_SETTLEMENT',readiness:{candidate_pool_frozen:true,serious_board_share_compliant:true,slate_band_holdout_aligned:true,all_ticket_legs_priced:true,all_ticket_stakes_frozen:true,all_zero_paths_explained:true,cross_game_only:true,ticket_budget_compliant:true,path_caps_compliant:true},tickets_detail:Array.from({length:4},(_,i)=>({ticket_index:i+1,player_ids:[i*2+1,i*2+2],stake_units:1,fully_priced:true,combined_decimal:9,legs:[{player_id:i*2+1,price:{american_odds:500,captured_at:'2026-09-27T17:55:00Z'}},{player_id:i*2+2,price:{american_odds:500,captured_at:'2026-09-27T17:55:00Z'}}]}))};
+const freeze={...body,sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')};
+fs.writeFileSync(`${dir}/freeze.json`,JSON.stringify(freeze));
+execFileSync('node',['scripts/verify-v38-canary-preflight.mjs',`${dir}/freeze.json`,`${dir}/out.json`],{stdio:'inherit'});
+const out=JSON.parse(fs.readFileSync(`${dir}/out.json`,'utf8'));
+if(out.protocol!=='V38_CANARY_PREFLIGHT_V1'||out.status!=='READY_FOR_CONTROLLED_FORWARD_CANARY'||out.production_normal_volume!==false||out.expected_ticket_budget!==4||out.total_stake_units!==4) throw Error('bad successful preflight');
+const underBody={...body,tickets:3,tickets_detail:body.tickets_detail.slice(0,3),total_stake_units:3}; const under={...underBody,sha256:crypto.createHash('sha256').update(JSON.stringify(underBody)).digest('hex')};fs.writeFileSync(`${dir}/under.json`,JSON.stringify(under));
+const underRun=spawnSync('node',['scripts/verify-v38-canary-preflight.mjs',`${dir}/under.json`,`${dir}/under-out.json`],{encoding:'utf8'});if(underRun.status===0||!String(underRun.stderr).includes('full ticket budget')) throw Error('underfilled canary passed preflight');
+const tampered={...freeze,total_stake_units:99};fs.writeFileSync(`${dir}/tampered.json`,JSON.stringify(tampered));const tamperRun=spawnSync('node',['scripts/verify-v38-canary-preflight.mjs',`${dir}/tampered.json`,`${dir}/tampered-out.json`],{encoding:'utf8'});if(tamperRun.status===0||!String(tamperRun.stderr).includes('sha256 mismatch')) throw Error('tampered freeze passed preflight');
+const blockedBody={...body,roi_status:'BLOCKED_INCOMPLETE_FROZEN_PRICE_OR_STAKE'};const blocked={...blockedBody,sha256:crypto.createHash('sha256').update(JSON.stringify(blockedBody)).digest('hex')};fs.writeFileSync(`${dir}/blocked.json`,JSON.stringify(blocked));const blockedRun=spawnSync('node',['scripts/verify-v38-canary-preflight.mjs',`${dir}/blocked.json`,`${dir}/blocked-out.json`],{encoding:'utf8'});if(blockedRun.status===0||!String(blockedRun.stderr).includes('not settlement ready')) throw Error('unpriced canary passed preflight');
+console.log('V38_CANARY_PREFLIGHT_TEST_OK');

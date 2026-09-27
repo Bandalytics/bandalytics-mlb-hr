@@ -5,11 +5,13 @@ on:
       - 'scripts/build-v38-canary-execution-plan.mjs'
       - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/verify-v38-canary-preflight.mjs'
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/capture-v38-canary-outcomes.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-canary-preflight.mjs'
       - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
@@ -19,11 +21,13 @@ on:
       - 'scripts/build-v38-canary-execution-plan.mjs'
       - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/verify-v38-canary-preflight.mjs'
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/capture-v38-canary-outcomes.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
       - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-canary-preflight.mjs'
       - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
@@ -44,6 +48,7 @@ jobs:
           node --check scripts/build-v38-canary-execution-plan.mjs
           node --check v38-starter-damage-selector.mjs
           node --check scripts/freeze-v38-canary-execution.mjs
+          node --check scripts/verify-v38-canary-preflight.mjs
           node --check scripts/capture-v38-manual-price-snapshot.mjs
           node --check scripts/capture-v38-canary-outcomes.mjs
           node --check scripts/settle-v38-canary-execution.mjs
@@ -51,6 +56,8 @@ jobs:
         run: node test-v38-canary-plan-builder.mjs
       - name: Canary freeze contract
         run: node test-v38-canary-execution-freeze.mjs
+      - name: Canary preflight contract
+        run: node test-v38-canary-preflight.mjs
       - name: Manual price fallback contract
         run: node test-v38-manual-price-fallback.mjs
       - name: Canary settlement contract
