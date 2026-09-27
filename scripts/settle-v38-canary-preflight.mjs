@@ -1,0 +1,31 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import {execFileSync} from 'node:child_process';
+
+const [freezePath,preflightPath,outcomesPath,outPathArg]=process.argv.slice(2);
+if(!freezePath||!preflightPath||!outcomesPath) throw Error('Usage: node scripts/settle-v38-canary-preflight.mjs <freeze.json> <preflight.json> <outcomes.json> [output.json]');
+const freeze=JSON.parse(fs.readFileSync(freezePath,'utf8'));
+const preflight=JSON.parse(fs.readFileSync(preflightPath,'utf8'));
+if(freeze.protocol!=='V38_CANARY_EXECUTION_FREEZE_V2'||!freeze.sha256) throw Error('invalid canary freeze');
+const {sha256:claimedFreezeSha,...freezeBody}=freeze;
+const computedFreezeSha=crypto.createHash('sha256').update(JSON.stringify(freezeBody)).digest('hex');
+if(claimedFreezeSha!==computedFreezeSha) throw Error('freeze sha256 mismatch');
+if(preflight.protocol!=='V38_CANARY_PREFLIGHT_V1'||preflight.status!=='READY_FOR_CONTROLLED_FORWARD_CANARY') throw Error('invalid canary preflight');
+if(preflight.canary_only!==true||preflight.production_normal_volume!==false||preflight.normal_volume_enable!==false) throw Error('unsafe preflight flags');
+if(preflight.date!==freeze.date||preflight.source_freeze_sha256!==computedFreezeSha) throw Error('preflight freeze provenance mismatch');
+if(!preflight.sha256) throw Error('preflight sha256 missing');
+const {sha256:claimedPreflightSha,...preflightBody}=preflight;
+const computedPreflightSha=crypto.createHash('sha256').update(JSON.stringify(preflightBody)).digest('hex');
+if(claimedPreflightSha!==computedPreflightSha) throw Error('preflight sha256 mismatch');
+const outPath=outPathArg||`snapshots/v38-canary-settlement-${freeze.date}.json`;
+const tmpPath=`${outPath}.tmp-base`;
+execFileSync('node',['scripts/settle-v38-canary-execution.mjs',freezePath,outcomesPath,tmpPath],{stdio:'inherit'});
+const base=JSON.parse(fs.readFileSync(tmpPath,'utf8'));
+try{fs.unlinkSync(tmpPath)}catch{}
+const {sha256:_,...baseBody}=base;
+const body={...baseBody,source_preflight_sha256:computedPreflightSha,source_preflight_status:preflight.status};
+const output={...body,sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')};
+fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true});
+fs.writeFileSync(outPath,JSON.stringify(output,null,2)+'\n');
+console.log(`V38_CANARY_PREFLIGHT_SETTLEMENT_PATH=${outPath}`);
+console.log(`V38_CANARY_PREFLIGHT_SETTLEMENT=${JSON.stringify({date:output.date,tickets:output.tickets,total_stake_units:output.total_stake_units,net_units:output.net_units,realized_roi_pct:output.realized_roi_pct,preflight_sha256:output.source_preflight_sha256})}`);
