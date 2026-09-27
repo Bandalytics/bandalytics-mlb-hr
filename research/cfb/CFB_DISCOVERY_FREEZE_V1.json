@@ -1,0 +1,47 @@
+{
+  "protocol": "CFB_DISCOVERY_FREEZE_V1",
+  "frozen_at": "2026-09-27T03:25:00Z",
+  "research_only": true,
+  "production_enabled": false,
+  "discovery_seasons": [2021, 2022, 2023, 2024],
+  "holdout_season": 2025,
+  "source_dataset": "gmalbert/college-football-predictions processed games.parquet + lines.parquet",
+  "decision_line_semantics": "open-to-recorded market spread; recorded line is not assumed to be timestamped close",
+  "public_ticket_fields_used": false,
+  "roi_allowed": false,
+  "selection_contract": {
+    "minimum_discovery_nonpush_n": 150,
+    "minimum_season_nonpush_n": 30,
+    "minimum_consistent_positive_seasons": 3,
+    "wilson95_lower_bound_must_exceed": 0.5,
+    "no_post_holdout_rule_changes": true
+  },
+  "frozen_positive_screens": [
+    {
+      "id": "DOG_MOVE_3PLUS",
+      "dimensions": {"home_role": "DOG", "move_band": "3+"},
+      "discovery": {"W": 100, "L": 68, "P": 7, "nonpush_n": 168, "hit_rate_no_push": 0.5952380952380952, "wilson95_low": 0.5196880914809959}
+    },
+    {
+      "id": "BOOKS3PLUS_CROSS6",
+      "dimensions": {"books": "3+", "key_group": "CROSS_6"},
+      "discovery": {"W": 103, "L": 73, "P": 0, "nonpush_n": 176, "hit_rate_no_push": 0.5852272727272727, "wilson95_low": 0.511376115774452}
+    },
+    {
+      "id": "CROSS6",
+      "dimensions": {"key_group": "CROSS_6"},
+      "discovery": {"W": 107, "L": 77, "P": 0, "nonpush_n": 184, "hit_rate_no_push": 0.5815217391304348, "wilson95_low": 0.5092876457185977}
+    },
+    {
+      "id": "BOOKS3PLUS_DOG_MOVE_3PLUS",
+      "dimensions": {"books": "3+", "home_role": "DOG", "move_band": "3+"},
+      "discovery": {"W": 92, "L": 65, "P": 7, "nonpush_n": 157, "hit_rate_no_push": 0.5859872611464968, "wilson95_low": 0.5077842254873417}
+    }
+  ],
+  "notes": [
+    "These four screens were the only positive discovery screens under the predeclared stability contract.",
+    "No negative screen qualified.",
+    "2025 must be evaluated exactly once under these frozen definitions before any production rule is considered.",
+    "Public-ticket/RLM-vs-public hypotheses remain untested because verified historical ticket percentages are absent."
+  ]
+}
