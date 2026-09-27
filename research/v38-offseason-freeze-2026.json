@@ -1,0 +1,52 @@
+{
+  "protocol": "V38_OFFSEASON_FREEZE_2026_V1",
+  "season": 2026,
+  "status": "REGULAR_SEASON_ENDED_FORWARD_REACTIVATION_INCOMPLETE",
+  "production_normal_volume": false,
+  "profitability_status": "UNPROVEN_REQUIRES_VERIFIED_FROZEN_PRICES_STAKES_AND_FORWARD_SETTLEMENTS",
+  "regular_season_forward_gate": {
+    "target_review_slates": [5, 10],
+    "completed_clean_countable_slates": 0,
+    "carry_unmet_gate_into_2027": true,
+    "postseason_counts_toward_regular_season_gate": false
+  },
+  "frozen_baseball_contract": {
+    "candidate_source": "STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION",
+    "core6_standard_minimum": 5,
+    "starter_hr9_lt_1_2": "SUPPRESSIVE_FILTER",
+    "protected_4of6": "SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY",
+    "lineup_position_ranking_evidence": false,
+    "lineup_membership_role": "EXECUTION_ELIGIBILITY_ONLY",
+    "ranking_contract": "LINEUP_SLOT_EXCLUDED_FROM_ALL_RANKING_KEYS"
+  },
+  "provisional_downstream_architecture": {
+    "status": "PROVISIONAL_FORWARD_REVALIDATION_AFTER_LINEUP_CONTAMINATION_CLEANUP",
+    "small_slate_ranking": "PROFILE_FIRST",
+    "medium_large_ranking": "PITCHFIT_FIRST",
+    "serious_board_share_pct": 40,
+    "ticket_budget_share_pct": 40,
+    "large_priority_repeat_share_pct": 25,
+    "pairing": "CROSS_GAME",
+    "note": "Do not promote these choices to proven production rules from historical outcome inspection alone."
+  },
+  "validation_boundaries": {
+    "postseason": "SEPARATE_RESEARCH_SAMPLE_ONLY",
+    "postseason_may_change_2027_rules": false,
+    "historical_holdout_may_select_new_architecture": false,
+    "roi_claims_without_verified_frozen_prices": false,
+    "manual_prices_allowed": "ONLY_IF_GENUINELY_PREGAME_WITH_TIMESTAMP_AND_PROVENANCE"
+  },
+  "known_external_blocker": {
+    "provider": "SportsGameOdds",
+    "state": "MONTHLY_ENTITY_QUOTA_EXHAUSTED",
+    "last_verified_usage": "2509/2500",
+    "instruction": "DO_NOT_BRUTE_FORCE_OR_BACKFILL_AFTER_GAMES"
+  },
+  "2027_restart_contract": {
+    "resume_from_this_frozen_contract": true,
+    "rebuild_from_scratch": false,
+    "first_priority": "COUNTABLE_FULL_SLATE_FORWARD_CANARIES_WITH_VERIFIED_FROZEN_PRICES_AND_STAKES",
+    "review_after_countable_slates": [5, 10],
+    "normal_volume_requires_separate_promotion_decision": true
+  }
+}
