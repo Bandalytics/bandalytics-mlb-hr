@@ -9,11 +9,13 @@ on:
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/capture-v38-canary-outcomes.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-preflight.mjs'
       - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
       - 'test-v38-canary-preflight.mjs'
       - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
+      - 'test-v38-canary-settlement-preflight.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
   push:
     branches: [main]
@@ -25,11 +27,13 @@ on:
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/capture-v38-canary-outcomes.mjs'
       - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-preflight.mjs'
       - 'test-v38-canary-plan-builder.mjs'
       - 'test-v38-canary-execution-freeze.mjs'
       - 'test-v38-canary-preflight.mjs'
       - 'test-v38-manual-price-fallback.mjs'
       - 'test-v38-canary-settlement.mjs'
+      - 'test-v38-canary-settlement-preflight.mjs'
       - '.github/workflows/v38-canary-execution-freeze.yml'
   workflow_dispatch:
 permissions:
@@ -52,6 +56,7 @@ jobs:
           node --check scripts/capture-v38-manual-price-snapshot.mjs
           node --check scripts/capture-v38-canary-outcomes.mjs
           node --check scripts/settle-v38-canary-execution.mjs
+          node --check scripts/settle-v38-canary-preflight.mjs
       - name: Canary plan builder contract
         run: node test-v38-canary-plan-builder.mjs
       - name: Canary freeze contract
@@ -62,3 +67,5 @@ jobs:
         run: node test-v38-manual-price-fallback.mjs
       - name: Canary settlement contract
         run: node test-v38-canary-settlement.mjs
+      - name: Canary preflight settlement chain contract
+        run: node test-v38-canary-settlement-preflight.mjs
