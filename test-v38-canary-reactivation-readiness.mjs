@@ -10,7 +10,7 @@ function settlement(date,i){
   const hrs=Array.from({length:n},(_,j)=>winSlate?(j===0?[1,1]:[0,0]):(j<2?[1,0]:[0,0]));
   const tickets_detail=hrs.map((pair,j)=>({ticket_index:j+1,player_ids:[i*100+j*2+1,i*100+j*2+2],players:[`P${j*2+1}`,`P${j*2+2}`],hrs:pair,win:pair.every(x=>x===1),stake_units:1,combined_decimal:12,gross_return_units:pair.every(x=>x===1)?12:0,net_units:pair.every(x=>x===1)?11:-1}));
   const wins=winSlate?1:0, gross=wins?12:0, net=gross-n, hr=2;
-  const body={protocol:'V38_CANARY_SETTLEMENT_V1',date,settled_at:`${date}T23:30:00Z`,canary_only:true,production_normal_volume:false,source_freeze_sha256:`f${i}`,source_architecture_contract:'HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1',source_candidate_pool_rows:candidateN,source_slate_band:band,tickets:n,winning_tickets:wins,ticket_win_rate_pct:+(100*wins/n).toFixed(2),total_stake_units:n,gross_return_units:gross,net_units:net,realized_roi_pct:+(100*net/n).toFixed(2),unique_ticketed_hitters:n*2,ticketed_hr:hr,ticketed_hr_rate_pct:+(100*hr/(n*2)).toFixed(2),tickets_detail,roi_status:'REALIZED_FROM_VERIFIED_FROZEN_PRICE_AND_STAKE',notes:[]};
+  const body={protocol:'V38_CANARY_SETTLEMENT_V1',date,settled_at:`${date}T23:30:00Z`,canary_only:true,production_normal_volume:false,source_freeze_sha256:`f${i}`,source_outcomes_sha256:`o${i}`,source_outcomes_source:'MLB_FINAL_RESULTS',source_architecture_contract:'HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1',source_candidate_pool_rows:candidateN,source_slate_band:band,tickets:n,winning_tickets:wins,ticket_win_rate_pct:+(100*wins/n).toFixed(2),total_stake_units:n,gross_return_units:gross,net_units:net,realized_roi_pct:+(100*net/n).toFixed(2),unique_ticketed_hitters:n*2,ticketed_hr:hr,ticketed_hr_rate_pct:+(100*hr/(n*2)).toFixed(2),tickets_detail,roi_status:'REALIZED_FROM_VERIFIED_FROZEN_PRICE_STAKE_AND_OUTCOMES',notes:[]};
   return {...body,sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')};
 }
 const files=[];
@@ -20,15 +20,19 @@ execFileSync('node',['scripts/summarize-v38-canary-reactivation.mjs',...files,'-
 const z=JSON.parse(fs.readFileSync(out,'utf8'));
 if(z.protocol!=='V38_CANARY_REACTIVATION_READINESS_V1'||z.forward_slates!==5) throw Error('bad protocol/slates');
 if(z.architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1'||z.evidence_gate.all_settlements_holdout_aligned!==true||z.evidence_gate.all_settlements_full_ticket_budget!==true) throw Error('bad architecture/budget gate');
+if(z.evidence_gate.all_outcomes_hashed_and_sourced!==true) throw Error('outcome provenance gate missing');
 if(z.slate_band_counts.SMALL_LE_50!==4||z.slate_band_counts.LARGE_GE_76!==1) throw Error('bad band aggregation');
 if(z.readiness_status!=='INITIAL_REACTIVATION_REVIEW') throw Error('bad readiness status');
 if(z.total_tickets!==29||z.winning_tickets!==3) throw Error('bad ticket aggregation');
 if(z.total_stake_units!==29||z.net_units!==7||z.realized_roi_pct!==24.14) throw Error('bad raw ROI aggregation');
 if(z.evidence_gate.internal_settlement_totals_verified!==true||z.evidence_gate.automatic_production_enable!==false||z.production_normal_volume!==false) throw Error('unsafe production/integrity flag');
-if(z.slate_rows.at(-1).expected_ticket_budget!==13) throw Error('expected budget provenance missing');
+if(z.slate_rows.at(-1).expected_ticket_budget!==13||z.slate_rows.at(-1).outcomes_source!=='MLB_FINAL_RESULTS') throw Error('expected provenance missing');
 const bad=settlement('2026-10-09',9); delete bad.source_architecture_contract; const {sha256:_,...badBody}=bad; bad.sha256=crypto.createHash('sha256').update(JSON.stringify(badBody)).digest('hex'); fs.writeFileSync('tmp/canary-ready/bad.json',JSON.stringify(bad));
 const run=spawnSync('node',['scripts/summarize-v38-canary-reactivation.mjs','tmp/canary-ready/bad.json','--out','tmp/canary-ready/bad-out.json'],{encoding:'utf8'});
 if(run.status===0||!String(run.stderr).includes('non-holdout-aligned')) throw Error('nonaligned settlement was not rejected');
+const noOutcome=settlement('2026-10-08',8); delete noOutcome.source_outcomes_sha256; const {sha256:___,...noOutcomeBody}=noOutcome; noOutcome.sha256=crypto.createHash('sha256').update(JSON.stringify(noOutcomeBody)).digest('hex'); fs.writeFileSync('tmp/canary-ready/no-outcome.json',JSON.stringify(noOutcome));
+const noOutcomeRun=spawnSync('node',['scripts/summarize-v38-canary-reactivation.mjs','tmp/canary-ready/no-outcome.json','--out','tmp/canary-ready/no-outcome-out.json'],{encoding:'utf8'});
+if(noOutcomeRun.status===0||!String(noOutcomeRun.stderr).includes('missing outcome provenance')) throw Error('settlement without outcome provenance advanced readiness');
 const under=settlement('2026-10-10',10); under.tickets-=1; under.tickets_detail=under.tickets_detail.slice(0,-1); under.total_stake_units-=1; under.net_units=-under.total_stake_units; under.realized_roi_pct=-100; under.unique_ticketed_hitters=under.tickets*2; under.ticketed_hr=2; under.ticketed_hr_rate_pct=+(100*under.ticketed_hr/under.unique_ticketed_hitters).toFixed(2); const {sha256:__,...underBody}=under; under.sha256=crypto.createHash('sha256').update(JSON.stringify(underBody)).digest('hex'); fs.writeFileSync('tmp/canary-ready/under.json',JSON.stringify(under));
 const underRun=spawnSync('node',['scripts/summarize-v38-canary-reactivation.mjs','tmp/canary-ready/under.json','--out','tmp/canary-ready/under-out.json'],{encoding:'utf8'});
 if(underRun.status===0||!String(underRun.stderr).includes('budget-underfilled canary settlement')) throw Error('underfilled canary was allowed to advance readiness');
