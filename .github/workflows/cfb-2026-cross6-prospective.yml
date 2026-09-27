@@ -4,6 +4,7 @@ on:
     branches: [research/cfb-market-model-v1]
     paths:
       - 'research/cfb/track-2026-cross6-prospective.py'
+      - 'research/cfb/evaluate-2026-cross6-readiness.py'
       - '.github/workflows/cfb-2026-cross6-prospective.yml'
   workflow_dispatch:
 
@@ -24,8 +25,12 @@ jobs:
           curl -L --fail --retry 3 -o /tmp/line_snapshots.parquet https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/line_snapshots.parquet
       - name: Track frozen 2026 CROSS6 signals
         run: python research/cfb/track-2026-cross6-prospective.py /tmp/games.parquet /tmp/lines.parquet /tmp/line_snapshots.parquet cfb-2026-cross6-prospective.json
+      - name: Evaluate forward readiness without auto-enable
+        run: python research/cfb/evaluate-2026-cross6-readiness.py cfb-2026-cross6-prospective.json cfb-2026-cross6-readiness.json
       - uses: actions/upload-artifact@v4
         with:
           name: cfb-2026-cross6-prospective
-          path: cfb-2026-cross6-prospective.json
+          path: |
+            cfb-2026-cross6-prospective.json
+            cfb-2026-cross6-readiness.json
           retention-days: 90
