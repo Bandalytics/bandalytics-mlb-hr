@@ -15,6 +15,29 @@ const computedSettlementSha=crypto.createHash('sha256').update(JSON.stringify(se
 if(claimedSettlementSha!==computedSettlementSha) throw Error('settlement sha256 mismatch');
 if(!settlement.date||!/^\d{4}-\d{2}-\d{2}$/.test(settlement.date)) throw Error('invalid settlement date');
 if(!Number.isFinite(Number(settlement.total_stake_units))||Number(settlement.total_stake_units)<=0||!Number.isFinite(Number(settlement.net_units))) throw Error('invalid settlement financials');
+const bandFor=n=>n<=50?'SMALL_LE_50':n<=75?'MEDIUM_51_75':'LARGE_GE_76';
+const expectedBudgetFor=n=>Math.max(1,Math.ceil(Math.max(1,Math.ceil(n*0.40))*0.40));
+const candidateN=Number(settlement.source_candidate_pool_rows);
+if(!Number.isInteger(candidateN)||candidateN<1) throw Error('invalid candidate pool size');
+if(settlement.source_slate_band!==bandFor(candidateN)) throw Error('settlement slate-band mismatch');
+if(Number(settlement.tickets)!==expectedBudgetFor(candidateN)) throw Error('settlement not full holdout-comparable ticket budget');
+if(!Array.isArray(settlement.tickets_detail)||settlement.tickets_detail.length!==Number(settlement.tickets)) throw Error('settlement ticket detail mismatch');
+let detailStake=0,detailNet=0,detailWins=0;
+const playerResults=new Map();
+for(const t of settlement.tickets_detail){
+  if(!Array.isArray(t.player_ids)||t.player_ids.length!==2||!Array.isArray(t.hrs)||t.hrs.length!==2) throw Error('invalid settlement ticket detail');
+  const stake=Number(t.stake_units),net=Number(t.net_units);
+  if(!Number.isFinite(stake)||stake<=0||!Number.isFinite(net)) throw Error('invalid ticket financials');
+  const computedWin=t.hrs.every(x=>Number(x)===1);
+  if(Boolean(t.win)!==computedWin) throw Error('ticket win mismatch');
+  detailStake+=stake; detailNet+=net; if(computedWin) detailWins++;
+  for(let i=0;i<2;i++){const id=Number(t.player_ids[i]),hr=Number(t.hrs[i]); if(!Number.isInteger(id)||(hr!==0&&hr!==1)) throw Error('invalid hitter outcome'); if(playerResults.has(id)&&playerResults.get(id)!==hr) throw Error('conflicting repeated hitter outcome'); playerResults.set(id,hr);}
+}
+if(round4(detailStake)!==round4(settlement.total_stake_units)||round4(detailNet)!==round4(settlement.net_units)) throw Error('settlement financial total mismatch');
+if(detailWins!==Number(settlement.winning_tickets)) throw Error('settlement winning ticket mismatch');
+if(playerResults.size!==Number(settlement.unique_ticketed_hitters)||[...playerResults.values()].reduce((s,x)=>s+x,0)!==Number(settlement.ticketed_hr)) throw Error('settlement hitter total mismatch');
+const expectedRoi=detailStake?+(100*detailNet/detailStake).toFixed(2):null;
+if(expectedRoi!==settlement.realized_roi_pct) throw Error('settlement ROI mismatch');
 
 let prior={protocol:'V38_CANARY_LEDGER_V1',canary_only:true,production_normal_volume:false,rows:[]};
 if(ledgerPath&&ledgerPath!=='NONE'){
