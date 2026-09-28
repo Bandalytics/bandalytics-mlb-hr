@@ -27,7 +27,11 @@ for(const t of z.tickets_detail){
   if(!Array.isArray(t.player_ids)||t.player_ids.length!==2||!Array.isArray(t.legs)||t.legs.length!==2) throw Error(`bad ticket detail ${t.ticket_index}`);
   if(!Number.isFinite(Number(t.stake_units))||Number(t.stake_units)<=0) throw Error(`unfrozen stake ${t.ticket_index}`);
   if(!Number.isFinite(Number(t.combined_decimal))||Number(t.combined_decimal)<=1||t.fully_priced!==true) throw Error(`unfrozen price ${t.ticket_index}`);
-  for(const leg of t.legs){if(!leg?.price||!Number.isFinite(Number(leg.price.american_odds))||!leg.price.captured_at||Date.parse(leg.price.captured_at)>Date.parse(z.frozen_at)) throw Error(`invalid frozen leg price ${t.ticket_index}`)}
+  for(const leg of t.legs){
+    const boardRow=(z.serious_board||[]).find(x=>Number(x.player_id)===Number(leg.player_id));
+    const captured=Date.parse(leg?.price?.captured_at), start=Date.parse(boardRow?.start_time);
+    if(!leg?.price||!Number.isFinite(Number(leg.price.american_odds))||!Number.isFinite(captured)||captured>Date.parse(z.frozen_at)||!Number.isFinite(start)||captured>=start) throw Error(`invalid frozen leg price ${t.ticket_index}`);
+  }
   stake+=Number(t.stake_units);
 }
 if(+stake.toFixed(4)!==+Number(z.total_stake_units).toFixed(4)) throw Error('frozen stake total mismatch');
