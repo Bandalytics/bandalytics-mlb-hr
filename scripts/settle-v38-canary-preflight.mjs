@@ -19,7 +19,7 @@ const computedPreflightSha=crypto.createHash('sha256').update(JSON.stringify(pre
 if(claimedPreflightSha!==computedPreflightSha) throw Error('preflight sha256 mismatch');
 const outPath=outPathArg||`snapshots/v38-canary-settlement-${freeze.date}.json`;
 const tmpPath=`${outPath}.tmp-base`;
-execFileSync('node',['scripts/settle-v38-canary-execution.mjs',freezePath,outcomesPath,tmpPath],{stdio:'inherit'});
+execFileSync('node',['scripts/settle-v38-canary-execution.mjs',freezePath,preflightPath,outcomesPath,tmpPath],{stdio:'inherit'});
 const base=JSON.parse(fs.readFileSync(tmpPath,'utf8'));
 try{fs.unlinkSync(tmpPath)}catch{}
 const {sha256:_,...baseBody}=base;
