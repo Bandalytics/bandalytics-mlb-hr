@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const plan=fs.readFileSync('scripts/build-v38-canary-execution-plan.mjs','utf8');
+const freeze=fs.readFileSync('scripts/freeze-v38-canary-execution.mjs','utf8');
+const policy=fs.readFileSync('mlb-hr-locked-policy.mjs','utf8');
+const fail=m=>{throw Error(m)};
+if(!policy.includes("american_odds_min:+700")||!policy.includes("qualification_required:4")) fail('locked 4of6 +700 policy changed');
+if(!plan.includes("profile_gate_count)>=5")||!plan.includes("STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION")) fail('reactivation canary no longer standard 5of6+');
+if(!plan.includes("protected_4of6_status:'SHADOW_ONLY_NOT_MIXED_IN_REACTIVATION_CANARY'")) fail('4of6 shadow boundary missing');
+if(!freeze.includes("r.profile_gate_count===4")||!freeze.includes("p.american_odds>=700")) fail('freeze no longer independently protects 4of6 live +700 price');
+if(!freeze.includes("A 4/6 hitter is permitted only when the live frozen price is +700 or longer")) fail('4of6 frozen-price contract note missing');
+console.log('V38_PROTECTED_4OF6_BOUNDARY_PASS');
