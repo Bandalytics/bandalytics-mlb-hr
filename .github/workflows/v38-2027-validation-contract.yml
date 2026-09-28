@@ -1,0 +1,32 @@
+name: V38 2027 validation contract
+
+on:
+  push:
+    paths:
+      - 'research/V38_OFFSEASON_COMPARABILITY_AUDIT_2027.md'
+      - 'research/v38-2027-validation-plan.json'
+      - 'research/v38-offseason-freeze-2026.json'
+      - 'scripts/evaluate-v38-ticket-no-lineup-revalidation.mjs'
+      - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'test-v38-2027-validation-contract.mjs'
+      - '.github/workflows/v38-2027-validation-contract.yml'
+  pull_request:
+    paths:
+      - 'research/V38_OFFSEASON_COMPARABILITY_AUDIT_2027.md'
+      - 'research/v38-2027-validation-plan.json'
+      - 'research/v38-offseason-freeze-2026.json'
+      - 'scripts/evaluate-v38-ticket-no-lineup-revalidation.mjs'
+      - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'test-v38-2027-validation-contract.mjs'
+      - '.github/workflows/v38-2027-validation-contract.yml'
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node test-v38-offseason-freeze.mjs
+      - run: node test-v38-2027-validation-contract.mjs

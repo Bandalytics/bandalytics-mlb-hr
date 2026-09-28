@@ -1,0 +1,29 @@
+{
+  "protocol": "V38_2027_VALIDATION_PLAN_V1",
+  "baseline_commit": "090e25a12af97ed2e3154a50c7fab880b5ef9ef8",
+  "frozen_2026_contract_unchanged": true,
+  "historical_ticket_replay_comparability": "RESEARCH_ONLY_NOT_FULLY_EXECUTION_COMPARABLE",
+  "reason": "HISTORICAL_TICKET_BUILDER_DOES_NOT_APPLY_FORWARD_CONFIRMED_LINEUP_EXECUTION_GUARD",
+  "lineup_position_ranking_evidence": false,
+  "lineup_membership_role": "EXECUTION_ELIGIBILITY_ONLY_AFTER_RANKING",
+  "preseason_counts_toward_forward_gate": false,
+  "postseason_counts_toward_forward_gate": false,
+  "forward_review_slates": [
+    5,
+    10
+  ],
+  "countable_slate_requires": {
+    "full_slate_pregame_freeze": true,
+    "complete_core6": true,
+    "verified_starter_snapshot": true,
+    "full_requested_ticket_budget": true,
+    "frozen_pregame_prices": true,
+    "positive_frozen_stakes": true,
+    "ready_preflight": true,
+    "hashed_sourced_outcomes": true,
+    "verified_settlement": true,
+    "append_only_ledger_integrity": true
+  },
+  "normal_volume_auto_enable": false,
+  "profitability_status": "UNPROVEN_UNTIL_FORWARD_PRICE_STAKE_SETTLEMENT_SAMPLE"
+}
