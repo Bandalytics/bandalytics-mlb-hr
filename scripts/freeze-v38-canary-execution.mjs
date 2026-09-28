@@ -40,12 +40,17 @@ if(priceSnapshot){
 const rows = new Map((board.rows||[]).map(r=>[Number(r.player_id),r]));
 const snapshotRows = new Map((priceSnapshot?.rows||[]).map(r=>[Number(r.player_id),r]));
 const planManual = new Map((plan.manual_prices||[]).map(r=>[Number(r.player_id),r]));
+function validPriceTime(capturedAt,row){
+  const t=Date.parse(capturedAt), freeze=Date.parse(plan.frozen_at), start=Date.parse(row?.start_time);
+  return Number.isFinite(t)&&t<=freeze&&Number.isFinite(start)&&t<start;
+}
 function priceFor(id){
+  const row=rows.get(Number(id));
   const s=snapshotRows.get(Number(id));
-  if(snapshotKind==='MARKET_SNAPSHOT' && s && Number.isFinite(Number(s.best_odds))) return {american_odds:Number(s.best_odds),book:s.best_book||null,captured_at:priceSnapshot.captured_at,source:'MARKET_SNAPSHOT',snapshot_sha256:priceSnapshot.sha256};
-  if(snapshotKind==='MANUAL_PRICE_SNAPSHOT' && s && Number.isFinite(Number(s.american_odds))) return {american_odds:Number(s.american_odds),book:s.book||null,captured_at:s.captured_at||priceSnapshot.captured_at,source:'MANUAL_PRICE_SNAPSHOT',snapshot_sha256:priceSnapshot.sha256};
+  if(snapshotKind==='MARKET_SNAPSHOT' && s && Number.isFinite(Number(s.best_odds)) && validPriceTime(priceSnapshot.captured_at,row)) return {american_odds:Number(s.best_odds),book:s.best_book||null,captured_at:priceSnapshot.captured_at,source:'MARKET_SNAPSHOT',snapshot_sha256:priceSnapshot.sha256};
+  if(snapshotKind==='MANUAL_PRICE_SNAPSHOT' && s && Number.isFinite(Number(s.american_odds)) && validPriceTime(s.captured_at||priceSnapshot.captured_at,row)) return {american_odds:Number(s.american_odds),book:s.book||null,captured_at:s.captured_at||priceSnapshot.captured_at,source:'MANUAL_PRICE_SNAPSHOT',snapshot_sha256:priceSnapshot.sha256};
   const x=planManual.get(Number(id));
-  if(x && Number.isFinite(Number(x.american_odds)) && x.captured_at && Date.parse(x.captured_at)<=Date.parse(plan.frozen_at)) return {american_odds:Number(x.american_odds),book:x.book||null,captured_at:x.captured_at,source:'MANUAL_FROZEN'};
+  if(x && Number.isFinite(Number(x.american_odds)) && x.captured_at && validPriceTime(x.captured_at,row)) return {american_odds:Number(x.american_odds),book:x.book||null,captured_at:x.captured_at,source:'MANUAL_FROZEN'};
   return null;
 }
 function qualified(r){
