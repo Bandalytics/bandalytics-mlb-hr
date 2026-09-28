@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, re, sys
+import json, os, re, sys
 from datetime import datetime
 
 SRC=sys.argv[1] if len(sys.argv)>1 else 'cfb-2026-cross6-prospective.json'
@@ -54,3 +54,29 @@ for name,rows in [('CROSS6',frozen),('BOOKS3PLUS_CROSS6',[r for r in frozen if r
         if int(got.get(k,-1))!=v: raise SystemExit(f"{name} {k} mismatch: {got.get(k)} != {v}")
 
 print(json.dumps({'integrity':'PASS','frozen_events':len(frozen),'provisional_events':len(prov),'as_of_snapshot_utc':x['as_of_snapshot_utc']},sort_keys=True))
+
+# If a committed frozen checkpoint exists, enforce append-only decision-time fields.
+checkpoint='research/cfb/CFB_2026_CROSS6_FROZEN_LEDGER_V1.json'
+if os.path.exists(checkpoint):
+    old_doc=json.load(open(checkpoint))
+    old={r['game_id']:r for r in old_doc.get('qualifying_events',[])}
+    new={r['game_id']:r for r in frozen}
+    missing=sorted(set(old)-set(new))
+    if missing:
+        raise SystemExit(f'previously frozen events disappeared: {missing}')
+    decision_fields=(
+        'home_team','away_team','kickoff_utc','signal_snapshot_utc',
+        'open_home_spread','snapshot_home_spread','spread_move','book_count',
+        'key_group','signal_side','books3plus',
+    )
+    for game_id,old_row in old.items():
+        new_row=new[game_id]
+        for field in decision_fields:
+            if old_row.get(field) != new_row.get(field):
+                raise SystemExit(f'frozen event {game_id} changed {field}')
+        old_result=old_row.get('result')
+        new_result=new_row.get('result')
+        if old_result in ('W','L','P') and new_result != old_result:
+            raise SystemExit(f'settled result changed for {game_id}: {old_result!r} -> {new_result!r}')
+        if old_result is None and new_result not in (None,'W','L','P'):
+            raise SystemExit(f'invalid settlement transition for {game_id}: {new_result!r}')
