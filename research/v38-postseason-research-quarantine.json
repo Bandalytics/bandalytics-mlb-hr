@@ -1,0 +1,11 @@
+{
+  "protocol": "V38_POSTSEASON_RESEARCH_QUARANTINE_V1",
+  "season": 2026,
+  "research_only": true,
+  "regular_season_forward_gate_credit": 0,
+  "can_update_regular_season_canary_ledger": false,
+  "can_enable_normal_volume": false,
+  "can_prove_profitability": false,
+  "frozen_2026_contract_mutation_allowed": false,
+  "sample_label": "POSTSEASON_2026_SEPARATE_RESEARCH_SAMPLE"
+}
