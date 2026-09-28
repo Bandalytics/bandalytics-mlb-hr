@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const z=JSON.parse(fs.readFileSync('research/v38-postseason-research-quarantine.json','utf8'));
+const fail=m=>{throw Error(m)};
+if(z.protocol!=='V38_POSTSEASON_RESEARCH_QUARANTINE_V1')fail('bad postseason protocol');
+if(z.research_only!==true||z.regular_season_forward_gate_credit!==0)fail('postseason cannot advance regular-season gate');
+if(z.can_update_regular_season_canary_ledger!==false)fail('postseason cannot update regular-season ledger');
+if(z.can_enable_normal_volume!==false||z.can_prove_profitability!==false)fail('postseason cannot promote system state');
+if(z.frozen_2026_contract_mutation_allowed!==false)fail('postseason cannot mutate frozen baseline');
+if(z.sample_label!=='POSTSEASON_2026_SEPARATE_RESEARCH_SAMPLE')fail('bad sample label');
+console.log('V38_POSTSEASON_RESEARCH_QUARANTINE_PASS');
