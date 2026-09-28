@@ -8,6 +8,14 @@ on:
       - 'research/v38-offseason-freeze-2026.json'
       - 'scripts/evaluate-v38-ticket-no-lineup-revalidation.mjs'
       - 'scripts/build-v38-canary-execution-plan.mjs'
+      - 'v38-research-pool-hierarchy.mjs'
+      - 'v38-pool-shortlist-v3.mjs'
+      - 'test-v38-research-pool-hierarchy.mjs'
+      - 'test-v38-pool-shortlist-v3.mjs'
+      - 'v38-research-pool-hierarchy.mjs'
+      - 'v38-pool-shortlist-v3.mjs'
+      - 'test-v38-research-pool-hierarchy.mjs'
+      - 'test-v38-pool-shortlist-v3.mjs'
       - 'test-v38-2027-validation-contract.mjs'
       - '.github/workflows/v38-2027-validation-contract.yml'
   pull_request:
@@ -30,3 +38,5 @@ jobs:
           node-version: 20
       - run: node test-v38-offseason-freeze.mjs
       - run: node test-v38-2027-validation-contract.mjs
+      - run: node test-v38-research-pool-hierarchy.mjs
+      - run: node test-v38-pool-shortlist-v3.mjs
