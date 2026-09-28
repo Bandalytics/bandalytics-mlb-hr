@@ -14,7 +14,7 @@ function settlement(date,i){
   return {...body,sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')};
 }
 const files=[];
-for(let i=1;i<=5;i++){const f=`tmp/canary-ready/s${i}.json`;fs.writeFileSync(f,JSON.stringify(settlement(`2026-10-0${i}`,i)));files.push(f);}
+for(let i=1;i<=5;i++){const f=`tmp/canary-ready/s${i}.json`;fs.writeFileSync(f,JSON.stringify(settlement(`2027-04-0${i}`,i)));files.push(f);}
 const out='tmp/canary-ready/out.json';
 execFileSync('node',['scripts/summarize-v38-canary-reactivation.mjs',...files,'--out',out],{stdio:'inherit'});
 const z=JSON.parse(fs.readFileSync(out,'utf8'));
