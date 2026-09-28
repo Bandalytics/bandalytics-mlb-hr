@@ -19,6 +19,7 @@ if(m.candidate_source!=='STANDARD_5OF6_PLUS_ANTI_OVERCOMPRESSION'||m.protected_4
 if(m.opportunity_guard!=='TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9') throw Error('lineup guard missing');
 if(m.freeze_scope!=='FULL_STANDARD_5OF6_PLUS_SLATE_BEFORE_EARLIEST_CANDIDATE_START'||m.earliest_standard_candidate_start!==new Date(start).toISOString()) throw Error('full-slate freeze metadata missing');
 if(m.candidate_pool_rows!==79||m.excluded_concrete_negative!==1||m.slate_band!=='LARGE_GE_76'||z.candidate_pool_ranking_strategy!=='PITCHFIT_FIRST') throw Error('bad anti-overcompression/slate band');
+if(m.verified_starter_provenance_rows!==80||m.missing_starter_provenance_rows!==0) throw Error('starter provenance coverage missing');
 if(m.serious_board_rows!==32||z.serious_board_player_ids.length!==32||m.requested_ticket_budget!==13||z.tickets.length!==13) throw Error('bad 40% board/ticket budget');
 const uses=new Map(); for(const t of z.tickets) for(const id of t.player_ids) uses.set(id,(uses.get(id)||0)+1);
 if(Math.max(...uses.values())!==2) throw Error('large-slate priority repetition missing');
@@ -60,4 +61,10 @@ fs.writeFileSync('tmp/canary-plan/starter-late.json',JSON.stringify(lateStarter)
 let starterFailed=false;
 try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter-late.json',frozen,'1','tmp/canary-plan/plan-late-starter.json'],{stdio:'pipe'});}catch(e){starterFailed=String(e.stderr||e.message).includes('FULL_SLATE_STARTER_SNAPSHOT_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');}
 if(!starterFailed) throw Error('late starter snapshot did not fail closed');
+// Any standard candidate without a verified starter row must fail the entire countable canary rather than receive neutral UNAVAILABLE treatment.
+const missingStarterBody={...starterBody,rows:starterRows.filter(r=>r.player_id!==1)}; const missingStarter={...missingStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(missingStarterBody)).digest('hex')};
+fs.writeFileSync('tmp/canary-plan/starter-missing.json',JSON.stringify(missingStarter));
+let missingStarterFailed=false;
+try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter-missing.json',frozen,'1','tmp/canary-plan/plan-missing-starter.json'],{stdio:'pipe'});}catch(e){missingStarterFailed=String(e.stderr||e.message).includes('FULL_SLATE_VERIFIED_STARTER_PROVENANCE_REQUIRED');}
+if(!missingStarterFailed) throw Error('missing starter provenance did not fail closed');
 console.log('V38_CANARY_PLAN_BUILDER_TEST_OK');
