@@ -33,9 +33,16 @@ if(v.postseason!=='SEPARATE_RESEARCH_SAMPLE_ONLY') fail('postseason boundary cha
 if(v.postseason_may_change_2027_rules!==false) fail('postseason cannot directly mutate 2027 rules');
 if(v.historical_holdout_may_select_new_architecture!==false) fail('holdout cannot select architecture');
 if(v.roi_claims_without_verified_frozen_prices!==false) fail('ROI guard changed');
+if(v.manual_prices_allowed!=='ONLY_IF_GENUINELY_PREGAME_WITH_TIMESTAMP_AND_PROVENANCE') fail('manual-price provenance boundary changed');
+
+const x=z.known_external_blocker||{};
+if(x.provider!=='SportsGameOdds') fail('price-source blocker identity changed');
+if(x.state!=='MONTHLY_ENTITY_QUOTA_EXHAUSTED') fail('price-source blocker state changed');
+if(x.instruction!=='DO_NOT_BRUTE_FORCE_OR_BACKFILL_AFTER_GAMES') fail('price-source blocker safety instruction changed');
 
 const r=z['2027_restart_contract']||{};
 if(r.resume_from_this_frozen_contract!==true||r.rebuild_from_scratch!==false) fail('restart contract changed');
+if(r.first_priority!=='COUNTABLE_FULL_SLATE_FORWARD_CANARIES_WITH_VERIFIED_FROZEN_PRICES_AND_STAKES') fail('restart priority changed');
 if(JSON.stringify(r.review_after_countable_slates)!==JSON.stringify([5,10])) fail('review gate changed');
 if(r.normal_volume_requires_separate_promotion_decision!==true) fail('promotion guard changed');
 
