@@ -113,6 +113,9 @@ jobs:
           elif grep -q 'FULL_SLATE_STARTER_SNAPSHOT_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START' <<< "$OUT"; then
             echo "eligible=false" >> "$GITHUB_OUTPUT"
             REASON=INELIGIBLE_STARTER_SNAPSHOT_NOT_FULL_SLATE_PREGAME
+          elif grep -q 'FULL_SLATE_VERIFIED_STARTER_PROVENANCE_REQUIRED' <<< "$OUT"; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            REASON=INELIGIBLE_INCOMPLETE_VERIFIED_STARTER_PROVENANCE
           else
             echo "Unexpected canary builder failure; refusing to classify as normal ineligibility."
             exit "$RC"
@@ -141,6 +144,9 @@ jobs:
           if(m.freeze_scope!=='FULL_STANDARD_5OF6_PLUS_SLATE_BEFORE_EARLIEST_CANDIDATE_START') throw Error('partial-slate canary not allowed');
           if(m.serious_board_share_pct!==40||m.ticket_budget_share_pct!==40||m.large_priority_repeat_share_pct!==25) throw Error('holdout architecture mismatch');
           if(m.opportunity_guard!=='TICKET_LEGS_REQUIRE_CONFIRMED_LINEUP_SLOT_1_TO_9') throw Error('lineup guard mismatch');
+          if(m.verified_starter_provenance_rows!==m.candidate_pool_rows+m.excluded_concrete_negative||m.missing_starter_provenance_rows!==0) throw Error('starter provenance coverage mismatch');
+          const expectedStrategy=m.slate_band==='SMALL_LE_50'?'PROFILE_FIRST':'PITCHFIT_FIRST';
+          if(z.candidate_pool_ranking_strategy!==expectedStrategy) throw Error('slate routing mismatch');
           if(!Array.isArray(z.tickets)||!z.tickets.length) throw Error('no executable canary tickets');
           console.log('V38_LIVE_CANARY_PREP_OK='+JSON.stringify({date:z.date,frozen_at:z.frozen_at,candidate_pool_rows:m.candidate_pool_rows,serious_board_rows:m.serious_board_rows,slate_band:m.slate_band,confirmed_lineup_serious_rows:m.confirmed_lineup_serious_rows,unconfirmed_lineup_serious_rows:m.unconfirmed_lineup_serious_rows,requested_ticket_budget:m.requested_ticket_budget,actual_tickets:m.actual_tickets,budget_underfill_due_to_opportunity:m.budget_underfill_due_to_opportunity,plan_sha256:z.plan_sha256}));
           NODE
