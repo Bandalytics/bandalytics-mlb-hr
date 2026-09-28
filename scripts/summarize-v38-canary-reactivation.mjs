@@ -25,6 +25,10 @@ const settlements=files.map(f=>{
   if(!Number.isInteger(candidateN)||candidateN<1) throw Error(`invalid candidate pool size ${f}`);
   const expectedBand=bandFor(candidateN);
   if(z.source_slate_band!==expectedBand) throw Error(`slate-band mismatch ${f}: expected ${expectedBand}`);
+  const expectedStrategy=expectedBand==='SMALL_LE_50'?'PROFILE_FIRST':'PITCHFIT_FIRST';
+  if(z.source_candidate_pool_ranking_strategy!==expectedStrategy) throw Error(`ranking-strategy mismatch ${f}: expected ${expectedStrategy}`);
+  const expectedRepeat=expectedBand==='LARGE_GE_76'?'PROVISIONAL_FORWARD_REVALIDATION':'NOT_APPLICABLE';
+  if(z.source_large_priority_repeat_status!==expectedRepeat) throw Error(`large-priority-repeat status mismatch ${f}: expected ${expectedRepeat}`);
   const expectedTickets=expectedBudgetFor(candidateN);
   if(Number(z.tickets)!==expectedTickets) throw Error(`budget-underfilled canary settlement ${f}: ${z.tickets} != ${expectedTickets}`);
   if(!z.date||seenDates.has(z.date)) throw Error(`duplicate/missing date ${z.date||f}`);
