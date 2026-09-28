@@ -13,6 +13,12 @@ if(!settlement.sha256) throw Error('settlement sha256 missing');
 const {sha256:claimedSettlementSha,...settlementBody}=settlement;
 const computedSettlementSha=crypto.createHash('sha256').update(JSON.stringify(settlementBody)).digest('hex');
 if(claimedSettlementSha!==computedSettlementSha) throw Error('settlement sha256 mismatch');
+const expectedBand=Number(settlement.source_candidate_pool_rows)<=50?'SMALL_LE_50':Number(settlement.source_candidate_pool_rows)<=75?'MEDIUM_51_75':'LARGE_GE_76';
+if(settlement.source_slate_band!==expectedBand) throw Error('settlement slate band mismatch');
+const expectedStrategy=expectedBand==='SMALL_LE_50'?'PROFILE_FIRST':'PITCHFIT_FIRST';
+if(settlement.source_candidate_pool_ranking_strategy!==expectedStrategy) throw Error('settlement ranking strategy mismatch');
+const expectedRepeat=expectedBand==='LARGE_GE_76'?'PROVISIONAL_FORWARD_REVALIDATION':'NOT_APPLICABLE';
+if(settlement.source_large_priority_repeat_status!==expectedRepeat) throw Error('settlement large priority repeat status mismatch');
 if(!settlement.date||!/^\d{4}-\d{2}-\d{2}$/.test(settlement.date)) throw Error('invalid settlement date');
 if(!Number.isFinite(Number(settlement.total_stake_units))||Number(settlement.total_stake_units)<=0||!Number.isFinite(Number(settlement.net_units))) throw Error('invalid settlement financials');
 
@@ -30,7 +36,7 @@ if(existing){
   if(existing.settlement_sha256!==computedSettlementSha) throw Error(`conflicting settlement for ${settlement.date}`);
   throw Error(`duplicate settlement date ${settlement.date}`);
 }
-const row={date:settlement.date,settled_at:settlement.settled_at,settlement_sha256:computedSettlementSha,freeze_sha256:settlement.source_freeze_sha256,preflight_sha256:settlement.source_preflight_sha256,outcomes_sha256:settlement.source_outcomes_sha256,outcomes_source:settlement.source_outcomes_source,slate_band:settlement.source_slate_band,candidate_pool_rows:settlement.source_candidate_pool_rows,tickets:settlement.tickets,winning_tickets:settlement.winning_tickets,total_stake_units:round4(settlement.total_stake_units),net_units:round4(settlement.net_units)};
+const row={date:settlement.date,settled_at:settlement.settled_at,settlement_sha256:computedSettlementSha,freeze_sha256:settlement.source_freeze_sha256,preflight_sha256:settlement.source_preflight_sha256,outcomes_sha256:settlement.source_outcomes_sha256,outcomes_source:settlement.source_outcomes_source,slate_band:settlement.source_slate_band,candidate_pool_rows:settlement.source_candidate_pool_rows,candidate_pool_ranking_strategy:settlement.source_candidate_pool_ranking_strategy,large_priority_repeat_status:settlement.source_large_priority_repeat_status,tickets:settlement.tickets,winning_tickets:settlement.winning_tickets,total_stake_units:round4(settlement.total_stake_units),net_units:round4(settlement.net_units)};
 rows.push(row); rows.sort((a,b)=>a.date.localeCompare(b.date));
 const totalStake=round4(rows.reduce((s,r)=>s+Number(r.total_stake_units),0));
 const net=round4(rows.reduce((s,r)=>s+Number(r.net_units),0));
