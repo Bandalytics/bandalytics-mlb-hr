@@ -8,6 +8,8 @@ if(z.protocol!=='V38_OFFSEASON_FREEZE_2026_V1') fail('bad protocol');
 if(z.season!==2026) fail('bad season');
 if(z.status!=='REGULAR_SEASON_ENDED_FORWARD_REACTIVATION_INCOMPLETE') fail('bad status');
 if(z.production_normal_volume!==false) fail('normal volume must remain off');
+if(z.frozen_baseline_commit!=='090e25a12af97ed2e3154a50c7fab880b5ef9ef8') fail('frozen baseline commit moved');
+if(z.additive_offseason_changes_do_not_move_baseline!==true) fail('offseason changes must not move frozen baseline');
 if(!String(z.profitability_status||'').startsWith('UNPROVEN_')) fail('profitability must remain unproven');
 if(z.regular_season_forward_gate?.completed_clean_countable_slates!==0) fail('unexpected countable slate backfill');
 if(z.regular_season_forward_gate?.carry_unmet_gate_into_2027!==true) fail('2027 gate carry required');
