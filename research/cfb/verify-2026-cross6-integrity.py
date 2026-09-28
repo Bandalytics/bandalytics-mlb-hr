@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, sys
+import json, re, sys
 from datetime import datetime
 
 SRC=sys.argv[1] if len(sys.argv)>1 else 'cfb-2026-cross6-prospective.json'
@@ -12,6 +12,14 @@ if x.get('roi_status')!='NOT_COMPUTED_NO_VERIFIED_FROZEN_PRICE':
     raise SystemExit('unexpected ROI state')
 if x.get('public_ticket_signals_tested') is not False:
     raise SystemExit('public-ticket contamination')
+
+# Source bytes are part of the prospective evidence. Require immutable fingerprints
+# so a later rerun cannot silently swap source files while retaining the same protocol.
+prov=x.get('source_provenance') or {}
+for key in ('games_sha256','lines_sha256','line_snapshots_sha256'):
+    value=str(prov.get(key) or '')
+    if not re.fullmatch(r'[0-9a-f]{64}', value):
+        raise SystemExit(f'missing/invalid source provenance: {key}')
 
 def dt(v): return datetime.fromisoformat(v.replace('Z','+00:00'))
 frozen=x.get('qualifying_events',[])
