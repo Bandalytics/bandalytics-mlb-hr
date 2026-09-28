@@ -1,0 +1,28 @@
+name: V38 Postseason Research Quarantine
+
+on:
+  push:
+    paths:
+      - 'research/v38-postseason-research-quarantine.json'
+      - 'test-v38-postseason-research-quarantine.mjs'
+      - '.github/workflows/v38-postseason-research-quarantine.yml'
+  pull_request:
+    paths:
+      - 'research/v38-postseason-research-quarantine.json'
+      - 'test-v38-postseason-research-quarantine.mjs'
+      - '.github/workflows/v38-postseason-research-quarantine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quarantine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node test-v38-postseason-research-quarantine.mjs
