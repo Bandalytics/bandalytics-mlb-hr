@@ -112,7 +112,7 @@ const output={
   source_plan_sha256:computedPlanSha,source_board_protocol:board.protocol,source_board_generated_at:board.generated_at,source_board_sha256:boardSha,
   price_snapshot_used:!!priceSnapshot,price_snapshot_kind:snapshotKind,price_snapshot_captured_at:priceSnapshot?.captured_at||null,price_snapshot_sha256:priceSnapshot?.sha256||null,
   market_snapshot_used:snapshotKind==='MARKET_SNAPSHOT',market_snapshot_captured_at:snapshotKind==='MARKET_SNAPSHOT'?priceSnapshot?.captured_at||null:null,market_snapshot_sha256:snapshotKind==='MARKET_SNAPSHOT'?priceSnapshot?.sha256||null:null,
-  candidate_pool_contract:'ORDERED_OUTCOME_BLIND_POOL_WITH_SLATE_BAND_FROM_CANDIDATE_COUNT',candidate_pool_rows:candidateN,candidate_pool_ranking_strategy:seriousStrategy,
+  candidate_pool_contract:'ORDERED_OUTCOME_BLIND_POOL_WITH_SLATE_BAND_FROM_CANDIDATE_COUNT',candidate_pool_rows:candidateN,candidate_pool_ranking_strategy:seriousStrategy,large_priority_repeat_status:slateBand==='LARGE_GE_76'?'PROVISIONAL_FORWARD_REVALIDATION':'NOT_APPLICABLE',
   serious_board_contract:'TOP_40_PCT_OF_ORDERED_CANDIDATE_POOL',serious_board_share_pct:40,ticket_contract:'CROSS_GAME_TWO_LEG_SMALL_MEDIUM_ONE_PATH_LARGE_TOP25_SECOND_PATH',
   ticket_budget_share_pct:40,large_priority_repeat_share_pct:25,serious_board_rows:seriousN,slate_band:slateBand,max_ticket_budget:maxTickets,tickets:tickets.length,total_stake_units:totalStake,
   unique_ticketed_hitters:ticketedIds.size,board_coverage_pct:seriousN?+(100*ticketedIds.size/seriousN).toFixed(2):0,priced_legs:pricedLegs,total_legs:totalLegs,price_coverage_pct:totalLegs?+(100*pricedLegs/totalLegs).toFixed(2):0,
