@@ -12,6 +12,8 @@ if(board.protocol!=='V38_DAILY_RESEARCH_BOARD_V2'||board.point_in_time!==true) t
 if(!/^2027-/.test(String(board.date||''))) throw Error('regular-season forward canary plan accepts 2027 dates only');
 if(!validStarterDamageSnapshot(starter)||starter.date!==board.date) throw Error('invalid starter snapshot');
 if(!Number.isFinite(Date.parse(frozen_at))||!Number.isFinite(stake)||stake<=0) throw Error('invalid freeze time/stake');
+if(!board.generated_at||!Number.isFinite(Date.parse(board.generated_at))||Date.parse(board.generated_at)>Date.parse(frozen_at)) throw Error('DAILY_BOARD_MUST_EXIST_AT_OR_BEFORE_CANARY_FREEZE');
+if(!starter.captured_at||!Number.isFinite(Date.parse(starter.captured_at))||Date.parse(starter.captured_at)>Date.parse(frozen_at)) throw Error('STARTER_SNAPSHOT_MUST_EXIST_AT_OR_BEFORE_CANARY_FREEZE');
 const standardRows=(board.rows||[]).filter(r=>Number(r.profile_gate_count)>=5&&Number.isFinite(Date.parse(r.start_time)));
 if(!standardRows.length) throw Error('no standard 5of6+ rows on daily board');
 const earliestStandardStart=Math.min(...standardRows.map(r=>Date.parse(r.start_time)));
