@@ -21,6 +21,10 @@ on:
         description: 'Comma-separated successful v38 Canary Operational Settlement run IDs (unique countable 2027 slates)'
         required: true
         type: string
+      ledger_run_id:
+        description: 'Successful main-branch v38 Canary Ledger Append run containing all summarized settlements'
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -78,12 +82,30 @@ jobs:
           mapfile -t FILES < <(find incoming/settlements -type f -name 'v38-canary-settlement.json' | sort)
           [ "${#FILES[@]}" -eq "${#IDS[@]}" ] || { echo SETTLEMENT_FILE_COUNT_MISMATCH; exit 1; }
           printf '%s\n' "${FILES[@]}" > snapshots/v38-readiness-settlement-files.txt
+      - name: Download trusted append-only ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          RID='${{ inputs.ledger_run_id }}'
+          [[ "$RID" =~ ^[0-9]+$ ]] || { echo INVALID_LEDGER_RUN_ID; exit 1; }
+          RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${RID}")"
+          echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo LEDGER_RUN_NOT_SUCCESSFUL; exit 1; }
+          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Ledger Append' || { echo LEDGER_WORKFLOW_NOT_ALLOWED; exit 1; }
+          echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo LEDGER_SOURCE_NOT_MAIN; exit 1; }
+          mkdir -p incoming/ledger
+          mapfile -t A < <(gh api "repos/${GH_REPO}/actions/runs/${RID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-ledger-"))) | .id')
+          [ "${#A[@]}" -eq 1 ] || { echo "EXPECTED_ONE_LEDGER_ARTIFACT_FOUND_${#A[@]}"; exit 1; }
+          gh api "repos/${GH_REPO}/actions/artifacts/${A[0]}/zip" > /tmp/ledger.zip
+          unzip -q /tmp/ledger.zip -d incoming/ledger
+          mapfile -t FILES < <(find incoming/ledger -type f -name 'v38-canary-ledger.json')
+          [ "${#FILES[@]}" -eq 1 ] || { echo "EXPECTED_ONE_LEDGER_JSON_FOUND_${#FILES[@]}"; exit 1; }
+          echo "READINESS_LEDGER_PATH=${FILES[0]}" >> "$GITHUB_ENV"
       - name: Build fail-closed readiness summary
         shell: bash
         run: |
           set -euo pipefail
           mapfile -t FILES < snapshots/v38-readiness-settlement-files.txt
-          node scripts/summarize-v38-canary-reactivation.mjs "${FILES[@]}" --out snapshots/v38-canary-reactivation-readiness.json
+          node scripts/summarize-v38-canary-reactivation.mjs "${FILES[@]}" --ledger "$READINESS_LEDGER_PATH" --out snapshots/v38-canary-reactivation-readiness.json
       - name: Verify no automatic production enable
         shell: bash
         run: |
@@ -91,7 +113,7 @@ jobs:
           node --input-type=module - <<'NODE'
           import fs from 'node:fs';
           const z=JSON.parse(fs.readFileSync('snapshots/v38-canary-reactivation-readiness.json','utf8'));
-          if(z.production_normal_volume!==false||z.evidence_gate?.automatic_production_enable!==false) throw Error('unsafe readiness output');
+          if(z.production_normal_volume!==false||z.evidence_gate?.automatic_production_enable!==false||z.evidence_gate?.append_only_ledger_integrity_verified!==true) throw Error('unsafe/unledgered readiness output');
           console.log('V38_OPERATIONAL_READINESS='+JSON.stringify({forward_slates:z.forward_slates,readiness_status:z.readiness_status,realized_roi_pct:z.realized_roi_pct}));
           NODE
       - uses: actions/upload-artifact@v4
