@@ -117,6 +117,8 @@ jobs:
           printf '%s\n' "$OUT"
           if [ "$RC" -eq 0 ]; then
             echo "eligible=true" >> "$GITHUB_OUTPUT"
+            cp "$BOARD_PATH" "snapshots/v38-canary-source-board-${DATE}.json"
+            cp "$STARTER_PATH" "snapshots/v38-canary-source-starter-${DATE}.json"
             REASON=ELIGIBLE_FULL_SLATE_CANARY_PLAN_BUILT
           elif grep -q 'FULL_SLATE_CANARY_FREEZE_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START' <<< "$OUT"; then
             echo "eligible=false" >> "$GITHUB_OUTPUT"
@@ -168,5 +170,7 @@ jobs:
           path: |
             snapshots/v38-canary-live-prep-status-*.json
             snapshots/v38-canary-execution-plan-*.json
+            snapshots/v38-canary-source-board-*.json
+            snapshots/v38-canary-source-starter-*.json
           if-no-files-found: error
           retention-days: 90
