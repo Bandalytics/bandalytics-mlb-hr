@@ -16,10 +16,16 @@ on:
       - 'test-v38-canary-reactivation-readiness.mjs'
       - '.github/workflows/v38-canary-reactivation-readiness.yml'
   workflow_dispatch:
+    inputs:
+      settlement_run_ids:
+        description: 'Comma-separated successful v38 Canary Operational Settlement run IDs (unique countable 2027 slates)'
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
   contract:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -31,3 +37,66 @@ jobs:
         run: node --check scripts/summarize-v38-canary-reactivation.mjs
       - name: Readiness summary contract
         run: node test-v38-canary-reactivation-readiness.mjs
+
+  summarize:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download trusted settlement artifacts
+        shell: bash
+        env:
+          RUN_IDS: ${{ inputs.settlement_run_ids }}
+        run: |
+          set -euo pipefail
+          mkdir -p incoming/settlements snapshots
+          IFS=',' read -ra IDS <<< "$RUN_IDS"
+          [ "${#IDS[@]}" -gt 0 ] || { echo NO_SETTLEMENT_RUN_IDS; exit 1; }
+          declare -A SEEN
+          for RAW in "${IDS[@]}"; do
+            RID="$(echo "$RAW" | xargs)"
+            [[ "$RID" =~ ^[0-9]+$ ]] || { echo "INVALID_SETTLEMENT_RUN_ID_$RID"; exit 1; }
+            [ -z "${SEEN[$RID]:-}" ] || { echo "DUPLICATE_SETTLEMENT_RUN_ID_$RID"; exit 1; }
+            SEEN[$RID]=1
+            RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${RID}")"
+            echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo "SETTLEMENT_RUN_NOT_SUCCESSFUL_$RID"; exit 1; }
+            echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Operational Settlement' || { echo "SETTLEMENT_WORKFLOW_NOT_ALLOWED_$RID"; exit 1; }
+            echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo "SETTLEMENT_SOURCE_NOT_MAIN_$RID"; exit 1; }
+            mapfile -t A < <(gh api "repos/${GH_REPO}/actions/runs/${RID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-settlement-"))) | .id')
+            [ "${#A[@]}" -eq 1 ] || { echo "EXPECTED_ONE_SETTLEMENT_ARTIFACT_${RID}_FOUND_${#A[@]}"; exit 1; }
+            mkdir -p "incoming/settlements/$RID"
+            gh api "repos/${GH_REPO}/actions/artifacts/${A[0]}/zip" > "/tmp/settlement-$RID.zip"
+            unzip -q "/tmp/settlement-$RID.zip" -d "incoming/settlements/$RID"
+          done
+          mapfile -t FILES < <(find incoming/settlements -type f -name 'v38-canary-settlement.json' | sort)
+          [ "${#FILES[@]}" -eq "${#IDS[@]}" ] || { echo SETTLEMENT_FILE_COUNT_MISMATCH; exit 1; }
+          printf '%s\n' "${FILES[@]}" > snapshots/v38-readiness-settlement-files.txt
+      - name: Build fail-closed readiness summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < snapshots/v38-readiness-settlement-files.txt
+          node scripts/summarize-v38-canary-reactivation.mjs "${FILES[@]}" --out snapshots/v38-canary-reactivation-readiness.json
+      - name: Verify no automatic production enable
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const z=JSON.parse(fs.readFileSync('snapshots/v38-canary-reactivation-readiness.json','utf8'));
+          if(z.production_normal_volume!==false||z.evidence_gate?.automatic_production_enable!==false) throw Error('unsafe readiness output');
+          console.log('V38_OPERATIONAL_READINESS='+JSON.stringify({forward_slates:z.forward_slates,readiness_status:z.readiness_status,realized_roi_pct:z.realized_roi_pct}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-canary-reactivation-readiness-${{ github.run_id }}
+          path: snapshots/v38-canary-reactivation-readiness.json
+          if-no-files-found: error
+          retention-days: 90
