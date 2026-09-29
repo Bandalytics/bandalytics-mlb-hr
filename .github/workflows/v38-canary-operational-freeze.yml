@@ -1,0 +1,95 @@
+name: v38 Canary Operational Freeze
+on:
+  workflow_dispatch:
+    inputs:
+      live_prep_run_id:
+        description: 'Successful main-branch v38 Canary Live Prep run containing an eligible plan/source bundle'
+        required: true
+        type: string
+      price_captured_at:
+        description: 'ISO timestamp when the manual sportsbook prices were captured (must be <= plan frozen_at)'
+        required: true
+        type: string
+      price_rows_json:
+        description: 'JSON array of {player_id,american_odds,book,captured_at?,source_note?}'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  freeze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate trusted live-prep source
+        shell: bash
+        run: |
+          set -euo pipefail
+          RID='${{ inputs.live_prep_run_id }}'
+          [[ "$RID" =~ ^[0-9]+$ ]] || { echo INVALID_LIVE_PREP_RUN_ID; exit 1; }
+          RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${RID}")"
+          echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo LIVE_PREP_RUN_NOT_SUCCESSFUL; exit 1; }
+          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Live Prep' || { echo LIVE_PREP_WORKFLOW_NOT_ALLOWED; exit 1; }
+          echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo LIVE_PREP_SOURCE_NOT_MAIN; exit 1; }
+          mkdir -p incoming/live-prep snapshots
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/runs/${RID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-live-prep-"))) | .id')
+          [ "${#IDS[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_LIVE_PREP_ARTIFACT_FOUND_${#IDS[@]}"; exit 1; }
+          gh api "repos/${GH_REPO}/actions/artifacts/${IDS[0]}/zip" > /tmp/live-prep.zip
+          unzip -q /tmp/live-prep.zip -d incoming/live-prep
+          mapfile -t PLANS < <(find incoming/live-prep -type f -name 'v38-canary-execution-plan-*.json')
+          mapfile -t BOARDS < <(find incoming/live-prep -type f -name 'v38-canary-source-board-*.json')
+          [ "${#PLANS[@]}" -eq 1 ] && [ "${#BOARDS[@]}" -eq 1 ] || { echo LIVE_PREP_BUNDLE_INCOMPLETE; exit 1; }
+          echo "PLAN_PATH=${PLANS[0]}" >> "$GITHUB_ENV"
+          echo "BOARD_PATH=${BOARDS[0]}" >> "$GITHUB_ENV"
+      - name: Build hashed manual price snapshot
+        shell: bash
+        env:
+          PRICE_ROWS_JSON: ${{ inputs.price_rows_json }}
+          PRICE_CAPTURED_AT: ${{ inputs.price_captured_at }}
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const plan=JSON.parse(fs.readFileSync(process.env.PLAN_PATH,'utf8'));
+          let rows; try{rows=JSON.parse(process.env.PRICE_ROWS_JSON)}catch{throw Error('price_rows_json is not valid JSON')}
+          if(!Array.isArray(rows)||!rows.length) throw Error('price_rows_json must be a nonempty array');
+          const input={protocol:'V38_MANUAL_PRICE_INPUT_V1',date:plan.date,captured_at:process.env.PRICE_CAPTURED_AT,rows};
+          fs.writeFileSync('snapshots/v38-manual-price-input.json',JSON.stringify(input,null,2)+'\n');
+          NODE
+          node scripts/capture-v38-manual-price-snapshot.mjs snapshots/v38-manual-price-input.json snapshots/v38-manual-price-snapshot.json
+      - name: Freeze exact plan prices and stakes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/freeze-v38-canary-execution.mjs "$BOARD_PATH" "$PLAN_PATH" snapshots/v38-manual-price-snapshot.json snapshots/v38-canary-execution-freeze.json
+          node scripts/verify-v38-canary-preflight.mjs snapshots/v38-canary-execution-freeze.json snapshots/v38-canary-preflight.json
+      - name: Verify operational freeze remains canary-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const f=JSON.parse(fs.readFileSync('snapshots/v38-canary-execution-freeze.json','utf8'));
+          const p=JSON.parse(fs.readFileSync('snapshots/v38-canary-preflight.json','utf8'));
+          if(f.canary_only!==true||f.production_normal_volume!==false||f.roi_status!=='READY_FOR_POST_SLATE_SETTLEMENT') throw Error('freeze not countable-canary ready');
+          if(p.status!=='READY_FOR_CONTROLLED_FORWARD_CANARY'||p.production_normal_volume!==false) throw Error('preflight not ready');
+          console.log('V38_OPERATIONAL_CANARY_FREEZE_OK='+JSON.stringify({date:f.date,tickets:f.tickets,total_stake_units:f.total_stake_units,price_coverage_pct:f.price_coverage_pct,freeze_sha256:f.sha256,preflight_sha256:p.sha256}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-canary-operational-freeze-${{ github.run_id }}
+          path: |
+            snapshots/v38-manual-price-input.json
+            snapshots/v38-manual-price-snapshot.json
+            snapshots/v38-canary-execution-freeze.json
+            snapshots/v38-canary-preflight.json
+          if-no-files-found: error
+          retention-days: 90
