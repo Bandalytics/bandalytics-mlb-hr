@@ -10,6 +10,7 @@ const frozen_at=new Date(frozenAtArg).toISOString();
 const stake=stakeArg==null?1:Number(stakeArg);
 if(board.protocol!=='V38_DAILY_RESEARCH_BOARD_V2'||board.point_in_time!==true) throw Error('invalid daily board');
 if(!/^2027-/.test(String(board.date||''))) throw Error('regular-season forward canary plan accepts 2027 dates only');
+if(board.date<'2027-03-24'||board.date>'2027-09-26') throw Error('2027 canary date outside official MLB regular-season window');
 if(!validStarterDamageSnapshot(starter)||starter.date!==board.date) throw Error('invalid starter snapshot');
 if(!Number.isFinite(Date.parse(frozen_at))||!Number.isFinite(stake)||stake<=0) throw Error('invalid freeze time/stake');
 if(!board.generated_at||!Number.isFinite(Date.parse(board.generated_at))||Date.parse(board.generated_at)>Date.parse(frozen_at)) throw Error('DAILY_BOARD_MUST_EXIST_AT_OR_BEFORE_CANARY_FREEZE');
