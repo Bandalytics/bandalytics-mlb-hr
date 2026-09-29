@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'research/V38_OFFSEASON_COMPARABILITY_AUDIT_2027.md'
+      - 'research/V38_2027_OPERATIONAL_CANARY_RUNBOOK.md'
       - 'research/v38-2027-validation-plan.json'
       - 'research/v38-offseason-freeze-2026.json'
       - 'scripts/evaluate-v38-ticket-no-lineup-revalidation.mjs'
@@ -18,6 +19,7 @@ on:
   pull_request:
     paths:
       - 'research/V38_OFFSEASON_COMPARABILITY_AUDIT_2027.md'
+      - 'research/V38_2027_OPERATIONAL_CANARY_RUNBOOK.md'
       - 'research/v38-2027-validation-plan.json'
       - 'research/v38-offseason-freeze-2026.json'
       - 'scripts/evaluate-v38-ticket-no-lineup-revalidation.mjs'
