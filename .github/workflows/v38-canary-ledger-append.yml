@@ -61,7 +61,10 @@ jobs:
           set -euo pipefail
           mkdir -p incoming/settlement snapshots
           RID='${{ inputs.settlement_run_id }}'
-          gh api "repos/${GH_REPO}/actions/runs/${RID}" --jq '.conclusion' | grep -qx success || { echo 'SETTLEMENT_SOURCE_RUN_NOT_SUCCESSFUL'; exit 1; }
+          RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${RID}")"
+          echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo 'SETTLEMENT_SOURCE_RUN_NOT_SUCCESSFUL'; exit 1; }
+          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Live Prep' || { echo 'SETTLEMENT_SOURCE_WORKFLOW_NOT_ALLOWED'; exit 1; }
+          echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo 'SETTLEMENT_SOURCE_NOT_MAIN'; exit 1; }
           mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/runs/${RID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-settlement-"))) | .id')
           [ "${#IDS[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_SETTLEMENT_ARTIFACT_FOUND_${#IDS[@]}"; exit 1; }
           gh api "repos/${GH_REPO}/actions/artifacts/${IDS[0]}/zip" > /tmp/settlement.zip
@@ -79,7 +82,10 @@ jobs:
             exit 0
           fi
           mkdir -p incoming/ledger
-          gh api "repos/${GH_REPO}/actions/runs/${PRIOR}" --jq '.conclusion' | grep -qx success || { echo 'PRIOR_LEDGER_SOURCE_RUN_NOT_SUCCESSFUL'; exit 1; }
+          RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${PRIOR}")"
+          echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo 'PRIOR_LEDGER_SOURCE_RUN_NOT_SUCCESSFUL'; exit 1; }
+          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Ledger Append' || { echo 'PRIOR_LEDGER_SOURCE_WORKFLOW_NOT_ALLOWED'; exit 1; }
+          echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo 'PRIOR_LEDGER_SOURCE_NOT_MAIN'; exit 1; }
           mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/runs/${PRIOR}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-ledger-"))) | .id')
           [ "${#IDS[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_PRIOR_LEDGER_ARTIFACT_FOUND_${#IDS[@]}"; exit 1; }
           gh api "repos/${GH_REPO}/actions/artifacts/${IDS[0]}/zip" > /tmp/ledger.zip
