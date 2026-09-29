@@ -24,7 +24,7 @@ This runbook is operational guidance for **2027 MLB regular-season controlled ca
 4. **Price capture**
    - Capture exact sportsbook HR prices before the plan freeze and before each hitter's first pitch.
    - Never infer, interpolate, reconstruct, or postgame-backfill a missing price.
-   - Manual fallback must include player ID, American odds, book, and capture timestamp.
+   - Manual fallback must include player ID, American odds, book, capture timestamp, and a specific source reference; generic labels such as "screenshot" are not sufficient.
 5. **Operational freeze + preflight**
    - Run `v38 Canary Operational Freeze` against one successful main-branch Live Prep artifact.
    - The manual price capture timestamp must be at or before the plan `frozen_at`.
@@ -58,7 +58,7 @@ This runbook is operational guidance for **2027 MLB regular-season controlled ca
 
 ## External research tools
 
-LineStar, Optimal Bet, Vig, or other third-party tools may be recorded as **shadow evidence**. They do not rewrite Core6, candidate ranking, ticket membership, frozen prices, or stakes during the initial 2027 canary gate. Any proposed promotion of an external signal requires a separate predeclared development hypothesis and new forward validation.
+LineStar, Optimal Bet, Vig, or other third-party tools may be recorded as **shadow evidence** only with a specific capture/source reference. They do not rewrite Core6, candidate ranking, ticket membership, frozen prices, or stakes during the initial 2027 canary gate. Any proposed promotion of an external signal requires a separate predeclared development hypothesis and new forward validation.
 
 ## Fail-closed rule
 
