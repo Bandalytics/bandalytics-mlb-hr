@@ -32,6 +32,7 @@ const settlements=files.map(f=>{
   const expectedTickets=expectedBudgetFor(candidateN);
   if(Number(z.tickets)!==expectedTickets) throw Error(`budget-underfilled canary settlement ${f}: ${z.tickets} != ${expectedTickets}`);
   if(!z.date||seenDates.has(z.date)) throw Error(`duplicate/missing date ${z.date||f}`);
+  if(!/^2027-/.test(z.date)) throw Error(`non-2027 settlement cannot advance 2027 forward gate ${f}`);
   seenDates.add(z.date);
   if(!z.sha256) throw Error(`missing sha256 ${f}`);
   const {sha256,...body}=z;
