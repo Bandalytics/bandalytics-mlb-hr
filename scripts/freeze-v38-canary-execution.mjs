@@ -16,6 +16,7 @@ if(computedPlanSha!==claimedPlanSha) throw Error('canary plan sha256 mismatch');
 const boardSha=crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex');
 if(plan.research_metadata?.source_board_sha256!==boardSha) throw Error('canary plan board provenance mismatch');
 if (plan.date !== board.date) throw Error('date mismatch');
+if(!/^2027-/.test(plan.date)) throw Error('regular-season forward canary freeze accepts 2027 dates only');
 if (!plan.frozen_at || !Number.isFinite(Date.parse(plan.frozen_at))) throw Error('missing frozen_at');
 if (!Array.isArray(plan.candidate_pool_player_ids) || !plan.candidate_pool_player_ids.length) throw Error('candidate pool missing');
 if (!Array.isArray(plan.serious_board_player_ids) || !Array.isArray(plan.tickets)) throw Error('plan arrays missing');
