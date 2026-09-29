@@ -65,13 +65,13 @@ jobs:
           fi
           echo "OFFSEASON_NOOP=false" >> "$GITHUB_ENV"
           mkdir -p incoming/boards incoming/starters snapshots
-          mapfile -t BOARD_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-daily-research-board.yml/runs?status=success&per_page=20" --jq '.workflow_runs[] | select(.head_branch=="main") | .id' || true)
+          mapfile -t BOARD_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-daily-research-board.yml/runs?status=success&per_page=20" --jq '.workflow_runs[] | select(.head_branch=="main") | .id')
           for ID in "${BOARD_IDS[@]:-}"; do
             [ -n "$ID" ] || continue
             mkdir -p "incoming/boards/$ID"
             gh run download "$ID" --repo "$GH_REPO" --name "v38-daily-research-board-${DATE}-${ID}" --dir "incoming/boards/$ID" >/dev/null 2>&1 || true
           done
-          mapfile -t STARTER_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-starter-damage-snapshot.yml/runs?status=success&per_page=20" --jq '.workflow_runs[] | select(.head_branch=="main") | .id' || true)
+          mapfile -t STARTER_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-starter-damage-snapshot.yml/runs?status=success&per_page=20" --jq '.workflow_runs[] | select(.head_branch=="main") | .id')
           for ID in "${STARTER_IDS[@]:-}"; do
             [ -n "$ID" ] || continue
             mkdir -p "incoming/starters/$ID"
