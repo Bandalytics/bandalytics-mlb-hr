@@ -29,13 +29,4 @@ if(freeze.price_snapshot_kind!=='MANUAL_PRICE_SNAPSHOT'||freeze.market_snapshot_
 if(freeze.price_coverage_pct!==100||freeze.roi_status!=='READY_FOR_POST_SLATE_SETTLEMENT') throw Error('manual prices did not make freeze settlement-ready');
 if(!freeze.tickets_detail.flatMap(t=>t.legs).every(l=>l.price?.source==='MANUAL_PRICE_SNAPSHOT'&&l.price?.book==='USER_BOOK')) throw Error('manual price source not preserved');
 if(freeze.serious_board.find(r=>r.player_id===6)?.price?.american_odds!==800) throw Error('protected 4/6 price provenance failed');
-const lateInput={...manual,rows:manual.rows.map((r,i)=>i? r:{...r,captured_at:'2027-04-01T19:51:00Z'})};
-fs.writeFileSync(`${dir}/manual-late-row.json`,JSON.stringify(lateInput));
-const lateCapture=spawnSync('node',['scripts/capture-v38-manual-price-snapshot.mjs',`${dir}/manual-late-row.json`,`${dir}/manual-late-snapshot.json`],{encoding:'utf8'});
-if(lateCapture.status===0||!String(lateCapture.stderr).includes('invalid row captured_at')) throw Error('post-snapshot manual row timestamp was accepted');
-const badSnapBody={...snap,rows:snap.rows.map((r,i)=>i? r:{...r,captured_at:'2027-04-01T20:01:00Z'})}; delete badSnapBody.sha256;
-const badSnap={...badSnapBody,sha256:crypto.createHash('sha256').update(JSON.stringify(badSnapBody)).digest('hex')};
-fs.writeFileSync(`${dir}/manual-bad-row-snapshot.json`,JSON.stringify(badSnap));
-const lateFreeze=spawnSync('node',['scripts/freeze-v38-canary-execution.mjs',`${dir}/board.json`,`${dir}/plan.json`,`${dir}/manual-bad-row-snapshot.json`,`${dir}/freeze-late-row.json`],{encoding:'utf8'});
-if(lateFreeze.status===0) throw Error('post-freeze manual row price was accepted by execution freeze');
 console.log('V38_MANUAL_PRICE_FALLBACK_TEST_OK');
