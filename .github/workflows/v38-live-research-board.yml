@@ -28,8 +28,26 @@ permissions:
   contents: read
   actions: read
 jobs:
+  contract:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Research board contract
+        run: |
+          node --check scripts/build-v38-live-research-board.mjs
+          node --check v38-profile-snapshot-selector.mjs
+          node --check v38-context-selector.mjs
+          node test-v38-modifier-artifacts.mjs
+          node test-v38-pool-architecture-v2.mjs
+          node test-v38-pool-shortlist-v3.mjs
+          node test-v38-park-factor-policy.mjs
   board:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name != 'push' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
