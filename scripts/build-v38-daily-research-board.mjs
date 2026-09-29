@@ -97,7 +97,7 @@ for (const p of snap.items || []) {
   const generic = genericQuality(c);
   const longshot = r.american_odds != null && r.american_odds >= 700 ? classifyLongshotQuality(p, r.american_odds) : null;
   const qualityTier = longshot ? longshot.quality_tier : generic;
-  const hierarchy = researchPoolHierarchy({quality_tier:qualityTier,pitchfit_band:r.pitchfit_band,bbe_band:r.bbe_band,lineup:r.lineup,american_odds:r.american_odds});
+  const hierarchy = researchPoolHierarchy({quality_tier:qualityTier,pitchfit_band:r.pitchfit_band,bbe_band:r.bbe_band,american_odds:r.american_odds});
   const poolLayer = classifyPoolLayer({date,priority_band:hierarchy.priority_band,quality_tier:qualityTier,american_odds:r.american_odds,longshot_policy:longshot});
   const longshotBlocked = !!longshot && ['INELIGIBLE','NOT_LONGSHOT_WINDOW'].includes(longshot.quality_tier);
   r.quality_tier = qualityTier;
