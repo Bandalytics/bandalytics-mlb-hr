@@ -29,4 +29,5 @@ if(freeze.price_snapshot_kind!=='MANUAL_PRICE_SNAPSHOT'||freeze.market_snapshot_
 if(freeze.price_coverage_pct!==100||freeze.roi_status!=='READY_FOR_POST_SLATE_SETTLEMENT') throw Error('manual prices did not make freeze settlement-ready');
 if(!freeze.tickets_detail.flatMap(t=>t.legs).every(l=>l.price?.source==='MANUAL_PRICE_SNAPSHOT'&&l.price?.book==='USER_BOOK')) throw Error('manual price source not preserved');
 if(freeze.serious_board.find(r=>r.player_id===6)?.price?.american_odds!==800) throw Error('protected 4/6 price provenance failed');
+const vague={...manual,rows:manual.rows.map((r,i)=>i===0?{...r,source_note:'screenshot'}:r)};fs.writeFileSync(`${dir}/manual-vague.json`,JSON.stringify(vague));const vagueRun=spawnSync('node',['scripts/capture-v38-manual-price-snapshot.mjs',`${dir}/manual-vague.json`,`${dir}/manual-vague-out.json`],{encoding:'utf8'});if(vagueRun.status===0||!String(vagueRun.stderr).includes('missing specific price source_note')) throw Error('generic manual price provenance accepted');
 console.log('V38_MANUAL_PRICE_FALLBACK_TEST_OK');
