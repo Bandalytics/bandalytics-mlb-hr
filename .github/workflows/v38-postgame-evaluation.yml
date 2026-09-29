@@ -78,7 +78,7 @@ jobs:
           fi
           echo "immutable_existing=false" >> "$GITHUB_OUTPUT"
 
-          mapfile -t RUN_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t RUN_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           if [ "${#RUN_IDS[@]}" -eq 0 ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "No successful v38 pregame snapshot candidates for ${DATE}; nothing to evaluate."
@@ -107,7 +107,7 @@ jobs:
         run: |
           set -euo pipefail
           DATE="${{ steps.find.outputs.date }}"
-          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           for ID in "${IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/contexts/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true; done
           echo "Downloaded $(find incoming/contexts -type f -name 'v38-context-*.json' | wc -l) context snapshots for ${DATE}."
       - name: Download all same-day pitchfit and Recent BBE snapshots
@@ -116,8 +116,8 @@ jobs:
         run: |
           set -euo pipefail
           DATE="${{ steps.find.outputs.date }}"
-          mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
-          mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t PF_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
+          mapfile -t BB_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           for ID in "${PF_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/pitchfit/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true; done
           for ID in "${BB_IDS[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/bbe/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true; done
           echo "Pitchfit snapshots: $(find incoming/modifiers -type f -name 'v38-pitchfit-*.json' | wc -l)"

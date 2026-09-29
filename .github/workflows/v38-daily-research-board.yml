@@ -63,7 +63,7 @@ jobs:
           set -euo pipefail
           DATE='${{ steps.date.outputs.date }}'
           mkdir -p incoming/profile incoming/contexts incoming/modifiers/pitchfit incoming/modifiers/bbe incoming/park snapshots
-          mapfile -t RUN_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t RUN_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pregame-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           if [ "${#RUN_IDS[@]}" -eq 0 ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "No successful profile snapshot candidates for ${DATE}; board generation skipped."
@@ -74,6 +74,14 @@ jobs:
             mkdir -p "incoming/profile/$ID"
             gh run download "$ID" --repo "$GH_REPO" --name "v38-pregame-${ID}" --dir "incoming/profile/$ID" || true
           done
+          python3 - "$DATE" <<'PY'
+          import glob,json,os,sys
+          date=sys.argv[1]
+          for p in glob.glob('incoming/profile/**/*.json',recursive=True):
+              try: z=json.load(open(p))
+              except Exception: os.remove(p); continue
+              if z.get('date')!=date: os.remove(p)
+          PY
           if [ "$(find incoming/profile -type f -name 'v38-pregame-*.json' | wc -l)" -eq 0 ]; then
             echo "found=false" >> "$GITHUB_OUTPUT"
             echo "No downloadable profile snapshot candidates for ${DATE}; board generation skipped."
@@ -86,13 +94,13 @@ jobs:
         run: |
           set -euo pipefail
           DATE='${{ steps.date.outputs.date }}'
-          mapfile -t CTX < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t CTX < <(gh api "repos/${GH_REPO}/actions/workflows/v38-context-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           for ID in "${CTX[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/contexts/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-context-${ID}" --dir "incoming/contexts/$ID" || true; done
-          mapfile -t PF < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t PF < <(gh api "repos/${GH_REPO}/actions/workflows/v38-pitchfit-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           for ID in "${PF[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/pitchfit/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-pitchfit-${ID}" --dir "incoming/modifiers/pitchfit/$ID" || true; done
-          mapfile -t BB < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t BB < <(gh api "repos/${GH_REPO}/actions/workflows/v38-recent-bbe-distribution.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           for ID in "${BB[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/modifiers/bbe/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-recent-bbe-${ID}" --dir "incoming/modifiers/bbe/$ID" || true; done
-          mapfile -t PARK < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\" and (.created_at | startswith(\"${DATE}\"))) | .id")
+          mapfile -t PARK < <(gh api "repos/${GH_REPO}/actions/workflows/v38-park-factor-snapshot.yml/runs?status=success&per_page=100" --jq ".workflow_runs[] | select(.head_branch==\"main\") | .id")
           for ID in "${PARK[@]:-}"; do [ -n "$ID" ] || continue; mkdir -p "incoming/park/$ID"; gh run download "$ID" --repo "$GH_REPO" --name "v38-park-factors-${ID}" --dir "incoming/park/$ID" || true; done
           echo "Contexts: $(find incoming/contexts -type f -name '*.json' | wc -l)"
           echo "Pitchfit: $(find incoming/modifiers/pitchfit -type f -name '*.json' | wc -l)"
