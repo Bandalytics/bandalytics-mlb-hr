@@ -8,7 +8,7 @@ const settlement=JSON.parse(fs.readFileSync(settlementPath,'utf8'));
 if(settlement.protocol!=='V38_CANARY_SETTLEMENT_V1'||settlement.canary_only!==true||settlement.production_normal_volume!==false) throw Error('invalid canary settlement');
 if(settlement.roi_status!=='REALIZED_FROM_VERIFIED_FROZEN_PRICE_STAKE_AND_OUTCOMES') throw Error('settlement not verified');
 if(settlement.source_architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1') throw Error('settlement not holdout aligned');
-if(!settlement.source_freeze_sha256||!settlement.source_preflight_sha256||settlement.source_preflight_status!=='READY_FOR_CONTROLLED_FORWARD_CANARY'||!settlement.source_outcomes_sha256||!settlement.source_outcomes_source) throw Error('settlement provenance incomplete');
+if(!settlement.source_freeze_sha256||!settlement.source_price_snapshot_sha256||!['MANUAL_PRICE_SNAPSHOT','MARKET_SNAPSHOT'].includes(settlement.source_price_snapshot_kind)||!settlement.source_preflight_sha256||settlement.source_preflight_status!=='READY_FOR_CONTROLLED_FORWARD_CANARY'||!settlement.source_outcomes_sha256||!settlement.source_outcomes_source) throw Error('settlement provenance incomplete');
 if(!(/^(https:\/\/[^\s]+)$/i.test(settlement.source_outcomes_source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(settlement.source_outcomes_source))) throw Error('settlement outcome source not specific');
 if(!settlement.sha256) throw Error('settlement sha256 missing');
 const {sha256:claimedSettlementSha,...settlementBody}=settlement;
@@ -39,7 +39,7 @@ if(priorRows.length){
   for(const r of priorRows){
     if(!r?.date||seenPriorDates.has(r.date)) throw Error('existing ledger duplicate/missing date');
     seenPriorDates.add(r.date);
-    if((r.date<'2027-03-24'||r.date>'2027-09-26')||!r.settlement_sha256||!r.freeze_sha256||!r.preflight_sha256||!r.outcomes_sha256||!r.outcomes_source) throw Error('existing ledger row provenance invalid');
+    if((r.date<'2027-03-24'||r.date>'2027-09-26')||!r.settlement_sha256||!r.freeze_sha256||!r.preflight_sha256||!r.price_snapshot_sha256||!['MANUAL_PRICE_SNAPSHOT','MARKET_SNAPSHOT'].includes(r.price_snapshot_kind)||!r.outcomes_sha256||!r.outcomes_source) throw Error('existing ledger row provenance invalid');
     if(!(/^(https:\/\/[^\s]+)$/i.test(r.outcomes_source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(r.outcomes_source))) throw Error('existing ledger row outcome source not specific');
     if(!Number.isFinite(Number(r.total_stake_units))||Number(r.total_stake_units)<=0||!Number.isFinite(Number(r.net_units))) throw Error('existing ledger row financials invalid');
     if(!Number.isInteger(Number(r.candidate_pool_rows))||Number(r.candidate_pool_rows)<1) throw Error('existing ledger row candidate count invalid');
@@ -62,7 +62,7 @@ if(existing){
   if(existing.settlement_sha256!==computedSettlementSha) throw Error(`conflicting settlement for ${settlement.date}`);
   throw Error(`duplicate settlement date ${settlement.date}`);
 }
-const row={date:settlement.date,settled_at:settlement.settled_at,settlement_sha256:computedSettlementSha,freeze_sha256:settlement.source_freeze_sha256,preflight_sha256:settlement.source_preflight_sha256,outcomes_sha256:settlement.source_outcomes_sha256,outcomes_source:settlement.source_outcomes_source,slate_band:settlement.source_slate_band,candidate_pool_rows:settlement.source_candidate_pool_rows,candidate_pool_ranking_strategy:settlement.source_candidate_pool_ranking_strategy,large_priority_repeat_status:settlement.source_large_priority_repeat_status,tickets:settlement.tickets,winning_tickets:settlement.winning_tickets,total_stake_units:round4(settlement.total_stake_units),net_units:round4(settlement.net_units)};
+const row={date:settlement.date,settled_at:settlement.settled_at,settlement_sha256:computedSettlementSha,freeze_sha256:settlement.source_freeze_sha256,preflight_sha256:settlement.source_preflight_sha256,price_snapshot_sha256:settlement.source_price_snapshot_sha256,price_snapshot_kind:settlement.source_price_snapshot_kind,outcomes_sha256:settlement.source_outcomes_sha256,outcomes_source:settlement.source_outcomes_source,slate_band:settlement.source_slate_band,candidate_pool_rows:settlement.source_candidate_pool_rows,candidate_pool_ranking_strategy:settlement.source_candidate_pool_ranking_strategy,large_priority_repeat_status:settlement.source_large_priority_repeat_status,tickets:settlement.tickets,winning_tickets:settlement.winning_tickets,total_stake_units:round4(settlement.total_stake_units),net_units:round4(settlement.net_units)};
 rows.push(row); rows.sort((a,b)=>a.date.localeCompare(b.date));
 const totalStake=round4(rows.reduce((s,r)=>s+Number(r.total_stake_units),0));
 const net=round4(rows.reduce((s,r)=>s+Number(r.net_units),0));
