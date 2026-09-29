@@ -44,7 +44,7 @@ const settlements=files.map(f=>{
   const playerResults=new Map();
   let detailStake=0, detailNet=0, detailWins=0;
   for(const t of z.tickets_detail){
-    if(!Array.isArray(t.player_ids)||t.player_ids.length!==2||!Array.isArray(t.hrs)||t.hrs.length!==2) throw Error(`bad ticket detail ${f}`);
+    if(!Array.isArray(t.player_ids)||t.player_ids.length!==2||!Array.isArray(t.gamePks)||t.gamePks.length!==2||!t.gamePks.every(x=>Number.isInteger(Number(x))&&Number(x)>0)||!Array.isArray(t.hrs)||t.hrs.length!==2) throw Error(`bad ticket detail ${f}`);
     const stake=Number(t.stake_units), net=Number(t.net_units), dec=Number(t.combined_decimal), gross=Number(t.gross_return_units);
     if(!Number.isFinite(stake)||stake<=0||!Number.isFinite(net)||!Number.isFinite(dec)||dec<=1||!Number.isFinite(gross)||gross<0) throw Error(`bad ticket financials ${f}`);
     const computedWin=t.hrs.every(x=>Number(x)===1);
