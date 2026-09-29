@@ -84,7 +84,9 @@ if(ledgerPath){
   if(ledger.protocol!=='V38_CANARY_LEDGER_V1'||ledger.canary_only!==true||ledger.production_normal_volume!==false||!ledger.sha256) throw Error('invalid canary ledger');
   const {sha256:ledgerSha,...ledgerBody}=ledger;
   if(crypto.createHash('sha256').update(JSON.stringify(ledgerBody)).digest('hex')!==ledgerSha) throw Error('canary ledger sha256 mismatch');
-  const byDate=new Map((ledger.rows||[]).map(r=>[r.date,r]));
+  const ledgerRows=ledger.rows||[];
+  if(ledgerRows.length!==settlements.length) throw Error(`readiness must summarize full canonical ledger cohort ${settlements.length} != ${ledgerRows.length}`);
+  const byDate=new Map(ledgerRows.map(r=>[r.date,r]));
   for(const z of settlements){
     const row=byDate.get(z.date);
     if(!row||row.settlement_sha256!==z.sha256) throw Error(`settlement missing/mismatched in append-only ledger ${z.date}`);
