@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 fs.mkdirSync('tmp/canary-plan',{recursive:true});
-const date='2026-09-26',frozen='2026-09-26T20:00:00Z',start='2026-09-27T01:00:00Z';
+const date='2027-04-01',frozen='2027-04-01T20:00:00Z',start='2027-04-02T01:00:00Z';
 const rows=Array.from({length:80},(_,i)=>({player_id:i+1,player:`P${i+1}`,gamePk:1000+i,start_time:start,profile_gate_count:i<20?6:5,lineup:(i%9)+1,pitchfit_band:i%10===0?'TOP_QUARTILE':'INELIGIBLE',bbe_band:{hrshape_band:i%11===0?'BASE':'INELIGIBLE'}}));
-const board={protocol:'V38_DAILY_RESEARCH_BOARD_V2',date,generated_at:'2026-09-26T19:30:00Z',point_in_time:true,rows};
+const board={protocol:'V38_DAILY_RESEARCH_BOARD_V2',date,generated_at:'2027-04-01T19:30:00Z',point_in_time:true,rows};
 const starterRows=rows.map((r,i)=>({gamePk:r.gamePk,player_id:r.player_id,starter_hr9_band:i===79?'LOW_LT_1_2':i%5===0?'HIGH_GE_1_5':'MID_1_2_TO_1_5'}));
-const starterBody={protocol:'V38_STARTER_DAMAGE_SNAPSHOT_V1',date,captured_at:'2026-09-26T19:40:00Z',point_in_time:true,as_of_verified:true,research_only:true,scoring_enabled:false,scoring_eligible:false,rows:starterRows};
+const starterBody={protocol:'V38_STARTER_DAMAGE_SNAPSHOT_V1',date,captured_at:'2027-04-01T19:40:00Z',point_in_time:true,as_of_verified:true,research_only:true,scoring_enabled:false,scoring_eligible:false,rows:starterRows};
 const starter={...starterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(starterBody)).digest('hex')};
 fs.writeFileSync('tmp/canary-plan/board.json',JSON.stringify(board)); fs.writeFileSync('tmp/canary-plan/starter.json',JSON.stringify(starter));
 execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter.json',frozen,'1','tmp/canary-plan/plan.json'],{stdio:'inherit'});
@@ -49,14 +49,14 @@ if(!zero||zero.reason!=='LINEUP_NOT_CONFIRMED_AT_FREEZE') throw Error('unconfirm
 if(u.research_metadata.unconfirmed_lineup_serious_rows<1) throw Error('unconfirmed lineup count missing');
 
 // A freeze after any standard 5/6+ candidate has started must fail closed instead of silently shrinking/re-banding the slate.
-const partial=JSON.parse(JSON.stringify(board)); partial.rows[0].start_time='2026-09-26T19:55:00Z';
+const partial=JSON.parse(JSON.stringify(board)); partial.rows[0].start_time='2027-04-01T19:55:00Z';
 fs.writeFileSync('tmp/canary-plan/board-partial.json',JSON.stringify(partial));
 let partialFailed=false;
 try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board-partial.json','tmp/canary-plan/starter.json',frozen,'1','tmp/canary-plan/plan-partial.json'],{stdio:'pipe'});}catch(e){partialFailed=String(e.stderr||e.message).includes('FULL_SLATE_CANARY_FREEZE_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');}
 if(!partialFailed) throw Error('partial-slate canary freeze did not fail closed');
 
 // Starter damage must also be captured before the earliest standard candidate start for a comparable full-slate canary.
-const lateStarterBody={...starterBody,captured_at:'2026-09-27T01:00:00Z'}; const lateStarter={...lateStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(lateStarterBody)).digest('hex')};
+const lateStarterBody={...starterBody,captured_at:'2027-04-02T01:00:00Z'}; const lateStarter={...lateStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(lateStarterBody)).digest('hex')};
 fs.writeFileSync('tmp/canary-plan/starter-late.json',JSON.stringify(lateStarter));
 let starterFailed=false;
 try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter-late.json',frozen,'1','tmp/canary-plan/plan-late-starter.json'],{stdio:'pipe'});}catch(e){starterFailed=String(e.stderr||e.message).includes('FULL_SLATE_STARTER_SNAPSHOT_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');}
@@ -67,4 +67,5 @@ fs.writeFileSync('tmp/canary-plan/starter-missing.json',JSON.stringify(missingSt
 let missingStarterFailed=false;
 try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter-missing.json',frozen,'1','tmp/canary-plan/plan-missing-starter.json'],{stdio:'pipe'});}catch(e){missingStarterFailed=String(e.stderr||e.message).includes('FULL_SLATE_VERIFIED_STARTER_PROVENANCE_REQUIRED');}
 if(!missingStarterFailed) throw Error('missing starter provenance did not fail closed');
+const postBoard={...board,date:'2026-10-01'}; const postStarterBody={...starterBody,date:'2026-10-01'}; const postStarter={...postStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(postStarterBody)).digest('hex')}; fs.writeFileSync('tmp/canary-plan/post-board.json',JSON.stringify(postBoard)); fs.writeFileSync('tmp/canary-plan/post-starter.json',JSON.stringify(postStarter)); let postseasonFailed=false; try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/post-board.json','tmp/canary-plan/post-starter.json',frozen,'1','tmp/canary-plan/post-plan.json'],{stdio:'pipe'});}catch(e){postseasonFailed=String(e.stderr||e.message).includes('2027 dates only');} if(!postseasonFailed) throw Error('2026 postseason entered regular-season canary plan builder');
 console.log('V38_CANARY_PLAN_BUILDER_TEST_OK');
