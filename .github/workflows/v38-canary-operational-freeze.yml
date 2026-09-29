@@ -1,5 +1,18 @@
 name: v38 Canary Operational Freeze
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v38-canary-operational-freeze.yml'
+      - 'scripts/capture-v38-manual-price-snapshot.mjs'
+      - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/verify-v38-canary-preflight.mjs'
+  pull_request:
+    paths:
+      - '.github/workflows/v38-canary-operational-freeze.yml'
+      - 'scripts/capture-v38-manual-price-snapshot.mjs'
+      - 'scripts/freeze-v38-canary-execution.mjs'
+      - 'scripts/verify-v38-canary-preflight.mjs'
   workflow_dispatch:
     inputs:
       live_prep_run_id:
@@ -18,7 +31,24 @@ permissions:
   contents: read
   actions: read
 jobs:
+  contract:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          node --check scripts/capture-v38-manual-price-snapshot.mjs
+          node --check scripts/freeze-v38-canary-execution.mjs
+          node --check scripts/verify-v38-canary-preflight.mjs
+          node test-v38-manual-price-fallback.mjs
+          node test-v38-canary-execution-freeze.mjs
+          node test-v38-canary-preflight.mjs
   freeze:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

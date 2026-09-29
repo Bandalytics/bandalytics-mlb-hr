@@ -1,5 +1,18 @@
 name: v38 Canary Operational Settlement
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/v38-canary-operational-settlement.yml'
+      - 'scripts/capture-v38-canary-outcomes.mjs'
+      - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-preflight.mjs'
+  pull_request:
+    paths:
+      - '.github/workflows/v38-canary-operational-settlement.yml'
+      - 'scripts/capture-v38-canary-outcomes.mjs'
+      - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-preflight.mjs'
   workflow_dispatch:
     inputs:
       freeze_run_id:
@@ -22,7 +35,23 @@ permissions:
   contents: read
   actions: read
 jobs:
+  contract:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          node --check scripts/capture-v38-canary-outcomes.mjs
+          node --check scripts/settle-v38-canary-execution.mjs
+          node --check scripts/settle-v38-canary-preflight.mjs
+          node test-v38-canary-settlement.mjs
+          node test-v38-canary-settlement-preflight.mjs
   settle:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
