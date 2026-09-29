@@ -31,5 +31,14 @@
     "first_date": "2027-03-24",
     "last_date": "2027-09-26",
     "postseason_excluded": true
+  },
+  "operational_chain": {
+    "runbook": "research/V38_2027_OPERATIONAL_CANARY_RUNBOOK.md",
+    "live_prep_workflow": "v38 Canary Live Prep",
+    "freeze_workflow": "v38 Canary Operational Freeze",
+    "settlement_workflow": "v38 Canary Operational Settlement",
+    "ledger_workflow": "v38 Canary Ledger Append",
+    "readiness_workflow": "v38 Canary Reactivation Readiness Contract",
+    "automatic_production_enable": false
   }
 }
