@@ -43,8 +43,8 @@ jobs:
         id: eligibility
         shell: bash
         run: |
-          YEAR=$(TZ=America/New_York date +%Y)
-          if [ "$YEAR" != "2026" ]; then
+          TODAY=$(TZ=America/New_York date +%F)
+          if [[ "$TODAY" > "2026-09-27" || "$TODAY" < "2026-03-25" ]]; then
             echo "run=false" >> "$GITHUB_OUTPUT"
             echo "2026_ENVIRONMENT_PARITY_WINDOW_FROZEN_OFFSEASON"
           else
