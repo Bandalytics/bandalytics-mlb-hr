@@ -25,5 +25,11 @@
     "append_only_ledger_integrity": true
   },
   "normal_volume_auto_enable": false,
-  "profitability_status": "UNPROVEN_UNTIL_FORWARD_PRICE_STAKE_SETTLEMENT_SAMPLE"
+  "profitability_status": "UNPROVEN_UNTIL_FORWARD_PRICE_STAKE_SETTLEMENT_SAMPLE",
+  "regular_season_window": {
+    "source": "MLB_2027_SCHEDULE_RELEASE_2026-07-16",
+    "first_date": "2027-03-24",
+    "last_date": "2027-09-26",
+    "postseason_excluded": true
+  }
 }

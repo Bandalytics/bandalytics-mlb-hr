@@ -22,6 +22,7 @@ const expectedRepeat=expectedBand==='LARGE_GE_76'?'PROVISIONAL_FORWARD_REVALIDAT
 if(settlement.source_large_priority_repeat_status!==expectedRepeat) throw Error('settlement large priority repeat status mismatch');
 if(!settlement.date||!/^\d{4}-\d{2}-\d{2}$/.test(settlement.date)) throw Error('invalid settlement date');
 if(!/^2027-/.test(settlement.date)) throw Error('regular-season canary ledger accepts 2027 settlements only');
+if(settlement.date<'2027-03-24'||settlement.date>'2027-09-26') throw Error('settlement outside official 2027 MLB regular-season window');
 if(!Number.isFinite(Number(settlement.total_stake_units))||Number(settlement.total_stake_units)<=0||!Number.isFinite(Number(settlement.net_units))) throw Error('invalid settlement financials');
 
 let prior={protocol:'V38_CANARY_LEDGER_V1',canary_only:true,production_normal_volume:false,rows:[]};
@@ -38,7 +39,7 @@ if(priorRows.length){
   for(const r of priorRows){
     if(!r?.date||seenPriorDates.has(r.date)) throw Error('existing ledger duplicate/missing date');
     seenPriorDates.add(r.date);
-    if(!/^2027-/.test(r.date)||!r.settlement_sha256||!r.freeze_sha256||!r.preflight_sha256||!r.outcomes_sha256||!r.outcomes_source) throw Error('existing ledger row provenance invalid');
+    if((r.date<'2027-03-24'||r.date>'2027-09-26')||!r.settlement_sha256||!r.freeze_sha256||!r.preflight_sha256||!r.outcomes_sha256||!r.outcomes_source) throw Error('existing ledger row provenance invalid');
     if(!(/^(https:\/\/[^\s]+)$/i.test(r.outcomes_source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(r.outcomes_source))) throw Error('existing ledger row outcome source not specific');
     if(!Number.isFinite(Number(r.total_stake_units))||Number(r.total_stake_units)<=0||!Number.isFinite(Number(r.net_units))) throw Error('existing ledger row financials invalid');
     if(!Number.isInteger(Number(r.candidate_pool_rows))||Number(r.candidate_pool_rows)<1) throw Error('existing ledger row candidate count invalid');
