@@ -39,7 +39,7 @@ Postseason work may be used to:
 - collect descriptive evidence;
 - discover hypotheses for later development work.
 
-It may **not** be used to retroactively complete the regular-season forward gate or to claim regular-season profitability.
+It may **not** be used to retroactively complete the regular-season forward gate or to claim regular-season profitability. This boundary is now enforced at the regular-season canary plan builder, execution freeze, append-only ledger, and 2027 readiness summarizer; a separate descriptive postseason harness carries zero gate credit.
 
 ## 2027 restart contract
 
