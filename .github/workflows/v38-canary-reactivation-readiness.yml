@@ -88,6 +88,15 @@ jobs:
           set -euo pipefail
           RID='${{ inputs.ledger_run_id }}'
           [[ "$RID" =~ ^[0-9]+$ ]] || { echo INVALID_LEDGER_RUN_ID; exit 1; }
+          LATEST=''
+          mapfile -t RUNS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-canary-ledger-append.yml/runs?status=success&event=workflow_dispatch&per_page=100" --jq '.workflow_runs[] | select(.head_branch=="main") | .id')
+          for ID in "${RUNS[@]:-}"; do
+            [ -n "$ID" ] || continue
+            COUNT=$(gh api "repos/${GH_REPO}/actions/runs/${ID}/artifacts?per_page=100" --jq '[.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-ledger-")))] | length')
+            if [ "$COUNT" -eq 1 ]; then LATEST="$ID"; break; fi
+          done
+          [ -n "$LATEST" ] || { echo NO_CANONICAL_LEDGER_AVAILABLE; exit 1; }
+          [ "$RID" = "$LATEST" ] || { echo "READINESS_REQUIRES_LATEST_CANONICAL_LEDGER_${LATEST}"; exit 1; }
           RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${RID}")"
           echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo LEDGER_RUN_NOT_SUCCESSFUL; exit 1; }
           echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Ledger Append' || { echo LEDGER_WORKFLOW_NOT_ALLOWED; exit 1; }
