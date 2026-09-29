@@ -12,12 +12,14 @@ const rows=Array.isArray(raw)?raw:raw.rows;
 if(!Array.isArray(rows)||!rows.length) throw Error('outcome rows missing');
 const seen=new Set();
 const normalized=rows.map(r=>{
-  const player_id=Number(r.player_id), hr=Number(r.hr);
+  const player_id=Number(r.player_id), gamePk=Number(r.gamePk), hr=Number(r.hr);
   if(!Number.isInteger(player_id)) throw Error('bad outcome player_id');
+  if(!Number.isInteger(gamePk)||gamePk<=0) throw Error(`bad outcome gamePk for ${player_id}`);
+  if(String(r.game_status||'').toUpperCase()!=='FINAL') throw Error(`outcome game not marked FINAL for ${player_id}`);
   if(hr!==0&&hr!==1) throw Error(`bad hr outcome for ${player_id}`);
   if(seen.has(player_id)) throw Error(`duplicate outcome ${player_id}`);
   seen.add(player_id);
-  return {player_id,hr};
+  return {player_id,gamePk,game_status:'FINAL',hr};
 }).sort((a,b)=>a.player_id-b.player_id);
 const body={protocol:'V38_CANARY_OUTCOMES_V1',date,settled_at:new Date(settledAt).toISOString(),source:sourceValue,rows:normalized};
 const output={...body,sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')};
