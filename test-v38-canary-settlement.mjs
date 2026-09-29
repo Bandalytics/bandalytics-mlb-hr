@@ -9,7 +9,7 @@ const preflight={...preflightBody,sha256:crypto.createHash('sha256').update(JSON
 fs.writeFileSync('tmp/preflight-settle.json',JSON.stringify(preflight));
 const rows=[{player_id:1,hr:1},{player_id:2,hr:1},{player_id:3,hr:1},{player_id:4,hr:0}];
 fs.writeFileSync('tmp/freeze-settle.json',JSON.stringify(freeze)); fs.writeFileSync('tmp/outcome-rows.json',JSON.stringify(rows));
-execFileSync('node',['scripts/capture-v38-canary-outcomes.mjs','2027-04-01','2027-04-02T04:00:00Z','tmp/outcome-rows.json','MLB_FINAL_RESULTS','tmp/outcomes.json'],{stdio:'inherit'});
+execFileSync('node',['scripts/capture-v38-canary-outcomes.mjs','2027-04-01','2027-04-02T04:00:00Z','tmp/outcome-rows.json','MLB_FINAL_RESULTS:TEST_FIXTURE_2027-04-01','tmp/outcomes.json'],{stdio:'inherit'});
 execFileSync('node',['scripts/settle-v38-canary-execution.mjs','tmp/freeze-settle.json','tmp/preflight-settle.json','tmp/outcomes.json','tmp/settlement.json'],{stdio:'inherit'});
 const outcomes=JSON.parse(fs.readFileSync('tmp/outcomes.json','utf8'));
 const out=JSON.parse(fs.readFileSync('tmp/settlement.json','utf8'));
@@ -19,7 +19,7 @@ if(out.tickets!==2||out.winning_tickets!==1||out.total_stake_units!==1.5) throw 
 if(out.gross_return_units!==6||out.net_units!==4.5||out.realized_roi_pct!==300) throw Error('bad ROI math');
 if(out.roi_status!=='REALIZED_FROM_VERIFIED_FROZEN_PRICE_STAKE_AND_OUTCOMES'||out.source_freeze_sha256!==freeze.sha256) throw Error('bad ROI provenance');
 if(out.source_preflight_sha256!==preflight.sha256||out.source_preflight_status!=='READY_FOR_CONTROLLED_FORWARD_CANARY') throw Error('preflight provenance missing');
-if(out.source_outcomes_sha256!==outcomes.sha256||out.source_outcomes_source!=='MLB_FINAL_RESULTS') throw Error('outcome provenance missing');
+if(out.source_outcomes_sha256!==outcomes.sha256||out.source_outcomes_source!=='MLB_FINAL_RESULTS:TEST_FIXTURE_2027-04-01') throw Error('outcome provenance missing');
 const badPreflight={...preflight,status:'NOT_READY'}; delete badPreflight.sha256; badPreflight.sha256=crypto.createHash('sha256').update(JSON.stringify(badPreflight)).digest('hex'); fs.writeFileSync('tmp/preflight-bad.json',JSON.stringify(badPreflight));
 const badPreflightRun=spawnSync('node',['scripts/settle-v38-canary-execution.mjs','tmp/freeze-settle.json','tmp/preflight-bad.json','tmp/outcomes.json','tmp/settlement-bad-preflight.json'],{encoding:'utf8'});
 if(badPreflightRun.status===0||!String(badPreflightRun.stderr).includes('preflight not ready')) throw Error('non-ready preflight was not rejected');
