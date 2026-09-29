@@ -1,0 +1,40 @@
+name: CFB frozen V1 validation audits
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/cfb-market-model-v1
+    paths:
+      - 'research/cfb/audit-v1-chance-baseline.py'
+      - 'research/cfb/audit-v1-season-stability.py'
+      - 'research/cfb/CFB_DISCOVERY_FREEZE_V1.json'
+      - '.github/workflows/cfb-v1-validation-audits.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pandas pyarrow
+      - name: Download public source
+        run: |
+          mkdir -p /tmp/cfb-source /tmp/cfb-audits
+          curl -fL https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/games.parquet -o /tmp/cfb-source/games.parquet
+          curl -fL https://raw.githubusercontent.com/gmalbert/college-football-predictions/main/data_files/processed/lines.parquet -o /tmp/cfb-source/lines.parquet
+          sha256sum /tmp/cfb-source/games.parquet /tmp/cfb-source/lines.parquet > /tmp/cfb-audits/source-sha256.txt
+      - name: Chance baseline
+        run: python research/cfb/audit-v1-chance-baseline.py > /tmp/cfb-audits/chance-baseline.json
+      - name: Season stability
+        run: python research/cfb/audit-v1-season-stability.py /tmp/cfb-source/games.parquet /tmp/cfb-source/lines.parquet /tmp/cfb-audits/season-stability.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cfb-frozen-v1-validation-audits
+          path: /tmp/cfb-audits/
+          retention-days: 90
