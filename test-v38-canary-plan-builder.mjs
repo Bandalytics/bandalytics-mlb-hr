@@ -67,8 +67,8 @@ if(!starterAsOfFailed) throw Error('post-freeze starter snapshot was accepted');
 const lateStarterBody={...starterBody,captured_at:'2027-04-02T01:00:00Z'}; const lateStarter={...lateStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(lateStarterBody)).digest('hex')};
 fs.writeFileSync('tmp/canary-plan/starter-late.json',JSON.stringify(lateStarter));
 let starterFailed=false;
-try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter-late.json',frozen,'1','tmp/canary-plan/plan-late-starter.json'],{stdio:'pipe'});}catch(e){starterFailed=String(e.stderr||e.message).includes('FULL_SLATE_STARTER_SNAPSHOT_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');}
-if(!starterFailed) throw Error('late starter snapshot did not fail closed');
+try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter-late.json',frozen,'1','tmp/canary-plan/plan-late-starter.json'],{stdio:'pipe'});}catch(e){starterFailed=String(e.stderr||e.message).includes('STARTER_SNAPSHOT_MUST_EXIST_AT_OR_BEFORE_CANARY_FREEZE');}
+if(!starterFailed) throw Error('late starter snapshot did not fail closed at the stricter as-of-freeze boundary');
 // Any standard candidate without a verified starter row must fail the entire countable canary rather than receive neutral UNAVAILABLE treatment.
 const missingStarterBody={...starterBody,rows:starterRows.filter(r=>r.player_id!==1)}; const missingStarter={...missingStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(missingStarterBody)).digest('hex')};
 fs.writeFileSync('tmp/canary-plan/starter-missing.json',JSON.stringify(missingStarter));
