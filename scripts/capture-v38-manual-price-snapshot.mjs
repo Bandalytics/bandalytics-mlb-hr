@@ -18,7 +18,7 @@ const rows=input.rows.map((r,i)=>{
   if(!Number.isInteger(american_odds)||american_odds===0||Math.abs(american_odds)<100) throw Error(`invalid american_odds for ${player_id}`);
   if(!book) throw Error(`missing book for ${player_id}`);
   const sourceNote=String(r.source_note||'').trim();
-  if(sourceNote.length<8) throw Error(`missing specific price source_note for ${player_id}`);
+  if(sourceNote.length<8||/^manual$|^unknown$|^source$|^screenshot$/i.test(sourceNote)) throw Error(`missing specific price source_note for ${player_id}`);
   const rowCaptured=r.captured_at==null?input.captured_at:String(r.captured_at);
   if(!Number.isFinite(Date.parse(rowCaptured))||Date.parse(rowCaptured)>Date.parse(input.captured_at)) throw Error(`invalid row captured_at for ${player_id}`);
   return {player_id,player:r.player?String(r.player):null,american_odds,book,captured_at:rowCaptured,source_note:sourceNote};
