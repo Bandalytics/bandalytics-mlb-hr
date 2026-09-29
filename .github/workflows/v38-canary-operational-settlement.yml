@@ -28,7 +28,7 @@ on:
         required: true
         type: string
       outcome_rows_json:
-        description: 'JSON array of {player_id,hr} for all ticketed hitters'
+        description: 'JSON array of {player_id,gamePk,game_status:"FINAL",hr} for all ticketed hitters'
         required: true
         type: string
 permissions:
