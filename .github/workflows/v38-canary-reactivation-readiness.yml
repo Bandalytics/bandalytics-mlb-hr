@@ -2,12 +2,16 @@ name: v38 Canary Reactivation Readiness Contract
 on:
   pull_request:
     paths:
+      - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/update-v38-canary-ledger.mjs'
       - 'scripts/summarize-v38-canary-reactivation.mjs'
       - 'test-v38-canary-reactivation-readiness.mjs'
       - '.github/workflows/v38-canary-reactivation-readiness.yml'
   push:
     branches: [main]
     paths:
+      - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/update-v38-canary-ledger.mjs'
       - 'scripts/summarize-v38-canary-reactivation.mjs'
       - 'test-v38-canary-reactivation-readiness.mjs'
       - '.github/workflows/v38-canary-reactivation-readiness.yml'
