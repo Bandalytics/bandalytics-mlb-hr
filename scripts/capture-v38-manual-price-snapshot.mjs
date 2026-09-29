@@ -17,11 +17,13 @@ const rows=input.rows.map((r,i)=>{
   if(seen.has(player_id)) throw Error(`duplicate player_id ${player_id}`); seen.add(player_id);
   if(!Number.isInteger(american_odds)||american_odds===0||Math.abs(american_odds)<100) throw Error(`invalid american_odds for ${player_id}`);
   if(!book) throw Error(`missing book for ${player_id}`);
+  const sourceNote=String(r.source_note||'').trim();
+  if(sourceNote.length<8) throw Error(`missing specific price source_note for ${player_id}`);
   const rowCaptured=r.captured_at==null?input.captured_at:String(r.captured_at);
   if(!Number.isFinite(Date.parse(rowCaptured))||Date.parse(rowCaptured)>Date.parse(input.captured_at)) throw Error(`invalid row captured_at for ${player_id}`);
-  return {player_id,player:r.player?String(r.player):null,american_odds,book,captured_at:rowCaptured,source_note:r.source_note?String(r.source_note):null};
+  return {player_id,player:r.player?String(r.player):null,american_odds,book,captured_at:rowCaptured,source_note:sourceNote};
 });
-const output={schema:'BANDALYTICS_MANUAL_PRICE_SNAPSHOT_V1',date:input.date,captured_at:input.captured_at,point_in_time:true,append_only:true,canary_only:true,production_normal_volume:false,row_count:rows.length,rows,notes:['Prices are manually transcribed from a sportsbook or user-supplied screenshot before execution freeze.','This snapshot does not infer, interpolate, or backfill missing prices.','Book and capture timestamp are required for every row.']};
+const output={schema:'BANDALYTICS_MANUAL_PRICE_SNAPSHOT_V1',date:input.date,captured_at:input.captured_at,point_in_time:true,append_only:true,canary_only:true,production_normal_volume:false,row_count:rows.length,rows,notes:['Prices are manually transcribed from a sportsbook or user-supplied screenshot before execution freeze.','This snapshot does not infer, interpolate, or backfill missing prices.','Book, capture timestamp, and a specific source reference are required for every row.']};
 const {sha256:_,...body}=output;
 output.sha256=crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex');
 const outPath=outPathArg||`snapshots/v38-manual-price-snapshot-${input.date}.json`;

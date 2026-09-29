@@ -24,7 +24,7 @@ on:
         required: true
         type: string
       price_rows_json:
-        description: 'JSON array of {player_id,american_odds,book,captured_at?,source_note?}'
+        description: 'JSON array of {player_id,american_odds,book,source_note,captured_at?}'
         required: true
         type: string
 permissions:
