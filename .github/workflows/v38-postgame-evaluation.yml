@@ -95,8 +95,16 @@ jobs:
             echo "No downloadable v38 pregame snapshot candidates for ${DATE}; nothing to evaluate."
             exit 0
           fi
-          SELECTION=$(node scripts/select-v38-postgame-profile-snapshot.mjs incoming/profile "$DATE")
+          set +e
+          SELECTION=$(node scripts/select-v38-postgame-profile-snapshot.mjs incoming/profile "$DATE" 2>&1)
+          SELECT_RC=$?
+          set -e
           echo "$SELECTION"
+          if [ "$SELECT_RC" -ne 0 ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No valid full-slate canonical pregame snapshot for ${DATE}; postgame evaluation skipped."
+            exit 0
+          fi
           SNAP=$(printf '%s\n' "$SELECTION" | tail -1)
           if [ -z "${SNAP:-}" ] || [ ! -f "$SNAP" ]; then echo "Canonical profile selector returned no file"; exit 4; fi
           echo "found=true" >> "$GITHUB_OUTPUT"
