@@ -21,6 +21,7 @@ const settlements=files.map(f=>{
   if(z.roi_status!=='REALIZED_FROM_VERIFIED_FROZEN_PRICE_STAKE_AND_OUTCOMES') throw Error(`unverified ROI/outcomes ${f}`);
   if(!z.source_outcomes_sha256||!z.source_outcomes_source) throw Error(`missing outcome provenance ${f}`);
   if(!(/^(https:\/\/[^\s]+)$/i.test(z.source_outcomes_source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(z.source_outcomes_source))) throw Error(`non-specific outcome source ${f}`);
+  if(!z.source_price_snapshot_sha256||!['MANUAL_PRICE_SNAPSHOT','MARKET_SNAPSHOT'].includes(z.source_price_snapshot_kind)) throw Error(`missing frozen price provenance ${f}`);
   if(!z.source_preflight_sha256||z.source_preflight_status!=='READY_FOR_CONTROLLED_FORWARD_CANARY') throw Error(`missing verified preflight provenance ${f}`);
   const candidateN=Number(z.source_candidate_pool_rows);
   if(!Number.isInteger(candidateN)||candidateN<1) throw Error(`invalid candidate pool size ${f}`);
