@@ -29,9 +29,14 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           LOCK_RUN_ID: ${{ inputs.lock_run_id }}
         run: |
           set -euo pipefail
+          RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${LOCK_RUN_ID}")"
+          echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo LOCK_SOURCE_RUN_NOT_SUCCESSFUL; exit 1; }
+          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Prospective Slate Lock' || { echo LOCK_SOURCE_WORKFLOW_NOT_ALLOWED; exit 1; }
+          echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo LOCK_SOURCE_NOT_MAIN; exit 1; }
           mkdir -p lock-artifact
           gh run download "$LOCK_RUN_ID" --repo "${{ github.repository }}" --name "v38-prospective-slate-lock-${LOCK_RUN_ID}" --dir lock-artifact
       - name: Resolve and verify bound artifacts
