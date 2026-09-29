@@ -38,7 +38,8 @@ This runbook is operational guidance for **2027 MLB regular-season controlled ca
    - Append only settlement artifacts from successful main-branch `v38 Canary Operational Settlement` runs.
    - Duplicate dates, conflicting replacements, architecture mismatches, vague outcome sources, bad aggregates, and non-regular-season dates fail closed.
 8. **Readiness review**
-   - Run the operational readiness summary using explicit settlement run IDs.
+   - Run the operational readiness summary using explicit settlement run IDs **and** the successful main-branch Canary Ledger Append run containing those exact settlement hashes.
+   - Readiness remains blocked if any summarized settlement is absent from or mismatched in the append-only ledger.
    - 5 clean comparable slates = initial review.
    - 10 clean comparable slates = preferred full reactivation review.
    - Neither state automatically enables normal volume.
