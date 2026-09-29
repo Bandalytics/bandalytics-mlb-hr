@@ -31,7 +31,23 @@ if(ledgerPath&&ledgerPath!=='NONE'){
   const computedLedgerSha=crypto.createHash('sha256').update(JSON.stringify(ledgerBody)).digest('hex');
   if(claimedLedgerSha!==computedLedgerSha) throw Error('existing ledger sha256 mismatch');
 }
-const rows=[...(prior.rows||[])];
+const priorRows=[...(prior.rows||[])];
+if(priorRows.length){
+  const seenPriorDates=new Set();
+  for(const r of priorRows){
+    if(!r?.date||seenPriorDates.has(r.date)) throw Error('existing ledger duplicate/missing date');
+    seenPriorDates.add(r.date);
+    if(!/^2027-/.test(r.date)||!r.settlement_sha256||!r.freeze_sha256||!r.preflight_sha256||!r.outcomes_sha256||!r.outcomes_source) throw Error('existing ledger row provenance invalid');
+    if(!Number.isFinite(Number(r.total_stake_units))||Number(r.total_stake_units)<=0||!Number.isFinite(Number(r.net_units))) throw Error('existing ledger row financials invalid');
+  }
+  const priorStake=round4(priorRows.reduce((s,r)=>s+Number(r.total_stake_units),0));
+  const priorNet=round4(priorRows.reduce((s,r)=>s+Number(r.net_units),0));
+  const priorTickets=priorRows.reduce((s,r)=>s+Number(r.tickets||0),0);
+  const priorWins=priorRows.reduce((s,r)=>s+Number(r.winning_tickets||0),0);
+  const priorRoi=priorStake?+(100*priorNet/priorStake).toFixed(2):null;
+  if(Number(prior.total_slates)!==priorRows.length||Number(prior.total_tickets)!==priorTickets||Number(prior.winning_tickets)!==priorWins||round4(prior.total_stake_units)!==priorStake||round4(prior.net_units)!==priorNet||prior.realized_roi_pct!==priorRoi) throw Error('existing ledger aggregate mismatch');
+}
+const rows=priorRows;
 const existing=rows.find(r=>r.date===settlement.date);
 if(existing){
   if(existing.settlement_sha256!==computedSettlementSha) throw Error(`conflicting settlement for ${settlement.date}`);
