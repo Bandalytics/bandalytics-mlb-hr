@@ -11,7 +11,20 @@ on:
 permissions:
   contents: read
 jobs:
+  contract:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Capture/analyzer contract
+        run: |
+          node --check scripts/analyze-v38-recent-bbe-slate.mjs
   analyze:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
