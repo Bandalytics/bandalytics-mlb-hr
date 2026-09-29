@@ -129,6 +129,9 @@ jobs:
           elif grep -q 'FULL_SLATE_VERIFIED_STARTER_PROVENANCE_REQUIRED' <<< "$OUT"; then
             echo "eligible=false" >> "$GITHUB_OUTPUT"
             REASON=INELIGIBLE_INCOMPLETE_VERIFIED_STARTER_PROVENANCE
+          elif grep -q 'FULL_SLATE_DOUBLEHEADER_PLAYER_IDENTITY_UNSUPPORTED_GAMEPK_PLAYER_ID_REQUIRED' <<< "$OUT"; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            REASON=INELIGIBLE_DOUBLEHEADER_PLAYER_IDENTITY_REQUIRES_GAMEPK_PLAYER_ID
           else
             echo "Unexpected canary builder failure; refusing to classify as normal ineligibility."
             exit "$RC"

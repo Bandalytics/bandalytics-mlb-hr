@@ -17,6 +17,8 @@ if(!board.generated_at||!Number.isFinite(Date.parse(board.generated_at))||Date.p
 if(!starter.captured_at||!Number.isFinite(Date.parse(starter.captured_at))||Date.parse(starter.captured_at)>Date.parse(frozen_at)) throw Error('STARTER_SNAPSHOT_MUST_EXIST_AT_OR_BEFORE_CANARY_FREEZE');
 const standardRows=(board.rows||[]).filter(r=>Number(r.profile_gate_count)>=5&&Number.isFinite(Date.parse(r.start_time)));
 if(!standardRows.length) throw Error('no standard 5of6+ rows on daily board');
+const standardPlayerIds=standardRows.map(r=>Number(r.player_id));
+if(new Set(standardPlayerIds).size!==standardPlayerIds.length) throw Error('FULL_SLATE_DOUBLEHEADER_PLAYER_IDENTITY_UNSUPPORTED_GAMEPK_PLAYER_ID_REQUIRED');
 const earliestStandardStart=Math.min(...standardRows.map(r=>Date.parse(r.start_time)));
 if(Date.parse(frozen_at)>=earliestStandardStart) throw Error('FULL_SLATE_CANARY_FREEZE_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');
 if(Date.parse(starter.captured_at)>=earliestStandardStart) throw Error('FULL_SLATE_STARTER_SNAPSHOT_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');
