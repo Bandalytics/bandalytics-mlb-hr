@@ -30,7 +30,25 @@ permissions:
   contents: read
   actions: read
 jobs:
+  contract:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Postgame evaluator contract
+        run: |
+          node --check scripts/evaluate-v38-pregame-snapshot.mjs
+          node --check scripts/select-v38-postgame-profile-snapshot.mjs
+          node test-v38-profile-snapshot-selector.mjs
+          node test-v38-postgame-game-identity.mjs
+          node test-v38-postgame-artifact-validity.mjs
+          node test-v38-selected-pool-report.mjs
   evaluate:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
