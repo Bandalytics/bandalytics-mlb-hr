@@ -63,7 +63,7 @@ jobs:
           RID='${{ inputs.settlement_run_id }}'
           RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${RID}")"
           echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo 'SETTLEMENT_SOURCE_RUN_NOT_SUCCESSFUL'; exit 1; }
-          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Live Prep' || { echo 'SETTLEMENT_SOURCE_WORKFLOW_NOT_ALLOWED'; exit 1; }
+          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Operational Settlement' || { echo 'SETTLEMENT_SOURCE_WORKFLOW_NOT_ALLOWED'; exit 1; }
           echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo 'SETTLEMENT_SOURCE_NOT_MAIN'; exit 1; }
           mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/runs/${RID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-settlement-"))) | .id')
           [ "${#IDS[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_SETTLEMENT_ARTIFACT_FOUND_${#IDS[@]}"; exit 1; }
