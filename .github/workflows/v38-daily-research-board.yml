@@ -34,7 +34,25 @@ permissions:
   contents: read
   actions: read
 jobs:
+  contract:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Research board contract
+        run: |
+          node --check scripts/build-v38-daily-research-board.mjs
+          node --check v38-profile-snapshot-selector.mjs
+          node --check v38-context-selector.mjs
+          node test-v38-modifier-artifacts.mjs
+          node test-v38-modifier-row-fallback.mjs
+          node test-v38-pool-shortlist-v3.mjs
   board:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
