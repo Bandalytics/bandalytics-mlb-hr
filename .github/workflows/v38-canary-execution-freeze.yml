@@ -2,6 +2,11 @@ name: v38 Canary Execution + Settlement Contract
 on:
   pull_request:
     paths:
+      - 'scripts/capture-v38-canary-outcomes.mjs'
+      - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-preflight.mjs'
+      - 'test-v38-canary-settlement.mjs'
+      - 'test-v38-canary-settlement-preflight.mjs'
       - 'scripts/build-v38-canary-execution-plan.mjs'
       - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
@@ -20,6 +25,11 @@ on:
   push:
     branches: [main]
     paths:
+      - 'scripts/capture-v38-canary-outcomes.mjs'
+      - 'scripts/settle-v38-canary-execution.mjs'
+      - 'scripts/settle-v38-canary-preflight.mjs'
+      - 'test-v38-canary-settlement.mjs'
+      - 'test-v38-canary-settlement-preflight.mjs'
       - 'scripts/build-v38-canary-execution-plan.mjs'
       - 'v38-starter-damage-selector.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
