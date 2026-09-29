@@ -20,6 +20,8 @@ const out='tmp/canary-ready/out.json';
 execFileSync('node',['scripts/summarize-v38-canary-reactivation.mjs',...files,'--ledger',ledger,'--out',out],{stdio:'inherit'});
 const z=JSON.parse(fs.readFileSync(out,'utf8'));
 if(z.protocol!=='V38_CANARY_REACTIVATION_READINESS_V1'||z.forward_slates!==5) throw Error('bad protocol/slates');
+const subsetRun=spawnSync('node',['scripts/summarize-v38-canary-reactivation.mjs',...files.slice(0,4),'--ledger',ledger,'--out','tmp/canary-ready/subset.json'],{encoding:'utf8'});
+if(subsetRun.status===0||!String(subsetRun.stderr).includes('full canonical ledger cohort')) throw Error('cherry-picked readiness subset accepted');
 if(z.architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1'||z.evidence_gate.all_settlements_holdout_aligned!==true||z.evidence_gate.all_settlements_full_ticket_budget!==true) throw Error('bad architecture/budget gate');
 if(z.evidence_gate.all_outcomes_hashed_and_sourced!==true||z.evidence_gate.all_settlements_preflight_verified!==true) throw Error('provenance gate missing');
 if(z.slate_band_counts.SMALL_LE_50!==4||z.slate_band_counts.LARGE_GE_76!==1) throw Error('bad band aggregation');
