@@ -58,6 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           DATE='${{ steps.date.outputs.date }}'
+          [[ "$DATE" == 2027-* ]] || { echo "REGULAR_SEASON_FORWARD_CANARY_PREP_DISABLED_OUTSIDE_2027"; exit 0; }
           mkdir -p incoming/boards incoming/starters snapshots
           mapfile -t BOARD_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-daily-research-board.yml/runs?status=success&per_page=20" --jq '.workflow_runs[].id' || true)
           for ID in "${BOARD_IDS[@]:-}"; do
