@@ -41,8 +41,10 @@
   },
   "known_external_blocker": {
     "provider": "SportsGameOdds",
-    "state": "MONTHLY_ENTITY_QUOTA_EXHAUSTED",
+    "last_verified_state": "MONTHLY_ENTITY_QUOTA_EXHAUSTED",
     "last_verified_usage": "2509/2500",
+    "current_state": "NOT_REVERIFIED_OFFSEASON",
+    "operational_interpretation": "HISTORICAL_BLOCKER_ONLY_UNTIL_REVERIFIED",
     "instruction": "DO_NOT_BRUTE_FORCE_OR_BACKFILL_AFTER_GAMES"
   },
   "2027_restart_contract": {
