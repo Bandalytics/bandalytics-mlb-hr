@@ -124,7 +124,9 @@ jobs:
           assert pa['no_minimum'] is True
           assert pa['production_rule_changed'] is False
           games=pa['original_slate_game_count']; ceiling=pa['dynamic_review_ceiling']
-          assert isinstance(games,int) and games>=1
+          assert isinstance(games,int) and games>=0
+          # Offseason/no-slate captures legitimately contain zero games; keep the
+          # smallest review ceiling without treating an empty slate as corruption.
           assert ceiling==(20 if games<=8 else 25 if games<=12 else 30)
           assert z['vig_required'] is False
           assert re.fullmatch(r'[a-f0-9]{64}',z.get('source_profile_snapshot_sha256') or '')
