@@ -20,6 +20,7 @@ if(settlement.source_candidate_pool_ranking_strategy!==expectedStrategy) throw E
 const expectedRepeat=expectedBand==='LARGE_GE_76'?'PROVISIONAL_FORWARD_REVALIDATION':'NOT_APPLICABLE';
 if(settlement.source_large_priority_repeat_status!==expectedRepeat) throw Error('settlement large priority repeat status mismatch');
 if(!settlement.date||!/^\d{4}-\d{2}-\d{2}$/.test(settlement.date)) throw Error('invalid settlement date');
+if(!/^2027-/.test(settlement.date)) throw Error('regular-season canary ledger accepts 2027 settlements only');
 if(!Number.isFinite(Number(settlement.total_stake_units))||Number(settlement.total_stake_units)<=0||!Number.isFinite(Number(settlement.net_units))) throw Error('invalid settlement financials');
 
 let prior={protocol:'V38_CANARY_LEDGER_V1',canary_only:true,production_normal_volume:false,rows:[]};
