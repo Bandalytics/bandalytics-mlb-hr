@@ -39,7 +39,19 @@ jobs:
           node test-v38-postgame-artifact-validity.mjs
           node test-v38-environment-parity.mjs
           node test-v38-context-selector.mjs
+      - name: Resolve parity eligibility
+        id: eligibility
+        shell: bash
+        run: |
+          YEAR=$(TZ=America/New_York date +%Y)
+          if [ "$YEAR" != "2026" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "2026_ENVIRONMENT_PARITY_WINDOW_FROZEN_OFFSEASON"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Download recent finalized V5 evidence
+        if: steps.eligibility.outputs.run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -63,6 +75,7 @@ jobs:
           echo "PARITY_DATE=$DATE" >> "$GITHUB_ENV"
           echo "Parity date: $DATE"
       - name: Download point-in-time context snapshots
+        if: steps.eligibility.outputs.run == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -79,8 +92,10 @@ jobs:
           done
           echo "Context JSON files: $(find incoming/context -type f -name 'v38-context-*.json' | wc -l)"
       - name: Evaluate per-game latest pre-first-pitch parity
+        if: steps.eligibility.outputs.run == 'true'
         run: node scripts/evaluate-v38-environment-parity-window.mjs incoming/context "$PARITY_DATE" "snapshots/v38-environment-parity-window-${PARITY_DATE}.json"
       - name: Verify fail-closed parity contract
+        if: steps.eligibility.outputs.run == 'true'
         shell: bash
         run: |
           python3 - <<'PY'
@@ -101,6 +116,7 @@ jobs:
           print('V38_ENV_PARITY_WINDOW_OK='+json.dumps({'date':z['date'],'snapshots':z['context_snapshots_loaded'],'selected_games':z['selected_games'],'weather_covered_games':z['weather_covered_games'],'venue':z['venue_exact_rate_pct'],'condition':z['weather_condition_agreement_pct'],'wind':z['wind_class_agreement_pct'],'temp_mae':z['temperature_mae_f'],'wind_mae':z['wind_mph_mae'],'checks':z['gate']['checks']}))
           PY
       - uses: actions/upload-artifact@v4
+        if: steps.eligibility.outputs.run == 'true'
         with:
           name: v38-environment-parity-window-${{ github.run_id }}
           path: snapshots/v38-environment-parity-window-*.json
