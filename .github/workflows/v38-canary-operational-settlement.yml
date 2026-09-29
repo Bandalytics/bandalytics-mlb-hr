@@ -1,0 +1,97 @@
+name: v38 Canary Operational Settlement
+on:
+  workflow_dispatch:
+    inputs:
+      freeze_run_id:
+        description: 'Successful main-branch v38 Canary Operational Freeze run'
+        required: true
+        type: string
+      settled_at:
+        description: 'ISO timestamp when final outcomes were captured'
+        required: true
+        type: string
+      outcome_source:
+        description: 'HTTPS source reference or MLB_FINAL_RESULTS:<specific-reference>'
+        required: true
+        type: string
+      outcome_rows_json:
+        description: 'JSON array of {player_id,hr} for all ticketed hitters'
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Download trusted operational freeze
+        shell: bash
+        run: |
+          set -euo pipefail
+          RID='${{ inputs.freeze_run_id }}'
+          [[ "$RID" =~ ^[0-9]+$ ]] || { echo INVALID_FREEZE_RUN_ID; exit 1; }
+          RUN_JSON="$(gh api "repos/${GH_REPO}/actions/runs/${RID}")"
+          echo "$RUN_JSON" | jq -r '.conclusion' | grep -qx success || { echo FREEZE_SOURCE_RUN_NOT_SUCCESSFUL; exit 1; }
+          echo "$RUN_JSON" | jq -r '.name' | grep -qx 'v38 Canary Operational Freeze' || { echo FREEZE_SOURCE_WORKFLOW_NOT_ALLOWED; exit 1; }
+          echo "$RUN_JSON" | jq -r '.head_branch' | grep -qx main || { echo FREEZE_SOURCE_NOT_MAIN; exit 1; }
+          mkdir -p incoming/freeze snapshots
+          mapfile -t IDS < <(gh api "repos/${GH_REPO}/actions/runs/${RID}/artifacts?per_page=100" --jq '.artifacts[] | select(.expired==false and (.name|startswith("v38-canary-operational-freeze-"))) | .id')
+          [ "${#IDS[@]}" -eq 1 ] || { echo "EXPECTED_EXACTLY_ONE_FREEZE_ARTIFACT_FOUND_${#IDS[@]}"; exit 1; }
+          gh api "repos/${GH_REPO}/actions/artifacts/${IDS[0]}/zip" > /tmp/freeze.zip
+          unzip -q /tmp/freeze.zip -d incoming/freeze
+          mapfile -t FREEZES < <(find incoming/freeze -type f -name 'v38-canary-execution-freeze.json')
+          mapfile -t PREFLIGHTS < <(find incoming/freeze -type f -name 'v38-canary-preflight.json')
+          [ "${#FREEZES[@]}" -eq 1 ] && [ "${#PREFLIGHTS[@]}" -eq 1 ] || { echo FREEZE_ARTIFACT_INCOMPLETE; exit 1; }
+          echo "FREEZE_PATH=${FREEZES[0]}" >> "$GITHUB_ENV"
+          echo "PREFLIGHT_PATH=${PREFLIGHTS[0]}" >> "$GITHUB_ENV"
+      - name: Capture hashed sourced outcomes
+        shell: bash
+        env:
+          OUTCOME_ROWS_JSON: ${{ inputs.outcome_rows_json }}
+          SETTLED_AT: ${{ inputs.settled_at }}
+          OUTCOME_SOURCE: ${{ inputs.outcome_source }}
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const freeze=JSON.parse(fs.readFileSync(process.env.FREEZE_PATH,'utf8'));
+          let rows; try{rows=JSON.parse(process.env.OUTCOME_ROWS_JSON)}catch{throw Error('outcome_rows_json is not valid JSON')}
+          if(!Array.isArray(rows)||!rows.length) throw Error('outcome_rows_json must be a nonempty array');
+          fs.writeFileSync('snapshots/v38-canary-outcome-rows.json',JSON.stringify(rows,null,2)+'\n');
+          fs.writeFileSync('snapshots/v38-canary-settlement-date.txt',freeze.date+'\n');
+          NODE
+          DATE="$(cat snapshots/v38-canary-settlement-date.txt)"
+          node scripts/capture-v38-canary-outcomes.mjs "$DATE" "$SETTLED_AT" snapshots/v38-canary-outcome-rows.json "$OUTCOME_SOURCE" snapshots/v38-canary-outcomes.json
+      - name: Settle through verified preflight chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/settle-v38-canary-preflight.mjs "$FREEZE_PATH" "$PREFLIGHT_PATH" snapshots/v38-canary-outcomes.json snapshots/v38-canary-settlement.json
+      - name: Verify settlement remains canary-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const z=JSON.parse(fs.readFileSync('snapshots/v38-canary-settlement.json','utf8'));
+          if(z.protocol!=='V38_CANARY_SETTLEMENT_V1'||z.canary_only!==true||z.production_normal_volume!==false||z.roi_status!=='REALIZED_FROM_VERIFIED_FROZEN_PRICE_STAKE_AND_OUTCOMES') throw Error('unsafe settlement output');
+          console.log('V38_OPERATIONAL_CANARY_SETTLEMENT_OK='+JSON.stringify({date:z.date,tickets:z.tickets,total_stake_units:z.total_stake_units,net_units:z.net_units,realized_roi_pct:z.realized_roi_pct,source:z.source_outcomes_source,sha256:z.sha256}));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v38-canary-settlement-${{ github.run_id }}
+          path: |
+            snapshots/v38-canary-outcome-rows.json
+            snapshots/v38-canary-outcomes.json
+            snapshots/v38-canary-settlement.json
+          if-no-files-found: error
+          retention-days: 90
