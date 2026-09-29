@@ -39,6 +39,12 @@ if(priorRows.length){
     seenPriorDates.add(r.date);
     if(!/^2027-/.test(r.date)||!r.settlement_sha256||!r.freeze_sha256||!r.preflight_sha256||!r.outcomes_sha256||!r.outcomes_source) throw Error('existing ledger row provenance invalid');
     if(!Number.isFinite(Number(r.total_stake_units))||Number(r.total_stake_units)<=0||!Number.isFinite(Number(r.net_units))) throw Error('existing ledger row financials invalid');
+    if(!Number.isInteger(Number(r.candidate_pool_rows))||Number(r.candidate_pool_rows)<1) throw Error('existing ledger row candidate count invalid');
+    const rowBand=Number(r.candidate_pool_rows)<=50?'SMALL_LE_50':Number(r.candidate_pool_rows)<=75?'MEDIUM_51_75':'LARGE_GE_76';
+    const rowStrategy=rowBand==='SMALL_LE_50'?'PROFILE_FIRST':'PITCHFIT_FIRST';
+    const rowRepeat=rowBand==='LARGE_GE_76'?'PROVISIONAL_FORWARD_REVALIDATION':'NOT_APPLICABLE';
+    if(r.slate_band!==rowBand||r.candidate_pool_ranking_strategy!==rowStrategy||r.large_priority_repeat_status!==rowRepeat) throw Error('existing ledger row architecture mismatch');
+    if(!Number.isInteger(Number(r.tickets))||Number(r.tickets)<1||!Number.isInteger(Number(r.winning_tickets))||Number(r.winning_tickets)<0||Number(r.winning_tickets)>Number(r.tickets)) throw Error('existing ledger row ticket counts invalid');
   }
   const priorStake=round4(priorRows.reduce((s,r)=>s+Number(r.total_stake_units),0));
   const priorNet=round4(priorRows.reduce((s,r)=>s+Number(r.net_units),0));
