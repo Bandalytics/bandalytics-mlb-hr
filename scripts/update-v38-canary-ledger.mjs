@@ -9,6 +9,7 @@ if(settlement.protocol!=='V38_CANARY_SETTLEMENT_V1'||settlement.canary_only!==tr
 if(settlement.roi_status!=='REALIZED_FROM_VERIFIED_FROZEN_PRICE_STAKE_AND_OUTCOMES') throw Error('settlement not verified');
 if(settlement.source_architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1') throw Error('settlement not holdout aligned');
 if(!settlement.source_freeze_sha256||!settlement.source_preflight_sha256||settlement.source_preflight_status!=='READY_FOR_CONTROLLED_FORWARD_CANARY'||!settlement.source_outcomes_sha256||!settlement.source_outcomes_source) throw Error('settlement provenance incomplete');
+if(!(/^(https:\/\/[^\s]+)$/i.test(settlement.source_outcomes_source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(settlement.source_outcomes_source))) throw Error('settlement outcome source not specific');
 if(!settlement.sha256) throw Error('settlement sha256 missing');
 const {sha256:claimedSettlementSha,...settlementBody}=settlement;
 const computedSettlementSha=crypto.createHash('sha256').update(JSON.stringify(settlementBody)).digest('hex');
@@ -38,6 +39,7 @@ if(priorRows.length){
     if(!r?.date||seenPriorDates.has(r.date)) throw Error('existing ledger duplicate/missing date');
     seenPriorDates.add(r.date);
     if(!/^2027-/.test(r.date)||!r.settlement_sha256||!r.freeze_sha256||!r.preflight_sha256||!r.outcomes_sha256||!r.outcomes_source) throw Error('existing ledger row provenance invalid');
+    if(!(/^(https:\/\/[^\s]+)$/i.test(r.outcomes_source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(r.outcomes_source))) throw Error('existing ledger row outcome source not specific');
     if(!Number.isFinite(Number(r.total_stake_units))||Number(r.total_stake_units)<=0||!Number.isFinite(Number(r.net_units))) throw Error('existing ledger row financials invalid');
     if(!Number.isInteger(Number(r.candidate_pool_rows))||Number(r.candidate_pool_rows)<1) throw Error('existing ledger row candidate count invalid');
     const rowBand=Number(r.candidate_pool_rows)<=50?'SMALL_LE_50':Number(r.candidate_pool_rows)<=75?'MEDIUM_51_75':'LARGE_GE_76';
