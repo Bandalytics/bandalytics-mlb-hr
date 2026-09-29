@@ -15,8 +15,9 @@ function settlement(date,i){
 }
 const files=[];
 for(let i=1;i<=5;i++){const f=`tmp/canary-ready/s${i}.json`;fs.writeFileSync(f,JSON.stringify(settlement(`2027-04-0${i}`,i)));files.push(f);}
+let ledger='NONE'; for(let i=0;i<files.length;i++){const next=`tmp/canary-ready/ledger-${i+1}.json`;execFileSync('node',['scripts/update-v38-canary-ledger.mjs',ledger,files[i],next],{stdio:'inherit'});ledger=next;}
 const out='tmp/canary-ready/out.json';
-execFileSync('node',['scripts/summarize-v38-canary-reactivation.mjs',...files,'--out',out],{stdio:'inherit'});
+execFileSync('node',['scripts/summarize-v38-canary-reactivation.mjs',...files,'--ledger',ledger,'--out',out],{stdio:'inherit'});
 const z=JSON.parse(fs.readFileSync(out,'utf8'));
 if(z.protocol!=='V38_CANARY_REACTIVATION_READINESS_V1'||z.forward_slates!==5) throw Error('bad protocol/slates');
 if(z.architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1'||z.evidence_gate.all_settlements_holdout_aligned!==true||z.evidence_gate.all_settlements_full_ticket_budget!==true) throw Error('bad architecture/budget gate');
@@ -25,7 +26,7 @@ if(z.slate_band_counts.SMALL_LE_50!==4||z.slate_band_counts.LARGE_GE_76!==1) thr
 if(z.readiness_status!=='INITIAL_REACTIVATION_REVIEW') throw Error('bad readiness status');
 if(z.total_tickets!==29||z.winning_tickets!==3) throw Error('bad ticket aggregation');
 if(z.total_stake_units!==29||z.net_units!==7||z.realized_roi_pct!==24.14) throw Error('bad raw ROI aggregation');
-if(z.evidence_gate.internal_settlement_totals_verified!==true||z.evidence_gate.automatic_production_enable!==false||z.production_normal_volume!==false) throw Error('unsafe production/integrity flag');
+if(z.evidence_gate.internal_settlement_totals_verified!==true||z.evidence_gate.append_only_ledger_integrity_verified!==true||z.evidence_gate.automatic_production_enable!==false||z.production_normal_volume!==false) throw Error('unsafe production/integrity flag');
 if(z.slate_rows.at(-1).expected_ticket_budget!==13||z.slate_rows.at(-1).outcomes_source!=='MLB_FINAL_RESULTS:TEST_FIXTURE'||!z.slate_rows.at(-1).preflight_sha256) throw Error('expected provenance missing');
 const wrongRouting=settlement('2027-04-06',6); wrongRouting.source_candidate_pool_ranking_strategy='PITCHFIT_FIRST'; delete wrongRouting.sha256; wrongRouting.sha256=crypto.createHash('sha256').update(JSON.stringify(wrongRouting)).digest('hex'); fs.writeFileSync('tmp/canary-ready/wrong-routing.json',JSON.stringify(wrongRouting));
 const wrongRoutingRun=spawnSync('node',['scripts/summarize-v38-canary-reactivation.mjs','tmp/canary-ready/wrong-routing.json','--out','tmp/canary-ready/wrong-routing-out.json'],{encoding:'utf8'});
