@@ -20,6 +20,7 @@ const settlements=files.map(f=>{
   if(z.source_architecture_contract!=='HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1') throw Error(`non-holdout-aligned settlement ${f}`);
   if(z.roi_status!=='REALIZED_FROM_VERIFIED_FROZEN_PRICE_STAKE_AND_OUTCOMES') throw Error(`unverified ROI/outcomes ${f}`);
   if(!z.source_outcomes_sha256||!z.source_outcomes_source) throw Error(`missing outcome provenance ${f}`);
+  if(!(/^(https:\/\/[^\s]+)$/i.test(z.source_outcomes_source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(z.source_outcomes_source))) throw Error(`non-specific outcome source ${f}`);
   if(!z.source_preflight_sha256||z.source_preflight_status!=='READY_FOR_CONTROLLED_FORWARD_CANARY') throw Error(`missing verified preflight provenance ${f}`);
   const candidateN=Number(z.source_candidate_pool_rows);
   if(!Number.isInteger(candidateN)||candidateN<1) throw Error(`invalid candidate pool size ${f}`);
@@ -43,10 +44,13 @@ const settlements=files.map(f=>{
   let detailStake=0, detailNet=0, detailWins=0;
   for(const t of z.tickets_detail){
     if(!Array.isArray(t.player_ids)||t.player_ids.length!==2||!Array.isArray(t.hrs)||t.hrs.length!==2) throw Error(`bad ticket detail ${f}`);
-    const stake=Number(t.stake_units), net=Number(t.net_units);
-    if(!Number.isFinite(stake)||stake<=0||!Number.isFinite(net)) throw Error(`bad ticket financials ${f}`);
+    const stake=Number(t.stake_units), net=Number(t.net_units), dec=Number(t.combined_decimal), gross=Number(t.gross_return_units);
+    if(!Number.isFinite(stake)||stake<=0||!Number.isFinite(net)||!Number.isFinite(dec)||dec<=1||!Number.isFinite(gross)||gross<0) throw Error(`bad ticket financials ${f}`);
     const computedWin=t.hrs.every(x=>Number(x)===1);
     if(Boolean(t.win)!==computedWin) throw Error(`ticket win mismatch ${f}`);
+    const expectedGross=computedWin?round4(stake*dec):0;
+    const expectedNet=round4(expectedGross-stake);
+    if(round4(gross)!==expectedGross||round4(net)!==expectedNet) throw Error(`ticket economics mismatch ${f}`);
     detailStake+=stake; detailNet+=net; if(computedWin) detailWins++;
     for(let i=0;i<2;i++){
       const id=Number(t.player_ids[i]), hr=Number(t.hrs[i]);
