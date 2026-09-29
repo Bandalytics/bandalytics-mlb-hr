@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {execFileSync,spawnSync} from 'node:child_process';
 fs.mkdirSync('tmp',{recursive:true});
-const freezeBody={protocol:'V38_CANARY_EXECUTION_FREEZE_V2',architecture_contract:'HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1',candidate_pool_rows:20,slate_band:'SMALL_LE_50',date:'2027-04-01',frozen_at:'2027-04-01T20:00:00Z',roi_status:'READY_FOR_POST_SLATE_SETTLEMENT',tickets_detail:[{ticket_index:1,player_ids:[1,2],players:['A','B'],stake_units:1,combined_decimal:6},{ticket_index:2,player_ids:[3,4],players:['C','D'],stake_units:.5,combined_decimal:10}]};
+const freezeBody={protocol:'V38_CANARY_EXECUTION_FREEZE_V2',architecture_contract:'HOLDOUT_ALIGNED_40PCT_SERIOUS_BOARD_V1',candidate_pool_rows:20,slate_band:'SMALL_LE_50',date:'2027-04-01',frozen_at:'2027-04-01T20:00:00Z',roi_status:'READY_FOR_POST_SLATE_SETTLEMENT',serious_board:[{player_id:1,start_time:'2027-04-01T21:00:00Z'},{player_id:2,start_time:'2027-04-01T21:00:00Z'},{player_id:3,start_time:'2027-04-01T23:00:00Z'},{player_id:4,start_time:'2027-04-01T23:00:00Z'}],tickets_detail:[{ticket_index:1,player_ids:[1,2],players:['A','B'],stake_units:1,combined_decimal:6},{ticket_index:2,player_ids:[3,4],players:['C','D'],stake_units:.5,combined_decimal:10}]};
 const freeze={...freezeBody,sha256:crypto.createHash('sha256').update(JSON.stringify(freezeBody)).digest('hex')};
 const preflightBody={protocol:'V38_CANARY_PREFLIGHT_V1',date:freeze.date,verified_at:'2027-04-01T20:01:00Z',canary_only:true,production_normal_volume:false,source_freeze_sha256:freeze.sha256,status:'READY_FOR_CONTROLLED_FORWARD_CANARY'};
 const preflight={...preflightBody,sha256:crypto.createHash('sha256').update(JSON.stringify(preflightBody)).digest('hex')};
@@ -37,4 +37,7 @@ if(legacyRun.status===0||!String(legacyRun.stderr).includes('not holdout aligned
 const earlyBody={...outcomes,settled_at:'2027-04-01T19:59:59Z'}; delete earlyBody.sha256; const early={...earlyBody,sha256:crypto.createHash('sha256').update(JSON.stringify(earlyBody)).digest('hex')}; fs.writeFileSync('tmp/outcomes-early.json',JSON.stringify(early));
 const earlyRun=spawnSync('node',['scripts/settle-v38-canary-execution.mjs','tmp/freeze-settle.json','tmp/preflight-settle.json','tmp/outcomes-early.json','tmp/settlement-early.json'],{encoding:'utf8'});
 if(earlyRun.status===0||!String(earlyRun.stderr).includes('after execution freeze')) throw Error('pre-freeze settlement timestamp was not rejected');
+const inGameBody={...outcomes,settled_at:'2027-04-01T22:00:00Z'}; delete inGameBody.sha256; const inGame={...inGameBody,sha256:crypto.createHash('sha256').update(JSON.stringify(inGameBody)).digest('hex')}; fs.writeFileSync('tmp/outcomes-in-game.json',JSON.stringify(inGame));
+const inGameRun=spawnSync('node',['scripts/settle-v38-canary-execution.mjs','tmp/freeze-settle.json','tmp/preflight-settle.json','tmp/outcomes-in-game.json','tmp/settlement-in-game.json'],{encoding:'utf8'});
+if(inGameRun.status===0||!String(inGameRun.stderr).includes('after all ticketed games have started')) throw Error('early in-slate settlement timestamp was not rejected');
 console.log('V38_CANARY_SETTLEMENT_TEST_OK');
