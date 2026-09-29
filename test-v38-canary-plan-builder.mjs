@@ -55,6 +55,14 @@ let partialFailed=false;
 try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board-partial.json','tmp/canary-plan/starter.json',frozen,'1','tmp/canary-plan/plan-partial.json'],{stdio:'pipe'});}catch(e){partialFailed=String(e.stderr||e.message).includes('FULL_SLATE_CANARY_FREEZE_REQUIRED_BEFORE_EARLIEST_STANDARD_CANDIDATE_START');}
 if(!partialFailed) throw Error('partial-slate canary freeze did not fail closed');
 
+// Source artifacts must already exist at the declared freeze time; otherwise the plan would time-travel.
+const postFreezeBoard={...board,generated_at:'2027-04-01T20:00:01Z'}; fs.writeFileSync('tmp/canary-plan/board-post-freeze.json',JSON.stringify(postFreezeBoard));
+let boardAsOfFailed=false; try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board-post-freeze.json','tmp/canary-plan/starter.json',frozen,'1','tmp/canary-plan/plan-post-freeze-board.json'],{stdio:'pipe'});}catch(e){boardAsOfFailed=String(e.stderr||e.message).includes('DAILY_BOARD_MUST_EXIST_AT_OR_BEFORE_CANARY_FREEZE');}
+if(!boardAsOfFailed) throw Error('post-freeze daily board was accepted');
+const postFreezeStarterBody={...starterBody,captured_at:'2027-04-01T20:00:01Z'}; const postFreezeStarter={...postFreezeStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(postFreezeStarterBody)).digest('hex')}; fs.writeFileSync('tmp/canary-plan/starter-post-freeze.json',JSON.stringify(postFreezeStarter));
+let starterAsOfFailed=false; try{execFileSync('node',['scripts/build-v38-canary-execution-plan.mjs','tmp/canary-plan/board.json','tmp/canary-plan/starter-post-freeze.json',frozen,'1','tmp/canary-plan/plan-post-freeze-starter.json'],{stdio:'pipe'});}catch(e){starterAsOfFailed=String(e.stderr||e.message).includes('STARTER_SNAPSHOT_MUST_EXIST_AT_OR_BEFORE_CANARY_FREEZE');}
+if(!starterAsOfFailed) throw Error('post-freeze starter snapshot was accepted');
+
 // Starter damage must also be captured before the earliest standard candidate start for a comparable full-slate canary.
 const lateStarterBody={...starterBody,captured_at:'2027-04-02T01:00:00Z'}; const lateStarter={...lateStarterBody,sha256:crypto.createHash('sha256').update(JSON.stringify(lateStarterBody)).digest('hex')};
 fs.writeFileSync('tmp/canary-plan/starter-late.json',JSON.stringify(lateStarter));
