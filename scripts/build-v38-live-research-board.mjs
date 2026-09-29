@@ -40,7 +40,7 @@ for(const p of profile.items||[]){
   let r={player_id:+p.player_id,player:p.player||null,team_id:+p.team_id,gamePk:+game.gamePk,matchup,start_time:game.start_time,profile_complete:true,profile:p,context:{captured_at:selected?.captured_at||null,snapshot_sha256:selected?.sha256||null,lineup:Number(lineup?.lineup)||null,confirmed_lineup:!!(lineup&&Number(lineup.lineup)>=1&&Number(lineup.lineup)<=9),bat_side:lineup?.bat_side||null,effective_bat_side:effectiveBatSide,opp_pitcher_hand:lineup?.opp_pitcher_hand||null,venue:gctx?.game?.venue||null,market},american_odds:odds,park_factor:park};
   r=attachProspectiveModifierBands(r,mods,{date,gamePk:game.gamePk,startTime:game.start_time,matchup});
   const gates=evaluateV38CandidateRules(p),generic=genericQuality(p),longshot=odds!=null&&odds>=700?classifyLongshotQuality(p,odds):null,quality=longshot?longshot.quality_tier:generic;
-  const hierarchy=researchPoolHierarchy({quality_tier:quality,pitchfit_band:r.pitchfit_band,bbe_band:r.bbe_band,lineup:r.context.lineup,american_odds:odds});
+  const hierarchy=researchPoolHierarchy({quality_tier:quality,pitchfit_band:r.pitchfit_band,bbe_band:r.bbe_band,american_odds:odds});
   const longshotBlocked=!!longshot&&['INELIGIBLE','NOT_LONGSHOT_WINDOW'].includes(longshot.quality_tier),poolLayer=classifyPoolLayer({date,priority_band:hierarchy.priority_band,quality_tier:quality,american_odds:odds,longshot_policy:longshot});
   r={...r,gate_count:gates.gate_count,quality_tier:quality,longshot_policy:longshot,hierarchy,pool_layer:poolLayer,structured_pool_candidate:isStructuredPoolLayer(poolLayer),eligible_research_pool:!longshotBlocked&&hierarchy.priority_band!=='EXCLUDE_OR_OTHER_MARKET_RULE'};
   const shortlist=poolShortlistReadinessV3(r);rows.push({...r,shortlist});
