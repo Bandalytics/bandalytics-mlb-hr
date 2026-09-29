@@ -21,8 +21,23 @@ permissions:
   contents: read
   actions: read
 jobs:
+  contract:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Environment parity contract
+        run: |
+          node --check scripts/evaluate-v38-environment-parity-window.mjs
+          node test-v38-postgame-artifact-validity.mjs
+          node test-v38-environment-parity.mjs
+          node test-v38-context-selector.mjs
   parity:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name != 'push' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
