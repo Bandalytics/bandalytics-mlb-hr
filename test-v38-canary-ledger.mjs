@@ -20,6 +20,10 @@ if(duplicate.status===0||!String(duplicate.stderr).includes('duplicate settlemen
 const altered={...s2,net_units:7}; delete altered.sha256; altered.sha256=crypto.createHash('sha256').update(JSON.stringify(altered)).digest('hex'); fs.writeFileSync('tmp/canary-ledger/s2-alt.json',JSON.stringify(altered));
 const conflict=spawnSync('node',['scripts/update-v38-canary-ledger.mjs','tmp/canary-ledger/l2.json','tmp/canary-ledger/s2-alt.json','tmp/canary-ledger/conflict.json'],{encoding:'utf8'});
 if(conflict.status===0||!String(conflict.stderr).includes('conflicting settlement')) throw Error('conflicting replacement accepted');
+const aggregateBody={...z,total_stake_units:99}; delete aggregateBody.sha256; aggregateBody.sha256=crypto.createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(aggregateBody).filter(([k])=>k!=='sha256')))).digest('hex');
+const aggregatePath='tmp/canary-ledger/l2-bad-aggregate.json'; fs.writeFileSync(aggregatePath,JSON.stringify(aggregateBody));
+const aggregateRun=spawnSync('node',['scripts/update-v38-canary-ledger.mjs',aggregatePath,'tmp/canary-ledger/s1.json','tmp/canary-ledger/aggregate-out.json'],{encoding:'utf8'});
+if(aggregateRun.status===0||!String(aggregateRun.stderr).includes('existing ledger aggregate mismatch')) throw Error('self-consistent hash with false aggregates accepted');
 const tamperedLedger={...z,total_stake_units:99}; fs.writeFileSync('tmp/canary-ledger/l2-tampered.json',JSON.stringify(tamperedLedger));
 const tamper=spawnSync('node',['scripts/update-v38-canary-ledger.mjs','tmp/canary-ledger/l2-tampered.json','tmp/canary-ledger/s1.json','tmp/canary-ledger/tamper.json'],{encoding:'utf8'});
 if(tamper.status===0||!String(tamper.stderr).includes('existing ledger sha256 mismatch')) throw Error('tampered ledger accepted');
