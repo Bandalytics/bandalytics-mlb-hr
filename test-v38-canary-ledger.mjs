@@ -20,6 +20,10 @@ if(duplicate.status===0||!String(duplicate.stderr).includes('duplicate settlemen
 const altered={...s2,net_units:7}; delete altered.sha256; altered.sha256=crypto.createHash('sha256').update(JSON.stringify(altered)).digest('hex'); fs.writeFileSync('tmp/canary-ledger/s2-alt.json',JSON.stringify(altered));
 const conflict=spawnSync('node',['scripts/update-v38-canary-ledger.mjs','tmp/canary-ledger/l2.json','tmp/canary-ledger/s2-alt.json','tmp/canary-ledger/conflict.json'],{encoding:'utf8'});
 if(conflict.status===0||!String(conflict.stderr).includes('conflicting settlement')) throw Error('conflicting replacement accepted');
+const badRowBody={...z,rows:z.rows.map((r,i)=>i? r:{...r,candidate_pool_ranking_strategy:'PITCHFIT_FIRST'})}; delete badRowBody.sha256; badRowBody.sha256=crypto.createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(badRowBody).filter(([k])=>k!=='sha256')))).digest('hex');
+fs.writeFileSync('tmp/canary-ledger/l2-bad-row.json',JSON.stringify(badRowBody));
+const badRowRun=spawnSync('node',['scripts/update-v38-canary-ledger.mjs','tmp/canary-ledger/l2-bad-row.json','tmp/canary-ledger/s1.json','tmp/canary-ledger/bad-row-out.json'],{encoding:'utf8'});
+if(badRowRun.status===0||!String(badRowRun.stderr).includes('existing ledger row architecture mismatch')) throw Error('rehashed architecture-corrupt prior row accepted');
 const aggregateBody={...z,total_stake_units:99}; delete aggregateBody.sha256; aggregateBody.sha256=crypto.createHash('sha256').update(JSON.stringify(Object.fromEntries(Object.entries(aggregateBody).filter(([k])=>k!=='sha256')))).digest('hex');
 const aggregatePath='tmp/canary-ledger/l2-bad-aggregate.json'; fs.writeFileSync(aggregatePath,JSON.stringify(aggregateBody));
 const aggregateRun=spawnSync('node',['scripts/update-v38-canary-ledger.mjs',aggregatePath,'tmp/canary-ledger/s1.json','tmp/canary-ledger/aggregate-out.json'],{encoding:'utf8'});
