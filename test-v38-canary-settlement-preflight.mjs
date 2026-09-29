@@ -10,7 +10,7 @@ const preflight={...preflightBody,sha256:crypto.createHash('sha256').update(JSON
 fs.writeFileSync(`${dir}/freeze.json`,JSON.stringify(freeze));
 fs.writeFileSync(`${dir}/preflight.json`,JSON.stringify(preflight));
 fs.writeFileSync(`${dir}/rows.json`,JSON.stringify([{player_id:1,hr:1},{player_id:2,hr:1}]));
-execFileSync('node',['scripts/capture-v38-canary-outcomes.mjs',freeze.date,'2027-04-02T04:00:00Z',`${dir}/rows.json`,'MLB_FINAL_RESULTS',`${dir}/outcomes.json`],{stdio:'inherit'});
+execFileSync('node',['scripts/capture-v38-canary-outcomes.mjs',freeze.date,'2027-04-02T04:00:00Z',`${dir}/rows.json`,'MLB_FINAL_RESULTS:TEST_FIXTURE_2027-04-01',`${dir}/outcomes.json`],{stdio:'inherit'});
 execFileSync('node',['scripts/settle-v38-canary-preflight.mjs',`${dir}/freeze.json`,`${dir}/preflight.json`,`${dir}/outcomes.json`,`${dir}/settlement.json`],{stdio:'inherit'});
 const out=JSON.parse(fs.readFileSync(`${dir}/settlement.json`,'utf8'));
 if(out.source_preflight_sha256!==preflight.sha256||out.source_preflight_status!=='READY_FOR_CONTROLLED_FORWARD_CANARY') throw Error('preflight provenance missing');

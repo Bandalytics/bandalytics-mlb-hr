@@ -6,7 +6,7 @@ if(!date||!settledAt||!rowsPath||!source) throw Error('Usage: node scripts/captu
 if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw Error('invalid date');
 if(!Number.isFinite(Date.parse(settledAt))) throw Error('invalid settled_at');
 const sourceValue=String(source).trim();
-if(!sourceValue||sourceValue.length<8||/^manual$|^unknown$|^source$/i.test(sourceValue)) throw Error('outcome source must be a specific verifiable reference');
+if(!sourceValue||!(/^(https:\/\/[^\s]+)$/i.test(sourceValue)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:/-]+$/.test(sourceValue))) throw Error('outcome source must be an https reference or MLB_FINAL_RESULTS:<specific-reference>');
 const raw=JSON.parse(fs.readFileSync(rowsPath,'utf8'));
 const rows=Array.isArray(raw)?raw:raw.rows;
 if(!Array.isArray(rows)||!rows.length) throw Error('outcome rows missing');
