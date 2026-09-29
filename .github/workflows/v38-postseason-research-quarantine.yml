@@ -5,6 +5,8 @@ on:
     paths:
       - 'research/v38-postseason-research-quarantine.json'
       - 'test-v38-postseason-research-quarantine.mjs'
+      - 'scripts/summarize-v38-postseason-research.mjs'
+      - 'test-v38-postseason-research-summary.mjs'
       - '.github/workflows/v38-postseason-research-quarantine.yml'
   pull_request:
     paths:
@@ -26,3 +28,5 @@ jobs:
         with:
           node-version: '24'
       - run: node test-v38-postseason-research-quarantine.mjs
+      - run: node --check scripts/summarize-v38-postseason-research.mjs
+      - run: node test-v38-postseason-research-summary.mjs
