@@ -62,6 +62,15 @@ jobs:
             DATE=$(TZ=America/New_York date -d 'yesterday' +%F)
           fi
           echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            TODAY=$(TZ=America/New_York date +%F)
+            if [[ "$TODAY" > "2026-09-27" && "$TODAY" < "2027-03-24" ]]; then
+              echo "found=false" >> "$GITHUB_OUTPUT"
+              echo "immutable_existing=false" >> "$GITHUB_OUTPUT"
+              echo "REGULAR_SEASON_POSTGAME_EVALUATION_OFFSEASON_NOOP"
+              exit 0
+            fi
+          fi
 
           EXISTING=''
           mapfile -t POST_IDS < <(gh api "repos/${GH_REPO}/actions/workflows/v38-postgame-evaluation.yml/runs?status=success&per_page=30" --jq '.workflow_runs[] | select(.head_branch=="main") | .id')
