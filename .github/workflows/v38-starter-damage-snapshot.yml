@@ -19,7 +19,20 @@ on:
 permissions:
   contents: read
 jobs:
+  contract:
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Capture/analyzer contract
+        run: |
+          node --check scripts/capture-v38-starter-damage-snapshot.mjs
   capture:
+    if: github.event_name != 'push' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
