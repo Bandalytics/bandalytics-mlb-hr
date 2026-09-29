@@ -60,7 +60,7 @@ const tickets=(freeze.tickets_detail||[]).map(t=>{
   if(!Number.isFinite(Number(t.combined_decimal))||Number(t.combined_decimal)<=1) throw Error(`invalid frozen price ticket ${t.ticket_index}`);
   const gross=win?stake*Number(t.combined_decimal):0;
   const net=gross-stake;
-  return {ticket_index:t.ticket_index,player_ids:t.player_ids,players:t.players,hrs,win,stake_units:+stake.toFixed(4),combined_decimal:Number(t.combined_decimal),gross_return_units:+gross.toFixed(4),net_units:+net.toFixed(4)};
+  return {ticket_index:t.ticket_index,player_ids:t.player_ids,players:t.players,gamePks:t.gamePks,hrs,win,stake_units:+stake.toFixed(4),combined_decimal:Number(t.combined_decimal),gross_return_units:+gross.toFixed(4),net_units:+net.toFixed(4)};
 });
 const totalStake=+tickets.reduce((s,t)=>s+t.stake_units,0).toFixed(4);
 const gross=+tickets.reduce((s,t)=>s+t.gross_return_units,0).toFixed(4);
