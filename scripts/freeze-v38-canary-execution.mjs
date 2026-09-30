@@ -39,7 +39,12 @@ if(priceSnapshot){
 }
 
 const rows = new Map((board.rows||[]).map(r=>[Number(r.player_id),r]));
-const snapshotRows = new Map((priceSnapshot?.rows||[]).map(r=>[`${Number(r.gamePk)}:${Number(r.player_id)}`,r]));
+const snapshotRows = new Map();
+for(const r of (priceSnapshot?.rows||[])){
+  const pid=Number(r.player_id), gpk=Number(r.gamePk);
+  if(!Number.isInteger(pid)||pid<=0||!Number.isInteger(gpk)||gpk<=0) throw Error('price snapshot row missing exact game/player identity');
+  const key=`${gpk}:${pid}`; if(snapshotRows.has(key)) throw Error(`duplicate price snapshot game/player identity ${key}`); snapshotRows.set(key,r);
+}
 const planManual = new Map((plan.manual_prices||[]).map(r=>[Number(r.player_id),r]));
 function validPriceTime(capturedAt,row){
   const t=Date.parse(capturedAt), freeze=Date.parse(plan.frozen_at), start=Date.parse(row?.start_time);
