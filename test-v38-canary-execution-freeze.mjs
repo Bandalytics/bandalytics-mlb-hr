@@ -10,7 +10,7 @@ const sealPlan=body=>({...body,plan_sha256:crypto.createHash('sha256').update(JS
 const sealSnapshot=body=>({...body,sha256:crypto.createHash('sha256').update(JSON.stringify(body)).digest('hex')});
 const candidateIds=[1,2,3,8,4,5,6,7];
 const plan=sealPlan({protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:'2027-04-01T20:00:00Z',candidate_pool_player_ids:candidateIds,candidate_pool_ranking_strategy:'PROFILE_FIRST',serious_board_player_ids:candidateIds.slice(0,4),tickets:[{player_ids:[1,3],stake_units:1},{player_ids:[2,8],stake_units:.5}],intentional_zeros:[],research_metadata:{source_board_sha256:boardSha}});
-const market=sealSnapshot({schema:'BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1',date,captured_at:'2027-04-01T19:55:00Z',point_in_time:true,rows:rows.map(r=>({player_id:r.player_id,best_odds:r.player_id===8?800:500,best_book:'BOOK'}))});
+const market=sealSnapshot({schema:'BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1',date,captured_at:'2027-04-01T19:55:00Z',point_in_time:true,rows:rows.map(r=>({player_id:r.player_id,gamePk:r.gamePk,best_odds:r.player_id===8?800:500,best_book:'BOOK'}))});
 fs.writeFileSync('tmp/board.json',JSON.stringify(board)); fs.writeFileSync('tmp/plan.json',JSON.stringify(plan)); fs.writeFileSync('tmp/market.json',JSON.stringify(market));
 execFileSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/board.json','tmp/plan.json','tmp/market.json','tmp/out.json'],{stdio:'inherit'});
 const out=JSON.parse(fs.readFileSync('tmp/out.json','utf8'));
@@ -49,7 +49,7 @@ const largeBoard={...board,rows:largeRows};
 const largeBoardSha=crypto.createHash('sha256').update(JSON.stringify(largeBoard)).digest('hex');
 const largeIds=largeRows.map(r=>r.player_id), largeSerious=largeIds.slice(0,32);
 const largePlan=sealPlan({protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:'2027-04-01T20:00:00Z',candidate_pool_player_ids:largeIds,candidate_pool_ranking_strategy:'PITCHFIT_FIRST',serious_board_player_ids:largeSerious,tickets:[{player_ids:[largeIds[0],largeIds[8]],stake_units:1},{player_ids:[largeIds[0],largeIds[9]],stake_units:1}],intentional_zeros:largeSerious.slice(1).filter(id=>![largeIds[8],largeIds[9]].includes(id)).map(id=>({player_id:id,reason:'synthetic coverage choice'})),research_metadata:{source_board_sha256:largeBoardSha}});
-const largeMarket=sealSnapshot({schema:'BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1',date,captured_at:'2027-04-01T19:55:00Z',point_in_time:true,rows:largeRows.map(r=>({player_id:r.player_id,best_odds:500,best_book:'BOOK'}))});
+const largeMarket=sealSnapshot({schema:'BANDALYTICS_MARKET_MOVEMENT_SNAPSHOT_V1',date,captured_at:'2027-04-01T19:55:00Z',point_in_time:true,rows:largeRows.map(r=>({player_id:r.player_id,gamePk:r.gamePk,best_odds:500,best_book:'BOOK'}))});
 fs.writeFileSync('tmp/large-board.json',JSON.stringify(largeBoard)); fs.writeFileSync('tmp/large-plan.json',JSON.stringify(largePlan)); fs.writeFileSync('tmp/large-market.json',JSON.stringify(largeMarket));
 execFileSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/large-board.json','tmp/large-plan.json','tmp/large-market.json','tmp/large-out.json'],{stdio:'inherit'});
 const largeOut=JSON.parse(fs.readFileSync('tmp/large-out.json','utf8'));
