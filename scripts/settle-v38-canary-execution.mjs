@@ -23,6 +23,7 @@ const computedPreflightSha=crypto.createHash('sha256').update(JSON.stringify(pre
 if(claimedPreflightSha!==computedPreflightSha) throw Error('preflight sha256 mismatch');
 if(outcomes.protocol!=='V38_CANARY_OUTCOMES_V1'||outcomes.date!==freeze.date) throw Error('invalid outcomes');
 if(!outcomes.source||typeof outcomes.source!=='string') throw Error('outcomes source missing');
+if(!(/^(https:\/\/[^\s]+)$/i.test(outcomes.source)||/^MLB_FINAL_RESULTS:[A-Za-z0-9._,:\/-]+$/.test(outcomes.source))) throw Error('outcomes source not specific');
 if(!outcomes.sha256) throw Error('outcomes sha256 missing');
 const {sha256:claimedOutcomesSha,...outcomesBody}=outcomes;
 const computedOutcomesSha=crypto.createHash('sha256').update(JSON.stringify(outcomesBody)).digest('hex');
