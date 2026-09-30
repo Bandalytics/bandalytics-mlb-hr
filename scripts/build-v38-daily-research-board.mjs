@@ -111,7 +111,8 @@ for (const p of snap.items || []) {
   rows.push(r);
 }
 
-rows.sort((a,b) => (rank[a.priority_band] ?? 99) - (rank[b.priority_band] ?? 99) || ((b.profile_gate_count || 0) - (a.profile_gate_count || 0)) || ((a.american_odds ?? 99999) - (b.american_odds ?? 99999)));
+const oddsTieKey=r=>{const o=Number(r.american_odds);return [Number.isFinite(o)&&o>=500&&o<=1500?0:1,Number.isFinite(o)?Math.abs(o-1000):99999];};
+rows.sort((a,b) => {const base=(rank[a.priority_band] ?? 99) - (rank[b.priority_band] ?? 99) || ((b.profile_gate_count || 0) - (a.profile_gate_count || 0)); if(base) return base; const ak=oddsTieKey(a),bk=oddsTieKey(b); return ak[0]-bk[0]||ak[1]-bk[1]||Number(a.player_id)-Number(b.player_id);});
 const qualified = rows.filter(r => r.eligible_research_pool);
 const core = qualified.filter(r => r.pool_layer === 'CORE');
 const protectedPool = qualified.filter(r => r.pool_layer === 'PROTECTED_POOL');
