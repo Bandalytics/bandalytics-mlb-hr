@@ -49,8 +49,17 @@ for season, raw in df.groupby("season",dropna=True):
         home="W" if r.home_cover_value>0 else "L"
         return home if r["move"]<0 else ("L" if home=="W" else "W")
     compat["result"]=compat.apply(result,axis=1)
+    # Match the frozen key_group semantics exactly: CROSS_6 means 6 is the
+    # only registered key crossed. A move that also crosses 3/7/10/14 is
+    # MULTI in the preregistered holdout evaluator and must not be counted.
     ao=compat.market_spread_open.abs(); ac=compat.market_spread.abs()
-    cross6=((pd.concat([ao,ac],axis=1).min(axis=1)<6)&(pd.concat([ao,ac],axis=1).max(axis=1)>=6))|((pd.concat([ao,ac],axis=1).min(axis=1)<=6)&(pd.concat([ao,ac],axis=1).max(axis=1)>6))
+    lo=pd.concat([ao,ac],axis=1).min(axis=1)
+    hi=pd.concat([ao,ac],axis=1).max(axis=1)
+    crossed=[]
+    for k in [3,6,7,10,14]:
+        crossed.append(((lo<k)&(hi>=k))|((lo<=k)&(hi>k)))
+    cross_count=sum(x.astype(int) for x in crossed)
+    cross6=crossed[1] & (cross_count==1)
     c=compat[cross6].copy()
     season_report[s].update({"status":"COMPATIBLE","CROSS6":stat(c),"BOOKS3PLUS_CROSS6":stat(c[c.market_spread_book_count>=3])})
 
