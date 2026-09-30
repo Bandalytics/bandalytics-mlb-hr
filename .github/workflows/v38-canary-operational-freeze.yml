@@ -7,12 +7,18 @@ on:
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
       - 'scripts/verify-v38-canary-preflight.mjs'
+      - 'test-v38-manual-price-fallback.mjs'
+      - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-canary-preflight.mjs'
   pull_request:
     paths:
       - '.github/workflows/v38-canary-operational-freeze.yml'
       - 'scripts/capture-v38-manual-price-snapshot.mjs'
       - 'scripts/freeze-v38-canary-execution.mjs'
       - 'scripts/verify-v38-canary-preflight.mjs'
+      - 'test-v38-manual-price-fallback.mjs'
+      - 'test-v38-canary-execution-freeze.mjs'
+      - 'test-v38-canary-preflight.mjs'
   workflow_dispatch:
     inputs:
       live_prep_run_id:
