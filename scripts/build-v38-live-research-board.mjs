@@ -46,7 +46,8 @@ for(const p of profile.items||[]){
   const shortlist=poolShortlistReadinessV3(r);rows.push({...r,shortlist});
 }
 
-rows.sort((a,b)=>rankBand(a.hierarchy.priority_band)-rankBand(b.hierarchy.priority_band)||(b.gate_count-a.gate_count)||((a.american_odds??99999)-(b.american_odds??99999)));
+const oddsTieKey=r=>{const o=Number(r.american_odds);return [Number.isFinite(o)&&o>=500&&o<=1500?0:1,Number.isFinite(o)?Math.abs(o-1000):99999];};
+rows.sort((a,b)=>{const base=rankBand(a.hierarchy.priority_band)-rankBand(b.hierarchy.priority_band)||(b.gate_count-a.gate_count);if(base)return base;const ak=oddsTieKey(a),bk=oddsTieKey(b);return ak[0]-bk[0]||ak[1]-bk[1]||Number(a.player_id)-Number(b.player_id);});
 const eligible=rows.filter(r=>r.eligible_research_pool),core=eligible.filter(r=>r.pool_layer==='CORE'),protectedPool=eligible.filter(r=>r.pool_layer==='PROTECTED_POOL'),qualityPool=eligible.filter(r=>r.pool_layer==='QUALITY_VALUE_POOL'),escapeWatch=eligible.filter(r=>r.pool_layer==='ESCAPE_WATCH'),structured=eligible.filter(r=>r.structured_pool_candidate),shortlist=eligible.filter(r=>r.shortlist?.status==='RETAIN_FOR_FINAL_REVIEW'),pending=eligible.filter(r=>r.shortlist?.status==='PENDING_EVIDENCE'),reviewQueue=buildFinalReviewQueueV3(eligible,slateGameCount),queueIds=new Set(reviewQueue.queue.map(r=>r.player_id)),withMarket=eligible.filter(r=>Number.isFinite(r.american_odds)),confirmed=eligible.filter(r=>r.context.confirmed_lineup),withPitch=eligible.filter(r=>r.pitchfit?.fit_status==='TRUE'),withBbe=eligible.filter(r=>+r.bbe?.tracked_bbe>=15),withPark=eligible.filter(r=>r.park_factor&&Number.isFinite(r.park_factor.hr_factor));
 for(const r of rows)r.final_review_queue=queueIds.has(r.player_id);
 
