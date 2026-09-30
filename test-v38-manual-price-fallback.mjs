@@ -16,7 +16,7 @@ const candidateIds=[1,2,6,3,4,5];
 const boardSha=crypto.createHash('sha256').update(JSON.stringify(board)).digest('hex');
 const planBody={protocol:'V38_CANARY_EXECUTION_PLAN_V1',date,frozen_at:frozen,candidate_pool_player_ids:candidateIds,candidate_pool_ranking_strategy:'PROFILE_FIRST',serious_board_player_ids:candidateIds.slice(0,3),tickets:[{player_ids:[1,6],stake_units:1}],intentional_zeros:[{player_id:2,reason:'one-path coverage choice'}],research_metadata:{source_board_sha256:boardSha}};
 const plan={...planBody,plan_sha256:crypto.createHash('sha256').update(JSON.stringify(planBody)).digest('hex')};
-const manual={protocol:'V38_MANUAL_PRICE_INPUT_V1',date,captured_at:captured,rows:rows.map(r=>({player_id:r.player_id,player:r.player,american_odds:r.player_id===6?800:500,book:'USER_BOOK',source_note:'pregame screenshot transcription'}))};
+const manual={protocol:'V38_MANUAL_PRICE_INPUT_V1',date,captured_at:captured,rows:rows.map(r=>({player_id:r.player_id,player:r.player,american_odds:r.player_id===6?800:500,book:'USER_BOOK',source_note:'USER_SCREENSHOT:fixture-1'}))};
 fs.writeFileSync(`${dir}/board.json`,JSON.stringify(board));
 fs.writeFileSync(`${dir}/plan.json`,JSON.stringify(plan));
 fs.writeFileSync(`${dir}/manual-input.json`,JSON.stringify(manual));
@@ -29,5 +29,5 @@ if(freeze.price_snapshot_kind!=='MANUAL_PRICE_SNAPSHOT'||freeze.market_snapshot_
 if(freeze.price_coverage_pct!==100||freeze.roi_status!=='READY_FOR_POST_SLATE_SETTLEMENT') throw Error('manual prices did not make freeze settlement-ready');
 if(!freeze.tickets_detail.flatMap(t=>t.legs).every(l=>l.price?.source==='MANUAL_PRICE_SNAPSHOT'&&l.price?.book==='USER_BOOK')) throw Error('manual price source not preserved');
 if(freeze.serious_board.find(r=>r.player_id===6)?.price?.american_odds!==800) throw Error('protected 4/6 price provenance failed');
-const vague={...manual,rows:manual.rows.map((r,i)=>i===0?{...r,source_note:'screenshot'}:r)};fs.writeFileSync(`${dir}/manual-vague.json`,JSON.stringify(vague));const vagueRun=spawnSync('node',['scripts/capture-v38-manual-price-snapshot.mjs',`${dir}/manual-vague.json`,`${dir}/manual-vague-out.json`],{encoding:'utf8'});if(vagueRun.status===0||!String(vagueRun.stderr).includes('missing specific price source_note')) throw Error('generic manual price provenance accepted');
+const vague={...manual,rows:manual.rows.map((r,i)=>i===0?{...r,source_note:'screenshot'}:r)};fs.writeFileSync(`${dir}/manual-vague.json`,JSON.stringify(vague));const vagueRun=spawnSync('node',['scripts/capture-v38-manual-price-snapshot.mjs',`${dir}/manual-vague.json`,`${dir}/manual-vague-out.json`],{encoding:'utf8'});if(vagueRun.status===0||!String(vagueRun.stderr).includes('price source_note must be https')) throw Error('generic manual price provenance accepted');
 console.log('V38_MANUAL_PRICE_FALLBACK_TEST_OK');
