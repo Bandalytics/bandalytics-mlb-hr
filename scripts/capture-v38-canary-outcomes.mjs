@@ -17,8 +17,9 @@ const normalized=rows.map(r=>{
   if(!Number.isInteger(gamePk)||gamePk<=0) throw Error(`bad outcome gamePk for ${player_id}`);
   if(String(r.game_status||'').toUpperCase()!=='FINAL') throw Error(`outcome game not marked FINAL for ${player_id}`);
   if(hr!==0&&hr!==1) throw Error(`bad hr outcome for ${player_id}`);
-  if(seen.has(player_id)) throw Error(`duplicate outcome ${player_id}`);
-  seen.add(player_id);
+  const identity=`${gamePk}:${player_id}`;
+  if(seen.has(identity)) throw Error(`duplicate outcome ${identity}`);
+  seen.add(identity);
   return {player_id,gamePk,game_status:'FINAL',hr};
 }).sort((a,b)=>a.player_id-b.player_id);
 const body={protocol:'V38_CANARY_OUTCOMES_V1',date,settled_at:new Date(settledAt).toISOString(),source:sourceValue,rows:normalized};
