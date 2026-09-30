@@ -7,7 +7,9 @@ export function validStarterDamageSnapshot(s){
 export function selectLatestStarterDamage(snapshots,playerId,gamePk,startTime){
   const start=Date.parse(startTime); if(!Number.isFinite(start)) return null;
   for(const s of [...(snapshots||[])].filter(validStarterDamageSnapshot).filter(x=>Date.parse(x.captured_at)<start).sort((a,b)=>Date.parse(b.captured_at)-Date.parse(a.captured_at))){
-    const r=(s.rows||[]).find(x=>+x.player_id===+playerId && (x.gamePk==null||gamePk==null||+x.gamePk===+gamePk));
+    const targetGame=Number(gamePk);
+    if(!Number.isInteger(targetGame)||targetGame<=0) return null;
+    const r=(s.rows||[]).find(x=>+x.player_id===+playerId && Number.isInteger(Number(x.gamePk)) && +x.gamePk===targetGame);
     if(r) return {row:r,captured_at:s.captured_at,sha256:s.sha256};
   }
   return null;
