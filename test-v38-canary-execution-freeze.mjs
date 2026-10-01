@@ -44,7 +44,11 @@ const run=spawnSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/board
 if(run.status===0||!String(run.stderr).includes('top 40%')) throw Error('non-top-40 serious board was not rejected');
 
 // Inline plan.manual_prices must never bypass the hashed snapshot contract.
+const inlineRows=rows.map(r=>r.player_id===8?{...r,profile_gate_count:5,longshot_700_rule:{applies:false}}:r);
+const inlineBoard={...board,rows:inlineRows};
+const inlineBoardSha=crypto.createHash('sha256').update(JSON.stringify(inlineBoard)).digest('hex');
 const {plan_sha256:inlineOld,...inlineBody}=plan;
+inlineBody.research_metadata={...inlineBody.research_metadata,source_board_sha256:inlineBoardSha};
 inlineBody.manual_prices=[
   {player_id:1,american_odds:500,book:'INLINE',captured_at:'2027-04-01T19:50:00Z'},
   {player_id:2,american_odds:500,book:'INLINE',captured_at:'2027-04-01T19:50:00Z'},
@@ -52,8 +56,8 @@ inlineBody.manual_prices=[
   {player_id:8,american_odds:800,book:'INLINE',captured_at:'2027-04-01T19:50:00Z'}
 ];
 const inlinePlan=sealPlan(inlineBody);
-fs.writeFileSync('tmp/plan-inline-prices.json',JSON.stringify(inlinePlan));
-execFileSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/board.json','tmp/plan-inline-prices.json','','tmp/inline-price-out.json'],{stdio:'inherit'});
+fs.writeFileSync('tmp/board-inline-prices.json',JSON.stringify(inlineBoard)); fs.writeFileSync('tmp/plan-inline-prices.json',JSON.stringify(inlinePlan));
+execFileSync('node',['scripts/freeze-v38-canary-execution.mjs','tmp/board-inline-prices.json','tmp/plan-inline-prices.json','','tmp/inline-price-out.json'],{stdio:'inherit'});
 const inlineOut=JSON.parse(fs.readFileSync('tmp/inline-price-out.json','utf8'));
 if(inlineOut.price_snapshot_used!==false||inlineOut.priced_legs!==0||inlineOut.readiness.all_ticket_legs_priced!==false||inlineOut.roi_status!=='BLOCKED_INCOMPLETE_FROZEN_PRICE_OR_STAKE') throw Error('inline plan manual_prices bypassed hashed price snapshot contract');
 
