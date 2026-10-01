@@ -1,0 +1,59 @@
+name: CFB V2 shadow lanes
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/cfb-market-model-v1
+    paths:
+      - 'research/cfb/analyze-v2-shadow-lanes.py'
+      - 'research/cfb/V2_SHADOW_PROTOCOL_2026-09-30.md'
+      - '.github/workflows/cfb-v2-shadow-lanes.yml'
+
+jobs:
+  v2-shadow:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout BANDALYTICS research branch
+        uses: actions/checkout@v4
+
+      - name: Checkout source dataset repository
+        uses: actions/checkout@v4
+        with:
+          repository: gmalbert/college-football-predictions
+          path: cfb-source
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pandas pyarrow
+
+      - name: Locate compatible source files
+        id: locate
+        shell: bash
+        run: |
+          set -euo pipefail
+          GAMES=$(find cfb-source -type f -name 'games.parquet' | head -n 1)
+          LINES=$(find cfb-source -type f -name 'lines.parquet' | head -n 1)
+          test -n "$GAMES" && test -n "$LINES"
+          echo "games=$GAMES" >> "$GITHUB_OUTPUT"
+          echo "lines=$LINES" >> "$GITHUB_OUTPUT"
+
+      - name: Run preregistered V2 shadow lanes
+        run: |
+          python research/cfb/analyze-v2-shadow-lanes.py \
+            "${{ steps.locate.outputs.games }}" \
+            "${{ steps.locate.outputs.lines }}" \
+            cfb-v2-shadow-lanes.json
+
+      - name: Upload V2 shadow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfb-v2-shadow-lanes
+          path: cfb-v2-shadow-lanes.json
+          if-no-files-found: error
