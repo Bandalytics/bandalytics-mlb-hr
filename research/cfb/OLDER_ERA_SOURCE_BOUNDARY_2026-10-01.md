@@ -14,3 +14,12 @@ A fresh public-source probe identified two possible future extension paths, but 
 - Scottfree Sports advertises NCAAF historical CSV data with opening lines where available plus closing odds and final scores. It is a paid dataset, so no rows were acquired or counted in this run.
 
 Neither source changes the current boundary: no older-era observations are added until chronological opening and later spread observations can be verified under the exact frozen key-group semantics. No inferred openings, no closing-only substitutions, and no ROI calculation.
+
+
+## Follow-up compatibility probe — 2026-10-02
+
+ParlayAPI documentation was checked more closely before admitting any older season. Its historical product distinguishes point-in-time odds, closing odds, results, and forward line movement. Critically, the provider states that line-movement history is forward capture rather than a backfilled simulation, and that `last_update` / `commence_time` can be null on historical snapshot rows. Its NCAAF material advertises deep closing history, but that does not by itself establish chronological open-to-later spread observations for older seasons.
+
+Result: **no older-era season is admitted to frozen CROSS6 evidence from this source yet.** Deep closing history is insufficient for the exact frozen rule. A future admission requires row-level proof of (1) a genuine earlier spread observation, (2) a chronologically later pregame spread observation, (3) consistent team/side orientation, (4) final score, and for BOOKS3PLUS_CROSS6 (5) comparable independent book observations at the decision state. Null timestamps cannot be inferred or repaired.
+
+This probe strengthens the existing source boundary rather than relaxing it. 2015–2019 remains control-only; V1 remains frozen; production remains disabled; no 2026 outcome was used for retuning; no ROI was computed.
