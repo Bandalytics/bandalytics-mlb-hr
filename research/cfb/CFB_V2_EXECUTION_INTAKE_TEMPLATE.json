@@ -1,0 +1,63 @@
+{
+  "status": "V2_SHADOW_ONLY",
+  "v1_unchanged": true,
+  "production_enabled": false,
+  "prospective_only": true,
+  "candidate": {
+    "event": null,
+    "kickoff_time": null,
+    "market_class": null,
+    "selection": null,
+    "line": null,
+    "american_price": null,
+    "book_source": null,
+    "quote_timestamp": null,
+    "evidence_timestamps": [],
+    "user_executable": "UNKNOWN",
+    "source_class": null,
+    "known_injury_status": [],
+    "market_comparison_status": "NOT_CHECKED",
+    "decision": null,
+    "decision_reason": null
+  },
+  "allowed_market_classes": [
+    "SIDE",
+    "TOTAL",
+    "MONEYLINE",
+    "TEAM_TOTAL",
+    "DERIVATIVE"
+  ],
+  "allowed_source_classes": [
+    "USER_BOOK",
+    "FRIEND_ONLY",
+    "PUBLIC_MARKET",
+    "MODEL_TOOL"
+  ],
+  "allowed_market_comparison_status": [
+    "VERIFIED_TIMESTAMPED",
+    "UNVERIFIED",
+    "NOT_CHECKED"
+  ],
+  "allowed_decisions": [
+    "BET",
+    "PASS",
+    "NO_BET",
+    "UNAVAILABLE"
+  ],
+  "ticket": {
+    "constituent_candidate_ids": [],
+    "displayed_combined_american_price": null,
+    "promo_state": "NONE",
+    "quote_timestamp": null
+  },
+  "rules": [
+    "Freeze candidate fields before kickoff.",
+    "Never copy FRIEND_ONLY price into the user executable ledger.",
+    "Cross-book comparisons require source and pre-kick timestamp.",
+    "Evaluate individual legs before ticket construction.",
+    "Keep promo and unboosted quote states separate.",
+    "Join outcomes only after pregame fields are frozen.",
+    "Do not infer ROI without exact frozen executable prices.",
+    "Do not use unverified public percentages."
+  ]
+}
