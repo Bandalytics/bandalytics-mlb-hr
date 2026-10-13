@@ -26,12 +26,15 @@ function choosePA(mean){
   const lo=Math.floor(mean),frac=mean-lo;
   return clamp(lo+(Math.random()<frac?1:0)+(Math.random()<.08?1:0)-(Math.random()<.06?1:0),3,7);
 }
-function draw(rates,mods={}){
+export function drawPlateAppearance(rates={},mods={}){
   const power=mods.power||1,hit=mods.hit||1,walk=mods.walk||1;
-  let p1=rates.single*hit,p2=rates.double*hit*power,p3=rates.triple*hit,phr=rates.hr*power,pbb=rates.bb*walk;
-  const total=p1+p2+p3+phr+pbb;
-  if(total>.72){const z=.72/total;p1*=z;p2*=z;p3*=z;phr*=z;pbb*=z}
-  const u=Math.random();let c=pbb;if(u<c)return'BB';c+=phr;if(u<c)return'HR';c+=p3;if(u<c)return'3B';c+=p2;if(u<c)return'2B';c+=p1;if(u<c)return'1B';return'OUT';
+  let p1=Math.max(0,rates.single||0)*hit,p2=Math.max(0,rates.double||0)*hit*power,p3=Math.max(0,rates.triple||0)*hit,phr=Math.max(0,rates.hr||0)*power,pbb=Math.max(0,rates.bb||0)*walk;
+  const pk=clamp(Number.isFinite(+rates.k)?+rates.k:0,0,1);
+  // Preserve the historical 72% cap on non-strikeout offensive outcomes,
+  // but never let those outcomes consume probability reserved for strikeouts.
+  const total=p1+p2+p3+phr+pbb,cap=Math.min(.72,1-pk);
+  if(total>cap&&total>0){const z=cap/total;p1*=z;p2*=z;p3*=z;phr*=z;pbb*=z}
+  const u=Math.random();let c=pk;if(u<c)return'K';c+=pbb;if(u<c)return'BB';c+=phr;if(u<c)return'HR';c+=p3;if(u<c)return'3B';c+=p2;if(u<c)return'2B';c+=p1;if(u<c)return'1B';return'OUT';
 }
 
 export function simulatePlayer({player={},stats={},bbe=null,teamExpectedRuns=4.45,opponentStarter={},parkHrFactor=1,sims=30000}={}){
@@ -49,13 +52,13 @@ export function simulatePlayer({player={},stats={},bbe=null,teamExpectedRuns=4.4
   for(let i=0;i<N;i++){
     const pa=choosePA(basePA);paSum+=pa;let hits=0,tb=0,hrs=0,bbs=0,ks=0,onbaseNonHr=0;
     for(let j=0;j<pa;j++){
-      const ev=draw(stats.rates||{}, {power,hit,walk:1});
+      const ev=drawPlateAppearance(stats.rates||{}, {power,hit,walk:1});
       if(ev==='BB'){bbs++;onbaseNonHr++}
       else if(ev==='HR'){hits++;tb+=4;hrs++}
       else if(ev==='3B'){hits++;tb+=3;onbaseNonHr++}
       else if(ev==='2B'){hits++;tb+=2;onbaseNonHr++}
       else if(ev==='1B'){hits++;tb+=1;onbaseNonHr++}
-      else if(Math.random()<(stats.rates?.k??.22))ks++;
+      else if(ev==='K')ks++;
     }
     let stole=false;
     for(let b=0;b<onbaseNonHr&&!stole;b++)if(Math.random()<clamp((stats.sbAttemptPerOnBase||.03)*(spot<=2?1.20:1),0,.35)&&Math.random()<(stats.sbSuccess||.78))stole=true;
