@@ -7,9 +7,10 @@ function lognormalMean1(sd,rng){return Math.exp(sd*normal(rng)-.5*sd*sd)}
 function paDraw(mean,rng){const lo=Math.floor(mean),frac=mean-lo;return clamp(lo+(rng()<frac?1:0)+(rng()<.08?1:0)-(rng()<.06?1:0),3,7)}
 function eventDraw(rates={},mods={},rng=Math.random){
  const power=mods.power||1,hit=mods.hit||1,walk=mods.walk||1;
- let p1=(rates.single??.145)*hit,p2=(rates.double??.045)*hit*power,p3=(rates.triple??.004)*hit,phr=(rates.hr??.031)*power,pbb=(rates.bb??.085)*walk;
- const total=p1+p2+p3+phr+pbb;if(total>.74){const z=.74/total;p1*=z;p2*=z;p3*=z;phr*=z;pbb*=z}
- let u=rng(),c=pbb;if(u<c)return'BB';c+=phr;if(u<c)return'HR';c+=p3;if(u<c)return'3B';c+=p2;if(u<c)return'2B';c+=p1;if(u<c)return'1B';return'OUT';
+ let p1=Math.max(0,rates.single??.145)*hit,p2=Math.max(0,rates.double??.045)*hit*power,p3=Math.max(0,rates.triple??.004)*hit,phr=Math.max(0,rates.hr??.031)*power,pbb=Math.max(0,rates.bb??.085)*walk;
+ const pk=clamp(Number.isFinite(+rates.k)?+rates.k:0,0,1),total=p1+p2+p3+phr+pbb,cap=Math.min(.74,1-pk);
+ if(total>cap&&total>0){const z=cap/total;p1*=z;p2*=z;p3*=z;phr*=z;pbb*=z}
+ let u=rng(),c=pk;if(u<c)return'K';c+=pbb;if(u<c)return'BB';c+=phr;if(u<c)return'HR';c+=p3;if(u<c)return'3B';c+=p2;if(u<c)return'2B';c+=p1;if(u<c)return'1B';return'OUT';
 }
 function basePower(stats,starter={},parkHrFactor=1,bbe=null){
  const pa=+stats.pa||0,shrink=pa<35?.35:pa<90?.65:pa<180?.82:1,seasonHr=stats.rates?.hr??.031,starterHr=Number.isFinite(+starter.HR9)?clamp((+starter.HR9)/1.20,.65,1.50):1;
@@ -22,7 +23,7 @@ function simulateOnePlayer(ctx,teamShock,gameShock,rng){
  let hits=0,tb=0,hrs=0,bbs=0,ks=0,onbaseNonHr=0;
  for(let j=0;j<pa;j++){
   const ev=eventDraw(stats.rates||{}, {power,hit,walk},rng);
-  if(ev==='BB'){bbs++;onbaseNonHr++}else if(ev==='HR'){hits++;tb+=4;hrs++}else if(ev==='3B'){hits++;tb+=3;onbaseNonHr++}else if(ev==='2B'){hits++;tb+=2;onbaseNonHr++}else if(ev==='1B'){hits++;tb++;onbaseNonHr++}else if(rng()<(stats.rates?.k??.22))ks++;
+  if(ev==='BB'){bbs++;onbaseNonHr++}else if(ev==='HR'){hits++;tb+=4;hrs++}else if(ev==='3B'){hits++;tb+=3;onbaseNonHr++}else if(ev==='2B'){hits++;tb+=2;onbaseNonHr++}else if(ev==='1B'){hits++;tb++;onbaseNonHr++}else if(ev==='K')ks++;
  }
  let sb=0;for(let b=0;b<onbaseNonHr&&!sb;b++)if(rng()<clamp((stats.sbAttemptPerOnBase||.03)*(spot<=2?1.20:1),0,.35)&&rng()<(stats.sbSuccess||.78))sb=1;
  return {hr:hrs>=1,hit1:hits>=1,hits2:hits>=2,tb2:tb>=2,tb3:tb>=3,tb4:tb>=4,walk1:bbs>=1,sb1:sb>=1,strikeouts2:ks>=2,hits,tb,hrs,bbs,ks,sb,pa};
