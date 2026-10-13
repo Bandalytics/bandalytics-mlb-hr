@@ -4,4 +4,5 @@ const st=hitterSnapshot({plateAppearances:500,atBats:450,hits:120,doubles:25,tri
 assert(st.rates.hr>.05&&st.rates.double>.04);
 const x=simulatePlayer({player:{player:'Test Bat',player_id:1,team:'TB',lineup:3},stats:st,teamExpectedRuns:5,opponentStarter:{HR9:1.5},parkHrFactor:1.1,sims:6000});
 assert(x.markets.hr.pct>0&&x.markets.hit1.pct>x.markets.hr.pct&&x.markets.tb2.pct>0);
+assert(x.markets.strikeouts2.pct>0, 'strikeout market must be produced by the player simulator');
 console.log('SIM PLAYER PASS');
