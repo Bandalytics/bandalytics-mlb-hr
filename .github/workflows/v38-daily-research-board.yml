@@ -27,8 +27,6 @@ on:
       - 'v38-pool-shortlist-v3.mjs'
       - 'test-v38-pool-shortlist-v3.mjs'
       - '.github/workflows/v38-daily-research-board.yml'
-  schedule:
-    - cron: '45 16,19,21,23 * * *'
   workflow_dispatch:
 permissions:
   contents: read
