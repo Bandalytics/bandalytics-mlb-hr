@@ -18,8 +18,6 @@ on:
       - 'v38-postgame-artifact-validity.mjs'
       - 'test-v38-postgame-artifact-validity.mjs'
       - '.github/workflows/v38-postgame-evaluation.yml'
-  schedule:
-    - cron: '13 6,8,10 * * *'
   workflow_dispatch:
     inputs:
       evaluation_date:
