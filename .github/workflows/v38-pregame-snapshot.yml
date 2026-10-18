@@ -1,7 +1,5 @@
 name: v38 Pregame Snapshot
 on:
-  schedule:
-    - cron: '11 14 * * *'
   workflow_dispatch:
   push:
     paths:
