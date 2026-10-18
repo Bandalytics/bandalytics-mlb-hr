@@ -1,7 +1,5 @@
 name: v38 Park Factor Snapshot
 on:
-  schedule:
-    - cron: '5 14 * * *'
   workflow_dispatch:
   push:
     branches: [main]
