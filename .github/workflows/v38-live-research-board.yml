@@ -1,10 +1,6 @@
 name: v38 Live Research Board
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ['v38 Pregame Snapshot','v38 Context Snapshot','v38 Park Factor Snapshot','v38 Pitchfit Distribution','v38 Recent BBE Distribution']
-    types: [completed]
-    branches: [main]
   push:
     branches: [main]
     paths:
