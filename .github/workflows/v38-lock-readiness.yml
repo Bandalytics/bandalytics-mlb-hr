@@ -1,9 +1,5 @@
 name: v38 Lock Readiness
 on:
-  workflow_run:
-    workflows: ['v38 Live Research Board']
-    types: [completed]
-    branches: [main]
   push:
     branches: [main]
     paths:
