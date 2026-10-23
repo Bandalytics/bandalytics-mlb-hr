@@ -13,8 +13,6 @@ on:
       - 'starter-native-core.mjs'
       - 'native-feed-core.mjs'
       - '.github/workflows/v38-starter-damage-snapshot.yml'
-  schedule:
-    - cron: '25 16,19,21,23 * * *'
   workflow_dispatch:
 permissions:
   contents: read
