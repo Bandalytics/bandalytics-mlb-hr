@@ -1,7 +1,5 @@
 name: v38 Promotion Readiness
 on:
-  schedule:
-    - cron: '30 10 * * *'
   workflow_dispatch:
   workflow_run:
     workflows: ['v38 Historical Convergence']
