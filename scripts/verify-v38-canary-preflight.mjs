@@ -22,6 +22,9 @@ if(z.roi_status!=='READY_FOR_POST_SLATE_SETTLEMENT') throw Error('freeze not set
 const r=z.readiness||{};
 for(const k of ['candidate_pool_frozen','serious_board_share_compliant','slate_band_holdout_aligned','all_ticket_legs_priced','all_ticket_stakes_frozen','all_zero_paths_explained','cross_game_only','ticket_budget_compliant','path_caps_compliant']) if(r[k]!==true) throw Error(`readiness gate failed: ${k}`);
 if(!Array.isArray(z.tickets_detail)||z.tickets_detail.length!==tickets) throw Error('ticket detail mismatch');
+const verifiedAt=new Date().toISOString();
+const verificationMs=Date.parse(verifiedAt);
+let earliestStart=Infinity;
 let stake=0;
 for(const t of z.tickets_detail){
   if(!Array.isArray(t.player_ids)||t.player_ids.length!==2||!Array.isArray(t.legs)||t.legs.length!==2) throw Error(`bad ticket detail ${t.ticket_index}`);
@@ -30,12 +33,14 @@ for(const t of z.tickets_detail){
   for(const leg of t.legs){
     const boardRow=(z.serious_board||[]).find(x=>Number(x.player_id)===Number(leg.player_id));
     const captured=Date.parse(leg?.price?.captured_at), start=Date.parse(boardRow?.start_time);
+    if(Number.isFinite(start)) earliestStart=Math.min(earliestStart,start);
     if(!leg?.price||!Number.isFinite(Number(leg.price.american_odds))||!Number.isFinite(captured)||captured>Date.parse(z.frozen_at)||!Number.isFinite(start)||captured>=start) throw Error(`invalid frozen leg price ${t.ticket_index}`);
   }
   stake+=Number(t.stake_units);
 }
 if(+stake.toFixed(4)!==+Number(z.total_stake_units).toFixed(4)) throw Error('frozen stake total mismatch');
-const output={protocol:'V38_CANARY_PREFLIGHT_V1',date:z.date,verified_at:new Date().toISOString(),canary_only:true,production_normal_volume:false,source_freeze_sha256:z.sha256,architecture_contract:z.architecture_contract,candidate_pool_rows:candidateN,serious_board_rows:seriousN,expected_ticket_budget:expectedBudget,tickets,total_stake_units:+stake.toFixed(4),status:'READY_FOR_CONTROLLED_FORWARD_CANARY',normal_volume_enable:false,notes:['This preflight is fail-closed and validates only operational integrity/comparability.','It does not change Core/profile rules, protected 4/6 requirements, ranking, ticket architecture, or production volume.','Full holdout-comparable ticket budget, frozen prices, frozen stakes, provenance hash, and readiness flags are all required.']};
+if(!Number.isFinite(earliestStart)||verificationMs>=earliestStart) throw Error('preflight verification must precede earliest ticketed first pitch');
+const output={protocol:'V38_CANARY_PREFLIGHT_V1',date:z.date,verified_at:verifiedAt,canary_only:true,production_normal_volume:false,source_freeze_sha256:z.sha256,architecture_contract:z.architecture_contract,candidate_pool_rows:candidateN,serious_board_rows:seriousN,expected_ticket_budget:expectedBudget,tickets,total_stake_units:+stake.toFixed(4),status:'READY_FOR_CONTROLLED_FORWARD_CANARY',normal_volume_enable:false,notes:['This preflight is fail-closed and validates only operational integrity/comparability.','It does not change Core/profile rules, protected 4/6 requirements, ranking, ticket architecture, or production volume.','Full holdout-comparable ticket budget, frozen prices, frozen stakes, provenance hash, and readiness flags are all required.']};
 const {sha256:_,...outBody}=output; output.sha256=crypto.createHash('sha256').update(JSON.stringify(outBody)).digest('hex');
 const outPath=outPathArg||`snapshots/v38-canary-preflight-${z.date}.json`;
 fs.mkdirSync(outPath.split('/').slice(0,-1).join('/')||'.',{recursive:true});fs.writeFileSync(outPath,JSON.stringify(output,null,2)+'\n');
